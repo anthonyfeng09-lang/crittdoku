@@ -53,7 +53,12 @@ export interface Rules {
   endScoring: EndScoring;
 }
 
-export const DEFAULT_RULES: Rules = { endScoring: "sweep" };
+/** Territory scoring is the base game (see FINDINGS.md): the grid almost
+ *  always deadlocks before it fills, so unclaimed regions are settled by
+ *  who holds the most cells in them. Completing a region during play still
+ *  claims + locks it early, which is now a tactical bonus rather than the
+ *  main point source. */
+export const DEFAULT_RULES: Rules = { endScoring: "majority" };
 
 export interface GameState {
   config: BoardConfig;

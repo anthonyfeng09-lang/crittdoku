@@ -9,6 +9,8 @@ import {
   hasLegalMove,
   isLegal,
   legalMoves,
+  projectedScore,
+  territoryHolder,
 } from "./index";
 
 const cell = (r: number, c: number, size = 9) => r * size + c;
@@ -100,37 +102,66 @@ describe("claiming", () => {
 });
 
 describe("end conditions", () => {
-  it("stuck player: opponent sweeps every unclaimed region", () => {
-    // Force an early deadlock on a tiny surface is hard on 9x9; instead
-    // drive a 6x6 game to completion and assert consistency.
-    const s = createGame({ config: CONFIG_6x6 });
+  const playOut = (opts: Parameters<typeof createGame>[0]) => {
+    const s = createGame(opts);
     let guard = 0;
-    while (s.status === "playing" && guard++ < 40) {
-      const moves = legalMoves(s);
-      applyMove(s, moves[0]);
-    }
+    while (s.status === "playing" && guard++ < 40) applyMove(s, legalMoves(s)[0]);
+    return s;
+  };
+
+  it('"sweep" rule: the player who still had a move takes every unclaimed region', () => {
+    const s = playOut({ config: CONFIG_6x6, rules: { endScoring: "sweep" } });
     expect(s.status).toBe("ended");
-    // every region must be claimed by someone once the game is over
     expect(s.regions.every((r) => r.claimedBy !== null)).toBe(true);
-    const totalClaims = s.score[0] + s.score[1];
-    expect(totalClaims).toBe(s.regions.length);
+    expect(s.score[0] + s.score[1]).toBe(s.regions.length);
   });
 
-  it("winner is whoever claimed more regions", () => {
-    const s = createGame({ config: CONFIG_6x6 });
-    let guard = 0;
-    while (s.status === "playing" && guard++ < 40) {
-      applyMove(s, legalMoves(s)[0]);
-    }
+  it('"majority" rule (default): unclaimed regions go to the cell-count leader, ties to nobody', () => {
+    const s = playOut({ config: CONFIG_6x6 });
+    expect(s.rules.endScoring).toBe("majority");
+    expect(s.status).toBe("ended");
+    // score matches the sum of per-region territory holders
+    const proj = s.regions.reduce(
+      (acc, r) => {
+        const h = territoryHolder(s, r);
+        if (h !== null) acc[h]++;
+        return acc;
+      },
+      [0, 0],
+    );
+    expect(s.score).toEqual(proj);
+  });
+
+  it('"keep" rule: only regions claimed in play score', () => {
+    const s = playOut({ config: CONFIG_6x6, rules: { endScoring: "keep" } });
+    const claimedInPlay = s.regions.filter(
+      (r) => r.claimedBy !== null && r.filled === s.config.size,
+    ).length;
+    expect(s.score[0] + s.score[1]).toBe(claimedInPlay);
+  });
+
+  it("winner is whoever holds more regions", () => {
+    const s = playOut({ config: CONFIG_6x6 });
     if (s.score[0] === s.score[1]) expect(s.winner).toBe("draw");
     else expect(s.winner).toBe(s.score[0] > s.score[1] ? 0 : 1);
   });
 
   it("rejects moves after the game has ended", () => {
-    const s = createGame({ config: CONFIG_6x6 });
-    let guard = 0;
-    while (s.status === "playing" && guard++ < 40) applyMove(s, legalMoves(s)[0]);
+    const s = playOut({ config: CONFIG_6x6 });
     expect(() => applyMove(s, { cell: 0, digit: 1 })).toThrow();
+  });
+});
+
+describe("territory", () => {
+  it("projectedScore tracks live territory before the freeze", () => {
+    const s = createGame();
+    applyMove(s, { cell: cell(0, 0), digit: 1 }); // p0 in row 0
+    applyMove(s, { cell: cell(0, 1), digit: 2 }); // p1 in row 0
+    applyMove(s, { cell: cell(0, 2), digit: 3 }); // p0 in row 0 -> p0 leads row 0
+    const row0 = s.regions.find((r) => r.kind === "row" && r.index === 0)!;
+    expect(territoryHolder(s, row0)).toBe(0);
+    const proj = projectedScore(s);
+    expect(proj[0]).toBeGreaterThan(proj[1]);
   });
 });
 

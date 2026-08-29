@@ -59,13 +59,63 @@ are decided by the end-of-game settlement, not by gameplay.
 5. Add a stronger bot (minimax/MCTS) to the sim to confirm the skill ceiling
    under majority scoring before committing.
 
+---
+
+# Milestone 2 — territory scoring adopted
+
+`endScoring: "majority"` is now the engine default. Completing a region in
+play claims + **locks** it (a tactical bonus); everything else is settled at
+the freeze by cell-count majority. Added `territoryBot` (greedy on
+frozen-now score) and `mobilityBot` (territory value, then keep the board
+alive), a best-of-2 match mode (first move swapped, aggregate score), and
+`projectedScore` / `territoryHolder` for the live UI.
+
+Sim: 400 matches/scenario, `sim-results/report-m2.md`.
+
+## What changed vs the v1 sweep rule
+
+| metric | v1 sweep | v2 majority (skilled mirror) |
+|---|---|---|
+| avg score margin (9x9, /27) | **~26** | **~1.6** |
+| last-mover win rate | **100%** | ~70–75% |
+| skill: territory bot vs random | 50% (none) | **80–100%**, +7 margin |
+| match draws (mirror, bo2) | 0% | 13–20% |
+
+- **The core loop now rewards skill.** A territory-seeking bot beats a random
+  bot 80–100% of matches. Games are close (margin ~1.6 of 27), not blowouts.
+- **The grid still deadlocks 100% of the time** — even the mobility bot that
+  tries to keep it alive can't force a fill (and often ends games *sooner*
+  by taking favourable terminal positions). Territory scoring accepts this
+  by design.
+- **Best-of-2 neutralizes the first-move edge.** Going first is worth ~75% at
+  the single-leg level; a match of two legs with the first move swapped comes
+  out ~balanced (40/42/18 A/B/draw in mirrors).
+
+## Remaining concerns for the animal/energy layer
+
+1. **Tempo still matters a lot.** Last-mover win rate is ~72% in skilled play
+   — softened from 100% but not gone. bo2 fixes first-move, not last-move.
+   Energy abilities that manipulate the freeze timing (lock a cell, delay a
+   region, extra placement) will swing this further; watch it doesn't snap
+   back to a tempo-decides game.
+2. **Draw rate.** Mirror bo2 draws 13–20%. Needs a tiebreak — locked-region
+   count, then energy, then first-leg result.
+3. **Deadlock timing is the real skill.** ~55–65 plies on 9x9 with wide
+   variance. The interesting decision is *when* to let the board freeze and
+   with what territory split — abilities should lean into that, not paper
+   over it.
+4. Still worth an MCTS bot to confirm the skill ceiling before committing 9
+   passives.
+
+---
+
 ## Repro
 
 ```bash
 npm install
-npm test                      # engine tests
-npm run sim                   # full matrix -> sim-results/report.md
-GAMES=20000 npm run sim       # tighter numbers
+npm test                      # engine tests (15)
+npm run sim                   # milestone-2 matrix -> sim-results/report-m2.md
+MATCHES=2000 npm run sim      # tighter numbers
 npx tsx src/sim/diagnose.ts   # deadlock sanity check
-npm run dev                   # hot-seat UI (grid/seed/scoring not yet wired to UI selector)
+npm run dev                   # hot-seat UI (grid / seeds / freeze-rule selectors)
 ```

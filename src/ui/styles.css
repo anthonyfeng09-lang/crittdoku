@@ -93,13 +93,27 @@ h1 {
   outline-offset: -2px;
 }
 
-.cell.claim0 {
+/* faint = current territory leader, strong = region locked by completion */
+.cell.t0 {
+  background: rgba(143, 174, 155, 0.12);
+}
+.cell.t1 {
+  background: rgba(200, 160, 138, 0.12);
+}
+.cell.t01 {
+  background: linear-gradient(
+    135deg,
+    rgba(143, 174, 155, 0.12) 50%,
+    rgba(200, 160, 138, 0.12) 50%
+  );
+}
+.cell.t0.tstrong {
   background: var(--p0-tint);
 }
-.cell.claim1 {
+.cell.t1.tstrong {
   background: var(--p1-tint);
 }
-.cell.claim01 {
+.cell.t01.tstrong {
   background: linear-gradient(135deg, var(--p0-tint) 50%, var(--p1-tint) 50%);
 }
 
@@ -158,6 +172,9 @@ h1 {
 }
 .scores .s {
   color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 .scores b {
   color: var(--ink);

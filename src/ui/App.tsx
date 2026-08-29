@@ -3,30 +3,36 @@ import {
   BoardConfig,
   CONFIG_6x6,
   CONFIG_9x9,
+  EndScoring,
   GameState,
   applyMove,
   cloneState,
   createGame,
   generateSeeds,
   isLegal,
+  projectedScore,
   regionLabel,
+  territoryHolder,
 } from "../engine";
 import { makeRng } from "../engine/rng";
-import { greedyBot } from "../sim/bots";
+import { territoryBot } from "../sim/bots";
 
 type Size = "9" | "6";
 
-function newGame(size: Size, seedCount: number): GameState {
+function newGame(size: Size, seedCount: number, endScoring: EndScoring): GameState {
   const config: BoardConfig = size === "9" ? CONFIG_9x9 : CONFIG_6x6;
   const rng = makeRng((Date.now() ^ (seedCount * 2654435761)) >>> 0);
   const seeds = generateSeeds(config, seedCount, rng);
-  return createGame({ config, seeds, firstPlayer: 0 });
+  return createGame({ config, rules: { endScoring }, seeds, firstPlayer: 0 });
 }
 
 export function App() {
   const [size, setSize] = useState<Size>("9");
   const [seedCount, setSeedCount] = useState(6);
-  const [game, setGame] = useState<GameState>(() => newGame("9", 6));
+  const [scoring, setScoring] = useState<EndScoring>("majority");
+  const [game, setGame] = useState<GameState>(() =>
+    newGame("9", 6, "majority"),
+  );
   const [sel, setSel] = useState<number | null>(null);
   const [auto, setAuto] = useState(false);
   const botRng = useRef(makeRng(12345));
@@ -35,12 +41,12 @@ export function App() {
   const box = game.config.box;
 
   const reset = useCallback(
-    (s: Size = size, sc: number = seedCount) => {
-      setGame(newGame(s, sc));
+    (s: Size = size, sc: number = seedCount, sco: EndScoring = scoring) => {
+      setGame(newGame(s, sc, sco));
       setSel(null);
       setAuto(false);
     },
-    [size, seedCount],
+    [size, seedCount, scoring],
   );
 
   const commit = useCallback((next: GameState) => {
@@ -49,8 +55,7 @@ export function App() {
 
   const play = useCallback(
     (cell: number, digit: number) => {
-      if (game.status !== "playing") return;
-      if (!isLegal(game, cell, digit)) return;
+      if (game.status !== "playing" || !isLegal(game, cell, digit)) return;
       applyMove(game, { cell, digit });
       commit(game);
       setSel(null);
@@ -60,15 +65,14 @@ export function App() {
 
   const botMove = useCallback(() => {
     if (game.status !== "playing") return;
-    const move = greedyBot.choose(game, botRng.current);
-    applyMove(game, move);
+    applyMove(game, territoryBot.choose(game, botRng.current));
     commit(game);
     setSel(null);
   }, [game, commit]);
 
   useEffect(() => {
     if (!auto || game.status !== "playing") return;
-    const t = setTimeout(botMove, 350);
+    const t = setTimeout(botMove, 300);
     return () => clearTimeout(t);
   }, [auto, game, botMove]);
 
@@ -79,56 +83,62 @@ export function App() {
     return out;
   }, [sel, game, size_]);
 
-  const cellOwners = useMemo(() => {
-    const owners: Array<0 | 1 | 2 | 3> = []; // bitmask: 1=p0, 2=p1
+  // per-cell tint: strong if the covering region is claimed/locked, faint
+  // if it is merely the current territory leader
+  const cellTint = useMemo(() => {
+    const out: string[] = [];
     for (let cell = 0; cell < size_ * size_; cell++) {
-      let mask = 0;
+      let claimMask = 0;
+      let leadMask = 0;
       for (let k = 0; k < 3; k++) {
-        const rid = game.cellRegions[cell * 3 + k];
-        const o = game.regions[rid].claimedBy;
-        if (o === 0) mask |= 1;
-        else if (o === 1) mask |= 2;
+        const region = game.regions[game.cellRegions[cell * 3 + k]];
+        if (region.claimedBy === 0) claimMask |= 1;
+        else if (region.claimedBy === 1) claimMask |= 2;
+        const h = territoryHolder(game, region);
+        if (h === 0) leadMask |= 1;
+        else if (h === 1) leadMask |= 2;
       }
-      owners.push(mask as 0 | 1 | 2 | 3);
+      const m = claimMask || leadMask;
+      const strong = claimMask !== 0;
+      out.push(
+        (m === 1 ? "t0" : m === 2 ? "t1" : m === 3 ? "t01" : "") +
+          (strong && m ? " tstrong" : ""),
+      );
     }
-    return owners;
+    return out;
   }, [game, size_]);
 
+  const live = projectedScore(game);
   const lastCell =
-    game.history.length > 0
-      ? game.history[game.history.length - 1].cell
-      : -1;
-
+    game.history.length > 0 ? game.history[game.history.length - 1].cell : -1;
   const claimedRegions = game.regions.filter((r) => r.claimedBy !== null);
 
   return (
     <div className="wrap">
       <h1>DENDOKU</h1>
       <p className="sub">
-        A quiet contest over a shared grid. Place a digit anywhere it does not
-        repeat in its row, column, or box. Complete a region — a full row,
-        column, or box — to claim it.
+        A quiet contest over a shared grid. Place a digit where it does not
+        repeat in its row, column, or box. When play freezes, each region goes
+        to whoever holds the most cells in it — complete a region to lock it
+        early.
       </p>
 
       <div className="layout">
         <div
           className="board"
-          style={{
-            gridTemplateColumns: `repeat(${size_}, 44px)`,
-          }}
+          style={{ gridTemplateColumns: `repeat(${size_}, 44px)` }}
         >
           {Array.from({ length: size_ * size_ }, (_, cell) => {
             const r = Math.floor(cell / size_);
             const c = cell % size_;
             const v = game.grid[cell];
             const filled = v !== 0;
-            const owner = cellOwners[cell];
             const cls = [
               "cell",
               filled ? "filled" : "",
               game.seeded[cell] ? "seeded" : "",
               sel === cell ? "sel" : "",
-              owner === 1 ? "claim0" : owner === 2 ? "claim1" : owner === 3 ? "claim01" : "",
+              cellTint[cell],
               (c + 1) % box.cols === 0 && c < size_ - 1 ? "box-r" : "",
               (r + 1) % box.rows === 0 && r < size_ - 1 ? "box-b" : "",
             ]
@@ -153,9 +163,7 @@ export function App() {
             {game.status === "playing" ? (
               <div className="turn">
                 <span className={`dot p${game.current}`} />
-                <span>
-                  {game.current === 0 ? "Sage" : "Clay"} to move
-                </span>
+                <span>{game.current === 0 ? "Sage" : "Clay"} to move</span>
               </div>
             ) : (
               <div className="banner">
@@ -165,7 +173,7 @@ export function App() {
                 <span style={{ color: "var(--ink-soft)" }}>
                   (
                   {game.endReason === "no-legal-move"
-                    ? "no legal move remained"
+                    ? "play froze"
                     : "grid complete"}
                   )
                 </span>
@@ -174,25 +182,27 @@ export function App() {
 
             <div className="scores">
               <div className="s">
-                Sage regions <b>{game.score[0]}</b>
+                <span className="dot p0" /> Sage{" "}
+                <b>{game.status === "playing" ? live[0] : game.score[0]}</b>
               </div>
               <div className="s">
-                Clay regions <b>{game.score[1]}</b>
+                <span className="dot p1" /> Clay{" "}
+                <b>{game.status === "playing" ? live[1] : game.score[1]}</b>
+              </div>
+              <div className="s" style={{ alignSelf: "center" }}>
+                of {game.regions.length}
               </div>
             </div>
-            <div className="scores">
-              <div className="s">
-                Sage energy <b>{game.energy[0]}</b>
+            {game.status === "playing" && (
+              <div className="hint" style={{ marginTop: 4 }}>
+                regions if play froze now · energy {game.energy[0]} / {game.energy[1]}
               </div>
-              <div className="s">
-                Clay energy <b>{game.energy[1]}</b>
-              </div>
-            </div>
+            )}
 
             {sel !== null && game.status === "playing" && (
               <>
                 <div className="hint">
-                  Cell r{Math.floor(sel / size_) + 1} c{(sel % size_) + 1} —
+                  cell r{Math.floor(sel / size_) + 1} c{(sel % size_) + 1} —
                   choose a digit:
                 </div>
                 <div className="picker">
@@ -243,6 +253,21 @@ export function App() {
                   ))}
                 </select>
               </label>
+              <label>
+                freeze
+                <select
+                  value={scoring}
+                  onChange={(e) => {
+                    const v = e.target.value as EndScoring;
+                    setScoring(v);
+                    reset(size, seedCount, v);
+                  }}
+                >
+                  <option value="majority">majority</option>
+                  <option value="keep">keep</option>
+                  <option value="sweep">sweep (v1)</option>
+                </select>
+              </label>
             </div>
             <div className="controls" style={{ marginTop: 8 }}>
               <button onClick={botMove} disabled={game.status !== "playing"}>
@@ -259,7 +284,7 @@ export function App() {
 
           <div className="panel">
             <div className="hint" style={{ marginTop: 0, marginBottom: 6 }}>
-              Claimed regions
+              Locked regions (completed in play)
             </div>
             <div className="log">
               {claimedRegions.length === 0 && <div>none yet</div>}

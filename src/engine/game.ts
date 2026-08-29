@@ -292,15 +292,8 @@ function settleRegion(
       return other(stuckPlayer);
     case "keep":
       return null;
-    case "majority": {
-      let a = 0;
-      let b = 0;
-      for (const cell of region.cells) {
-        if (state.placedBy[cell] === 0) a++;
-        else if (state.placedBy[cell] === 1) b++;
-      }
-      return a === b ? null : a > b ? 0 : 1;
-    }
+    case "majority":
+      return territoryHolder(state, region);
   }
 }
 
@@ -363,4 +356,32 @@ export function rc(state: GameState, cell: number): { r: number; c: number } {
 
 export function regionLabel(region: Region): string {
   return `${region.kind} ${region.index + 1}`;
+}
+
+/** Who currently holds the most cells in a region (null = tied/empty).
+ *  For a claimed region this is just the owner. Drives the live UI and the
+ *  "majority" end settlement. */
+export function territoryHolder(
+  state: GameState,
+  region: Region,
+): Player | null {
+  if (region.claimedBy !== null) return region.claimedBy;
+  let a = 0;
+  let b = 0;
+  for (const cell of region.cells) {
+    if (state.placedBy[cell] === 0) a++;
+    else if (state.placedBy[cell] === 1) b++;
+  }
+  return a === b ? null : a > b ? 0 : 1;
+}
+
+/** Score the game would show if it froze right now (claimed regions plus
+ *  current territory leaders). Useful for UI and bot evaluation. */
+export function projectedScore(state: GameState): [number, number] {
+  const s: [number, number] = [0, 0];
+  for (const region of state.regions) {
+    const h = territoryHolder(state, region);
+    if (h !== null) s[h]++;
+  }
+  return s;
 }
