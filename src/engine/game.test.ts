@@ -140,10 +140,14 @@ describe("end conditions", () => {
     expect(s.score[0] + s.score[1]).toBe(claimedInPlay);
   });
 
-  it("winner is whoever holds more regions", () => {
+  it("winner is whoever holds more regions (ties broken by locked regions, then energy)", () => {
     const s = playOut({ config: CONFIG_6x6 });
-    if (s.score[0] === s.score[1]) expect(s.winner).toBe("draw");
-    else expect(s.winner).toBe(s.score[0] > s.score[1] ? 0 : 1);
+    expect(s.winner).not.toBeNull();
+    if (s.winner === "draw" || s.winner === null) {
+      expect(s.score[0]).toBe(s.score[1]);
+    } else {
+      expect(s.score[s.winner]).toBeGreaterThanOrEqual(s.score[1 - s.winner]);
+    }
   });
 
   it("rejects moves after the game has ended", () => {

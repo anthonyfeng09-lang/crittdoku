@@ -163,6 +163,7 @@ export function createGame(opts: CreateOptions = {}): GameState {
     staleTurns: 0,
     current: opts.firstPlayer ?? 0,
     pendingExtra: false,
+    skipNext: [false, false],
     score: [0, 0],
     energy: [0, 0],
     status: "playing",
@@ -246,6 +247,29 @@ function regionsClaimed(state: GameState, cell: number): boolean {
   return false;
 }
 
+/** would putting an active digit in `cell` complete (fill) a region? */
+function wouldComplete(state: GameState, cell: number): boolean {
+  for (let k = 0; k < 3; k++) {
+    const region = state.regions[state.cellRegions[cell * 3 + k]];
+    if (region.claimedBy === null && region.filled === state.config.size - 1) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** is `cell` in a region the given player is contesting — leading on
+ *  territory, or one move from completing? (gates Mole) */
+function contestedBy(state: GameState, cell: number, player: Player): boolean {
+  for (let k = 0; k < 3; k++) {
+    const region = state.regions[state.cellRegions[cell * 3 + k]];
+    if (region.claimedBy !== null) continue;
+    if (region.filled === state.config.size - 1) return true;
+    if (territoryHolder(state, region) === player) return true;
+  }
+  return false;
+}
+
 /** Can `by` place `digit` onto the already-occupied `cell`, removing what's
  *  there? (Mole) */
 function canReplace(
@@ -261,6 +285,9 @@ function canReplace(
   if (isPermanent(state, cell)) return false;
   if (animalAt(state, cell)?.regrowIfRemoved === true) return false;
   if (regionsClaimed(state, cell)) return false;
+  // Mole must matter: the target has to sit in a region the victim is
+  // contesting, not just any stray cell
+  if (!contestedBy(state, cell, victim as Player)) return false;
   // the new digit must be legal once the victim is gone
   const vbit = 1 << state.grid[cell];
   const bit = 1 << digit;
@@ -294,8 +321,10 @@ export function legalActions(state: GameState): Action[] {
       for (let d = 1; d <= size; d++) {
         if (isLegal(state, cell, d)) out.push({ type: "place", cell, digit: d });
       }
-      for (const d of larkDigits) {
-        out.push({ type: "place", cell, digit: d, wild: true });
+      if (larkDigits.length && !wouldComplete(state, cell)) {
+        for (const d of larkDigits) {
+          out.push({ type: "place", cell, digit: d, wild: true });
+        }
       }
     } else if (moleDigits.length && state.placedBy[cell] === other(by)) {
       for (const d of moleDigits) {
@@ -307,15 +336,17 @@ export function legalActions(state: GameState): Action[] {
   }
 
   // Sparrow hops
-  for (let cell = 0; cell < state.grid.length; cell++) {
-    if (state.placedBy[cell] !== by || !isActive(state, cell)) continue;
-    if (animalAt(state, cell)?.moveAdjacent !== true) continue;
-    if (regionsClaimed(state, cell)) continue;
-    const digit = state.grid[cell];
-    for (const to of adjacentCells(state, cell)) {
-      if (state.grid[to] !== 0) continue;
-      if (moveLegal(state, cell, to, digit)) {
-        out.push({ type: "move", from: cell, to });
+  if (state.charges[by].hops > 0) {
+    for (let cell = 0; cell < state.grid.length; cell++) {
+      if (state.placedBy[cell] !== by || !isActive(state, cell)) continue;
+      if (animalAt(state, cell)?.moveAdjacent !== true) continue;
+      if (regionsClaimed(state, cell)) continue;
+      const digit = state.grid[cell];
+      for (const to of adjacentCells(state, cell)) {
+        if (state.grid[to] !== 0) continue;
+        if (moveLegal(state, cell, to, digit) && !wouldComplete(state, to)) {
+          out.push({ type: "move", from: cell, to });
+        }
       }
     }
   }
@@ -462,15 +493,18 @@ export function applyAction(state: GameState, action: Action): GameState {
     const { from, to } = action;
     const digit = state.grid[from];
     if (
+      state.charges[by].hops <= 0 ||
       state.placedBy[from] !== by ||
       !isActive(state, from) ||
       animalAt(state, from)?.moveAdjacent !== true ||
       regionsClaimed(state, from) ||
       !adjacentCells(state, from).includes(to) ||
-      !moveLegal(state, from, to, digit)
+      !moveLegal(state, from, to, digit) ||
+      wouldComplete(state, to)
     ) {
       throw new Error(`illegal move ${from} -> ${to}`);
     }
+    state.charges[by].hops -= 1;
     clearCell(state, from);
     claimed = fillCell(state, to, digit, by, false, state.turn);
     state.energy[by] += ENERGY_PER_PLACE;
@@ -481,7 +515,8 @@ export function applyAction(state: GameState, action: Action): GameState {
       if (
         !state.charges[by].lark ||
         animalFor(state, by, digit)?.wildOncePerGame !== true ||
-        state.grid[cell] !== 0
+        state.grid[cell] !== 0 ||
+        wouldComplete(state, cell)
       ) {
         throw new Error("illegal wild placement");
       }
@@ -564,7 +599,10 @@ export function applyAction(state: GameState, action: Action): GameState {
     state.pendingExtra = false;
   }
 
-  if (wasPendingExtra) state.pendingExtra = false;
+  if (wasPendingExtra) {
+    state.pendingExtra = false;
+    state.skipNext[by] = true; // the Wren burst costs the next turn
+  }
 
   state.current = other(by);
   beginTurn(state);
@@ -573,6 +611,13 @@ export function applyAction(state: GameState, action: Action): GameState {
 
 function beginTurn(state: GameState): GameState {
   const p = state.current;
+
+  // a forfeited turn (Wren burst) — hand it straight back
+  if (state.skipNext[p]) {
+    state.skipNext[p] = false;
+    state.current = other(p);
+    return beginTurn(state);
+  }
 
   // wake this player's dormant cells placed on an earlier turn
   for (let cell = 0; cell < state.grid.length; cell++) {
@@ -650,13 +695,26 @@ function endGame(
   }
   state.status = "ended";
   state.endReason = reason;
-  state.winner =
-    state.score[0] === state.score[1]
-      ? "draw"
-      : state.score[0] > state.score[1]
-        ? 0
-        : 1;
+  state.winner = decideWinner(state);
   return state;
+}
+
+/** regions total, then — on a tie — regions locked in play, then energy */
+function decideWinner(state: GameState): Player | "draw" {
+  if (state.score[0] !== state.score[1]) {
+    return state.score[0] > state.score[1] ? 0 : 1;
+  }
+  const locked: [number, number] = [0, 0];
+  for (const r of state.regions) {
+    if (r.claimedBy !== null && r.filled === state.config.size) {
+      locked[r.claimedBy]++;
+    }
+  }
+  if (locked[0] !== locked[1]) return locked[0] > locked[1] ? 0 : 1;
+  if (state.energy[0] !== state.energy[1]) {
+    return state.energy[0] > state.energy[1] ? 0 : 1;
+  }
+  return "draw";
 }
 
 /* ------------------------------------------------------------------ *
@@ -679,6 +737,7 @@ export function cloneState(state: GameState): GameState {
       Charges,
     ],
     regrow: state.regrow.map((e) => ({ ...e })),
+    skipNext: [state.skipNext[0], state.skipNext[1]],
     score: [state.score[0], state.score[1]],
     energy: [state.energy[0], state.energy[1]],
     history: state.history.slice(),

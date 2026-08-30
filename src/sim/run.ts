@@ -158,16 +158,19 @@ function main() {
   const rows: Agg[] = [];
   const arche = Object.keys(ARCHETYPES) as Array<keyof typeof ARCHETYPES>;
 
+  const A = bots.animal;
   // 1. skill check + baseline end-reason distribution
-  rows.push(run({ seedCount: 6, loadoutA: "mirror-random", loadoutB: "mirror-random", botA: bots.animal, botB: bots["random+"] }, LEGS));
-  rows.push(run({ seedCount: 6, loadoutA: "mirror-random", loadoutB: "mirror-random", botA: bots.animal, botB: bots.animal }, LEGS));
-  rows.push(run({ seedCount: 6, loadoutA: "random", loadoutB: "random", botA: bots.animal, botB: bots.animal }, LEGS));
+  rows.push(run({ seedCount: 6, loadoutA: "mirror-random", loadoutB: "mirror-random", botA: A, botB: bots["random+"] }, LEGS));
+  rows.push(run({ seedCount: 6, loadoutA: "random", loadoutB: "random", botA: A, botB: A }, LEGS));
 
-  // 2. archetype matchup matrix (animal bot both sides)
+  // 2. archetype balance: every mirror + every ordered asymmetric pair once
   for (const a of arche) {
-    for (const b of arche) {
+    rows.push(run({ seedCount: 6, loadoutA: a, loadoutB: a, botA: A, botB: A }, LEGS));
+  }
+  for (let i = 0; i < arche.length; i++) {
+    for (let j = i + 1; j < arche.length; j++) {
       rows.push(
-        run({ seedCount: 6, loadoutA: a, loadoutB: b, botA: bots.animal, botB: bots.animal }, LEGS),
+        run({ seedCount: 6, loadoutA: arche[i], loadoutB: arche[j], botA: A, botB: A }, LEGS),
       );
     }
   }

@@ -384,6 +384,12 @@ function Board({
                       {ch}
                     </span>
                   ))}
+                  <span
+                    className={`chip ${game.charges[p].hops > 0 ? "on" : "off"}`}
+                  >
+                    hop ×{game.charges[p].hops}
+                  </span>
+                  {game.skipNext[p] && <span className="chip off">skip</span>}
                 </span>
               ))}
             </div>

@@ -177,6 +177,26 @@ the direction is real.
 
 ---
 
+# Milestone 3a - roster nerfs
+
+Nerfed the four dominant passives: Wren (extra placement now forfeits your
+next turn), Mole (only on a cell in a region the victim is contesting), Lark
+(wild placement cannot complete a region), Sparrow (2 hops per match, cannot
+complete a region). Added a draw tiebreak (regions locked in play, then
+energy). `sim-results/report-m3a.md`.
+
+Result: **mirrors are now balanced (44-49) and last-mover drops to ~50% for
+the anchor/economy mirrors** (tempo mirror still ~65%). Draw rate ~6%. But
+**the tempo team still beats anchor 99% and economy 96%** - stacking the
+action-economy creatures on the low digits is still oppressive even nerfed.
+
+Conclusion: nerfs alone will not balance a free-assignment draft. The fix is
+a **shared-pool draft** (creatures are exclusive, drafted alternately) so one
+side cannot hoard a category. This also matches the new creature/draft
+direction (milestone 4).
+
+---
+
 ## Repro
 
 ```bash

@@ -80,10 +80,12 @@ export interface Charges {
   mole: boolean;
   wren: boolean;
   lark: boolean;
+  /** Sparrow hops remaining */
+  hops: number;
 }
 
 export function fullCharges(): Charges {
-  return { mole: true, wren: true, lark: true };
+  return { mole: true, wren: true, lark: true, hops: 2 };
 }
 
 export interface RegrowEntry {
@@ -123,6 +125,8 @@ export interface GameState {
   current: Player;
   /** the current player owes an extra placement before the turn passes (Wren) */
   pendingExtra: boolean;
+  /** per player: their next turn is forfeit (the cost of a Wren burst) */
+  skipNext: [boolean, boolean];
   score: [number, number];
   energy: [number, number];
   status: "playing" | "ended";

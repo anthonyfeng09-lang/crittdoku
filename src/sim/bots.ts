@@ -123,12 +123,9 @@ export const animalBot: Bot = {
     const shortlist = actions
       .map((a) => ({ a, c: cheap(a) }))
       .sort((x, y) => y.c - x.c)
-      .slice(0, 10)
+      .slice(0, 6)
       .map((x) => x.a);
-    // always consider a couple of random tails so abilities get explored
-    if (actions.length > shortlist.length) {
-      shortlist.push(rng.pick(actions), rng.pick(actions));
-    }
+    if (actions.length > shortlist.length) shortlist.push(rng.pick(actions));
 
     const base = projectedScore(state);
     return argmaxRandom(
@@ -146,11 +143,9 @@ export const animalBot: Bot = {
         if (next.status === "ended") {
           v += next.winner === me ? 8 : next.winner === "draw" ? 0 : -8;
         } else if (next.current === me) {
-          v += 1.5; // kept the turn (Wren) — tempo is worth something
-        } else {
-          v += Math.min(legalActions(next).length, 150) * 0.01; // keep alive
+          v += 1.5; // kept the turn (Wren)
         }
-        return v;
+        return v - (a.type === "move" ? 0.3 : 0);
       },
       rng,
     );

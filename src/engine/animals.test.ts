@@ -57,10 +57,13 @@ describe("Wren — extra placement", () => {
     applyAction(s, place(cell(1, 1), 1)); // the extra placement
     expect(s.current).toBe(1);
     expect(s.charges[0].wren).toBe(false);
+    expect(s.skipNext[0]).toBe(true);
 
-    pass(s); // p1
-    applyAction(s, place(cell(3, 3), 3)); // p0 plays a Wren digit again
-    expect(s.current).toBe(1); // no second extra granted
+    pass(s); // p1's turn
+    expect(s.current).toBe(1); // p0's turn was forfeited — still Clay
+    expect(s.skipNext[0]).toBe(false);
+    pass(s); // p1 again
+    expect(s.current).toBe(0); // now Sage plays
   });
 });
 
@@ -202,6 +205,55 @@ describe("Sparrow — hop", () => {
   });
 });
 
+describe("ability limits (milestone 3a nerfs)", () => {
+  it("Sparrow has only two hops per match", () => {
+    const s = createGame({ loadouts: [lo({ 3: "sparrow" }), lo({})] });
+    applyAction(s, place(cell(4, 4), 3));
+    expect(s.charges[0].hops).toBe(2);
+    pass(s);
+    applyAction(s, { type: "move", from: cell(4, 4), to: cell(4, 5) });
+    expect(s.charges[0].hops).toBe(1);
+    pass(s);
+    applyAction(s, { type: "move", from: cell(4, 5), to: cell(4, 6) });
+    expect(s.charges[0].hops).toBe(0);
+    pass(s);
+    expect(() =>
+      applyAction(s, { type: "move", from: cell(4, 6), to: cell(4, 7) }),
+    ).toThrow();
+  });
+
+  it("Lark's wild placement cannot be the cell that completes a region", () => {
+    const s = createGame({ loadouts: [lo({ 5: "lark" }), lo({})] });
+    const fill: Array<[number, number]> = [
+      [cell(0, 0), 1],
+      [cell(0, 1), 2],
+      [cell(0, 2), 3],
+      [cell(0, 3), 4],
+      [cell(0, 4), 6],
+      [cell(0, 5), 7],
+      [cell(0, 6), 8],
+      [cell(0, 7), 9],
+    ];
+    for (const [c, d] of fill) applyAction(s, place(c, d));
+    // (0,8) is the last empty cell of row 0 — a wild 5 there would complete it
+    expect(() => applyAction(s, place(cell(0, 8), 5, true))).toThrow();
+  });
+
+  it("Mole cannot take a cell in a region nobody is contesting", () => {
+    const s = createGame({
+      loadouts: [lo({ 9: "mole" }), lo({ 2: "squirrel" })],
+    });
+    applyAction(s, place(cell(1, 1), 1)); // p0, box 0
+    applyAction(s, place(cell(2, 2), 2)); // p1's lone digit
+    applyAction(s, place(cell(2, 0), 3)); // p0 ties row 2
+    pass(s); // p1
+    applyAction(s, place(cell(0, 2), 4)); // p0 ties col 2, leads box 0
+    pass(s); // p1
+    // p1 leads no region containing (2,2); none is one-from-complete
+    expect(() => applyAction(s, place(cell(2, 2), 9))).toThrow();
+  });
+});
+
 describe("integration — random loadouts play to a clean finish", () => {
   it("100 games end with a consistent winner and no throws", () => {
     for (let g = 0; g < 100; g++) {
@@ -219,8 +271,11 @@ describe("integration — random loadouts play to a clean finish", () => {
       expect(s.status).toBe("ended");
       const total = s.score[0] + s.score[1];
       expect(total).toBeLessThanOrEqual(s.regions.length);
-      if (s.score[0] === s.score[1]) expect(s.winner).toBe("draw");
-      else expect(s.winner).toBe(s.score[0] > s.score[1] ? 0 : 1);
+      if (s.winner === "draw" || s.winner === null) {
+        expect(s.score[0]).toBe(s.score[1]);
+      } else {
+        expect(s.score[s.winner]).toBeGreaterThanOrEqual(s.score[1 - s.winner]);
+      }
     }
   });
 });

@@ -51,7 +51,8 @@ export const ANIMALS: Record<AnimalId, AnimalDef> = {
     id: "sparrow",
     name: "Sparrow",
     epithet: "Flighty",
-    blurb: "Instead of placing, you may hop one of its cells to an adjacent empty legal cell.",
+    blurb:
+      "Twice a match, hop one of its cells to an adjacent empty legal cell (not to complete a region).",
     moveAdjacent: true,
   },
   dormouse: {
@@ -79,7 +80,8 @@ export const ANIMALS: Record<AnimalId, AnimalDef> = {
     id: "mole",
     name: "Mole",
     epithet: "Burrowing",
-    blurb: "Once a match, place it onto an opponent's non-permanent digit to remove it.",
+    blurb:
+      "Once a match, place it onto an opponent's non-permanent digit in a contested region to remove it.",
     replaceOncePerGame: true,
   },
   newt: {
@@ -94,7 +96,8 @@ export const ANIMALS: Record<AnimalId, AnimalDef> = {
     id: "wren",
     name: "Wren",
     epithet: "Restless",
-    blurb: "Once a match, placing it lets you place a second digit the same turn.",
+    blurb:
+      "Once a match, placing it lets you place a second digit the same turn — but you forfeit your next turn.",
     extraPlacementOncePerGame: true,
   },
   robin: {
@@ -115,7 +118,8 @@ export const ANIMALS: Record<AnimalId, AnimalDef> = {
     id: "lark",
     name: "Lark",
     epithet: "Rising",
-    blurb: "Once a match, one placement may ignore the row, column and box rule.",
+    blurb:
+      "Once a match, one placement may ignore the row, column and box rule (but can't complete a region).",
     wildOncePerGame: true,
   },
 };

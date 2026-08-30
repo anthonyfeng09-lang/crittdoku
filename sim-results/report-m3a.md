@@ -20,3 +20,6 @@ Archetype teams (digit 1..9):
 | anchor -v- tempo | animal-v-animal | seeds=6 | 400 | 0.5% | 99.3% | 0.3% | 50.1% | 54.1% | 100.0% | 0.0% | 0.0% | 65.9 | 12.17 |
 | anchor -v- economy | animal-v-animal | seeds=6 | 400 | 27.3% | 60.5% | 12.3% | 58.7% | 54.4% | 100.0% | 0.0% | 0.0% | 64.2 | 2.94 |
 | tempo -v- economy | animal-v-animal | seeds=6 | 400 | 96.0% | 2.3% | 1.8% | 50.1% | 64.4% | 100.0% | 0.0% | 0.0% | 65.0 | 7.30 |
+
+
+wrote sim-results/report-m3.md
