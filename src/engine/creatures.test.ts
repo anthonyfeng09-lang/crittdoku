@@ -98,6 +98,20 @@ describe("landmines (Thornpod) and Tallykit synergy", () => {
     expect(s.mines[cell(0, 3)]).toBe(-1);
   });
 
+  it("Bombkit makes mines cheaper, Quillhog makes each mine count double", () => {
+    const s = createGame({
+      loadouts: [lo({ 1: "thornpod", 2: "bombkit", 3: "quillhog" }), lo({})],
+      startEnergy: [10, 0],
+    });
+    const before = s.energy[0];
+    applyAction(s, { type: "mine", cell: cell(0, 3) }); // Bombkit: -2 cheaper
+    expect(s.energy[0]).toBe(before - (ABILITY_COST.mine - 2));
+    applyAction(s, place(cell(2, 1), 1)); // p1, one ordinary cell in col 1
+    // col 3 (the mine's column): p0's one mine at weight 2, p1 none -> p0 leads
+    const col3 = s.regions.find((r) => r.kind === "col" && r.index === 3)!;
+    expect(territoryHolder(s, col3)).toBe(0);
+  });
+
   it("Tallykit stores 2 energy per mine you hold", () => {
     const s = createGame({
       loadouts: [lo({ 1: "thornpod", 2: "tallykit" }), lo({})],

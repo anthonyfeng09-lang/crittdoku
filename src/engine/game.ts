@@ -153,6 +153,22 @@ export function mineCount(state: GameState, player: Player): number {
 
 export const MAX_MINES = 3;
 
+export function mineCost(state: GameState, player: Player): number {
+  return teamHas(state, player, "cheapMines")
+    ? Math.max(1, ABILITY_COST.mine - 2)
+    : ABILITY_COST.mine;
+}
+
+/** how much each of this player's mines is worth toward territory */
+function mineWeightFor(state: GameState, player: Player): number {
+  let w = 1;
+  for (const id of Object.values(state.loadouts[player])) {
+    const mw = ROSTER[id]?.mineWeight;
+    if (mw && mw > w) w = mw;
+  }
+  return w;
+}
+
 /** grid-occupied and not sleeping - counts toward completion and territory */
 export function isActive(state: GameState, cell: number): boolean {
   return state.grid[cell] !== 0 && state.dormant[cell] === 0;
@@ -361,7 +377,7 @@ export function legalActions(state: GameState): Action[] {
       ? abilityDigits(state, by, "canBurst")
       : [];
   const canMine =
-    energy >= ABILITY_COST.mine &&
+    energy >= mineCost(state, by) &&
     mineCount(state, by) < MAX_MINES &&
     teamHas(state, by, "canMine");
 
@@ -560,7 +576,7 @@ function clearCell(state: GameState, cell: number): void {
 /** consecutive no-progress actions (hops, clears, replaces) that freeze the
  *  game so nobody can stall forever. Placing a digit or laying a mine counts
  *  as progress. */
-export const STALE_LIMIT = 7;
+export const STALE_LIMIT = 8;
 
 export function applyMove(state: GameState, move: Move): GameState {
   return applyAction(state, { type: "place", cell: move.cell, digit: move.digit });
@@ -578,9 +594,10 @@ export function applyAction(state: GameState, action: Action): GameState {
 
   if (action.type === "mine") {
     const { cell } = action;
+    const cost = mineCost(state, by);
     if (
       !teamHas(state, by, "canMine") ||
-      state.energy[by] < ABILITY_COST.mine ||
+      state.energy[by] < cost ||
       mineCount(state, by) >= MAX_MINES ||
       state.grid[cell] !== 0 ||
       state.mines[cell] !== -1 ||
@@ -589,7 +606,7 @@ export function applyAction(state: GameState, action: Action): GameState {
     ) {
       throw new Error("illegal mine");
     }
-    state.energy[by] -= ABILITY_COST.mine;
+    state.energy[by] -= cost;
     state.mines[cell] = by;
     progressed = true; // a mine is a board change, not a stall
   } else if (action.type === "clear") {
@@ -875,6 +892,8 @@ export function territoryHolder(
   let b = 0;
   let robinA = false;
   let robinB = false;
+  const mw0 = mineWeightFor(state, 0);
+  const mw1 = mineWeightFor(state, 1);
   for (const cell of region.cells) {
     if (isActive(state, cell)) {
       const p = state.placedBy[cell];
@@ -888,9 +907,9 @@ export function territoryHolder(
         else robinB = true;
       }
     } else if (state.mines[cell] === 0) {
-      a += 1;
+      a += mw0;
     } else if (state.mines[cell] === 1) {
-      b += 1;
+      b += mw1;
     }
   }
   if (a > b) return 0;

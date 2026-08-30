@@ -45,10 +45,12 @@ const SPEC: Record<CreatureId, Spec> = {
   shellclam: { build: "round", feature: "shell", dark: "#be123c" },
   barknewt: { build: "tall", feature: "fins", dark: "#be123c" },
   thornpod: { build: "round", feature: "spikes", dark: "#be123c" },
+  quillhog: { build: "stout", feature: "spikes", dark: "#be123c" },
 
   swiftwren: { build: "tall", feature: "wings", dark: "#c2410c" },
   digmole: { build: "stout", feature: "horn", dark: "#c2410c" },
   wildlark: { build: "tall", feature: "antenna", dark: "#c2410c" },
+  bombkit: { build: "round", feature: "horn", dark: "#c2410c" },
 };
 
 interface Geo {

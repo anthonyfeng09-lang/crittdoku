@@ -78,6 +78,10 @@ export interface CreatureDef {
   /** pay to lay a mine on an empty cell: the opponent can't place there until
    *  they clear it, and it counts as a cell you hold */
   canMine?: boolean;
+  /** your mines cost 2 less to lay */
+  cheapMines?: boolean;
+  /** each of your mines counts this much toward territory (default 1) */
+  mineWeight?: number;
 }
 
 export const ROSTER: Record<CreatureId, CreatureDef> = {
@@ -235,6 +239,14 @@ export const ROSTER: Record<CreatureId, CreatureDef> = {
     blurb: "Pay energy to lay a mine (up to 3): the opponent can't place there until they clear it, and it counts as a cell you hold.",
     canMine: true,
   },
+  quillhog: {
+    id: "quillhog",
+    name: "Quillhog",
+    epithet: "Bristling",
+    category: "ward",
+    blurb: "Each of your mines counts double toward holding a region. Pairs with Thornpod.",
+    mineWeight: 2,
+  },
 
   // ---- Snap / Spark ----------------------------------------
   swiftwren: {
@@ -260,6 +272,14 @@ export const ROSTER: Record<CreatureId, CreatureDef> = {
     category: "snap",
     blurb: "Pay energy to place this digit ignoring the row, column and box rule (but not to complete a region).",
     canWild: true,
+  },
+  bombkit: {
+    id: "bombkit",
+    name: "Bombkit",
+    epithet: "Fizzing",
+    category: "snap",
+    blurb: "Your mines cost 2 less to lay. Pairs with Thornpod.",
+    cheapMines: true,
   },
 };
 

@@ -89,8 +89,8 @@ export type Loadout = Record<number, CreatureId>;
  *  paid for from that pool, so an economy team can afford more of them. */
 export const ABILITY_COST = {
   hop: 2,
-  wild: 6,
-  replace: 12,
+  wild: 5,
+  replace: 10,
   extra: 5,
   mine: 4,
   clear: 5,
@@ -170,4 +170,6 @@ export type CreatureId =
   | "digmole"
   | "wildlark"
   | "thornpod"
-  | "tallykit";
+  | "tallykit"
+  | "bombkit"
+  | "quillhog";
