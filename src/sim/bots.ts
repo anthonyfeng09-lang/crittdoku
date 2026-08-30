@@ -43,7 +43,10 @@ const asPlace = (m: Move): Action => ({
 
 export const randomBot: Bot = {
   name: "random",
-  choose: (state, rng) => asPlace(rng.pick(legalMoves(state))),
+  choose: (state, rng) => {
+    const m = legalMoves(state);
+    return m.length ? asPlace(rng.pick(m)) : rng.pick(legalActions(state));
+  },
 };
 
 /** uniformly random over EVERY legal action (incl. abilities) */
@@ -89,9 +92,11 @@ export const territoryBot: Bot = {
   name: "territory",
   choose(state, rng) {
     const me = state.current as Player;
+    const moves = legalMoves(state);
+    if (moves.length === 0) return rng.pick(legalActions(state));
     return asPlace(
       argmaxRandom(
-        legalMoves(state),
+        moves,
         (m) => placeTerritoryDelta(state, m, me) * 4 + claimGain(state, m.cell),
         rng,
       ),

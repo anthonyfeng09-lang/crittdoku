@@ -240,7 +240,13 @@ function Draft({
                       >
                         <Critter id={c.id} size={38} />
                         <div className="cr-name">
-                          {c.name} <span>· {c.epithet}</span>
+                          {c.name}
+                          <span
+                            className="type-chip"
+                            style={{ background: CATEGORIES[cat].hue }}
+                          >
+                            {CATEGORIES[cat].element}
+                          </span>
                         </div>
                         <div className="cr-blurb">{c.blurb}</div>
                       </button>
@@ -551,7 +557,15 @@ function Play({
                     <div key={i} className="team-row" title={ROSTER[id].blurb}>
                       <b>{i + 1}</b>
                       <Critter id={id} size={22} />
-                      {ROSTER[id].name}
+                      <span style={{ flex: 1 }}>{ROSTER[id].name}</span>
+                      <span
+                        className="type-chip sm"
+                        style={{
+                          background: CATEGORIES[ROSTER[id].category].hue,
+                        }}
+                      >
+                        {CATEGORIES[ROSTER[id].category].element}
+                      </span>
                     </div>
                   ))}
                 </div>

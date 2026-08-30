@@ -1,4 +1,4 @@
-# Milestone 1 findings — the core loop has a structural problem
+# Milestone 1 findings - the core loop has a structural problem
 
 Built: rules engine (`src/engine`), self-play simulator (`src/sim`), minimal
 hot-seat UI (`src/ui`). 12 engine tests pass. Simulator plays 3,000 games per
@@ -6,12 +6,12 @@ scenario across board size, seed count, end-scoring rule, and bot matchup.
 
 ## The headline: the grid never fills, so the end-game rule decides everything
 
-In **100% of simulated games** — every board size, every seed count, random
-_and_ greedy bots — the game ends because a player has **no legal move**, not
-because the grid filled. On 9x9 the deadlock hits around move 60–65 with
-15–20 cells still empty and none of them able to take any digit. This was
+In **100% of simulated games** - every board size, every seed count, random
+_and_ greedy bots - the game ends because a player has **no legal move**, not
+because the grid filled. On 9x9 the deadlock hits around move 60-65 with
+15-20 cells still empty and none of them able to take any digit. This was
 verified independently with a brute-force scan (`src/sim/diagnose.ts`), so it
-is not an engine bug — it is inherent to sudoku-style constraints under play
+is not an engine bug - it is inherent to sudoku-style constraints under play
 that isn't specifically trying to keep the board alive.
 
 Consequence: regions almost never complete _during_ play. The "race to place
@@ -22,15 +22,15 @@ are decided by the end-of-game settlement, not by gameplay.
 
 | end rule | last-mover wins | avg margin (of 27) | draws | skill (greedy vs random) |
 |---|---|---|---|---|
-| **sweep** (spec v1) | **100.0%** | **~26** | 0% | none — 50/50 |
-| keep (unclaimed = nobody) | 55–96% | ~0.5 | 50–62% | weak, draw-heavy |
-| majority (unclaimed → territory leader) | 58–74% | ~2 | 12–18% | clear — greedy beats random 60–72% |
+| **sweep** (spec v1) | **100.0%** | **~26** | 0% | none - 50/50 |
+| keep (unclaimed = nobody) | 55-96% | ~0.5 | 50-62% | weak, draw-heavy |
+| majority (unclaimed → territory leader) | 58-74% | ~2 | 12-18% | clear - greedy beats random 60-72% |
 
 - **sweep**: whoever makes the last placement wins by a blowout, every game.
-  First-seat vs second-seat is 50/50, so it is not a seat-parity bug — the
+  First-seat vs second-seat is 50/50, so it is not a seat-parity bug - the
   entire match is one swing event (who gets stuck), and everything before it
   is noise. This is worse than the parity risk the spec anticipated.
-- **6x6 grid and randomized seeds do not help** — both were the spec's
+- **6x6 grid and randomized seeds do not help** - both were the spec's
   proposed mitigations; the sim shows sweep stays at 100% last-mover / ~16 of
   16 margin for 6x6.
 - **keep**: removes the nuke but scoring events become so rare the game is
@@ -46,7 +46,7 @@ are decided by the end-of-game settlement, not by gameplay.
    structural; treat the frozen board as the scoring position. Adopt
    **majority/territory scoring** for unfinished regions.
 2. **Reframe "claiming" as a bonus, not the main loop.** Completing a region
-   early could _lock_ it (immune to later majority swings) or pay energy —
+   early could _lock_ it (immune to later majority swings) or pay energy -
    a tactical option, while territory is the base game. This matches the calm
    theme better than a sudden-death sweep anyway.
 3. **Neutralize first-move advantage**: a match = 2 games with first move
@@ -54,14 +54,14 @@ are decided by the end-of-game settlement, not by gameplay.
    energy.
 4. **Then** decide whether animal passives that keep the board alive (move a
    digit, remove a digit, delay completion) can push deadlock later or even to
-   a real fill — but they should be built on the territory foundation, not the
+   a real fill - but they should be built on the territory foundation, not the
    sweep one.
 5. Add a stronger bot (minimax/MCTS) to the sim to confirm the skill ceiling
    under majority scoring before committing.
 
 ---
 
-# Milestone 2 — territory scoring adopted
+# Milestone 2 - territory scoring adopted
 
 `endScoring: "majority"` is now the engine default. Completing a region in
 play claims + **locks** it (a tactical bonus); everything else is settled at
@@ -77,13 +77,13 @@ Sim: 400 matches/scenario, `sim-results/report-m2.md`.
 | metric | v1 sweep | v2 majority (skilled mirror) |
 |---|---|---|
 | avg score margin (9x9, /27) | **~26** | **~1.6** |
-| last-mover win rate | **100%** | ~70–75% |
-| skill: territory bot vs random | 50% (none) | **80–100%**, +7 margin |
-| match draws (mirror, bo2) | 0% | 13–20% |
+| last-mover win rate | **100%** | ~70-75% |
+| skill: territory bot vs random | 50% (none) | **80-100%**, +7 margin |
+| match draws (mirror, bo2) | 0% | 13-20% |
 
 - **The core loop now rewards skill.** A territory-seeking bot beats a random
-  bot 80–100% of matches. Games are close (margin ~1.6 of 27), not blowouts.
-- **The grid still deadlocks 100% of the time** — even the mobility bot that
+  bot 80-100% of matches. Games are close (margin ~1.6 of 27), not blowouts.
+- **The grid still deadlocks 100% of the time** - even the mobility bot that
   tries to keep it alive can't force a fill (and often ends games *sooner*
   by taking favourable terminal positions). Territory scoring accepts this
   by design.
@@ -94,25 +94,25 @@ Sim: 400 matches/scenario, `sim-results/report-m2.md`.
 ## Remaining concerns for the animal/energy layer
 
 1. **Tempo still matters a lot.** Last-mover win rate is ~72% in skilled play
-   — softened from 100% but not gone. bo2 fixes first-move, not last-move.
+   - softened from 100% but not gone. bo2 fixes first-move, not last-move.
    Energy abilities that manipulate the freeze timing (lock a cell, delay a
    region, extra placement) will swing this further; watch it doesn't snap
    back to a tempo-decides game.
-2. **Draw rate.** Mirror bo2 draws 13–20%. Needs a tiebreak — locked-region
+2. **Draw rate.** Mirror bo2 draws 13-20%. Needs a tiebreak - locked-region
    count, then energy, then first-leg result.
-3. **Deadlock timing is the real skill.** ~55–65 plies on 9x9 with wide
+3. **Deadlock timing is the real skill.** ~55-65 plies on 9x9 with wide
    variance. The interesting decision is *when* to let the board freeze and
-   with what territory split — abilities should lean into that, not paper
+   with what territory split - abilities should lean into that, not paper
    over it.
 4. Still worth an MCTS bot to confirm the skill ceiling before committing 9
    passives.
 
 ---
 
-# Milestone 3 — animals & drafting
+# Milestone 3 - animals & drafting
 
 An 11-animal roster (`src/engine/animals.ts`), each a declarative passive the
-engine reads. A team = 9 animals bound to digits 1–9. Engine now supports
+engine reads. A team = 9 animals bound to digits 1-9. Engine now supports
 `move` (Sparrow), replace (Mole), wild placement (Lark), extra placement
 (Wren), dormancy (Dormouse), regrow immunity (Newt), Hedgehog lock-denial,
 Otter double weight, Robin tie-break, plus a **stall freeze** (6 consecutive
@@ -121,7 +121,7 @@ no-progress actions end the game) so hop/replace loops can't run forever.
 
 Sim: 250 legs/scenario, `sim-results/report-m3.md`, archetype teams:
 
-| team | digits 1–9 |
+| team | digits 1-9 |
 |---|---|
 | **anchor** | tortoise hedgehog newt robin otter dormouse squirrel sparrow wren |
 | **tempo** | wren sparrow mole lark squirrel otter robin hedgehog tortoise |
@@ -133,13 +133,13 @@ Sim: 250 legs/scenario, `sim-results/report-m3.md`, archetype teams:
   random-action bot 100% (margin ~15/27).
 - **Mirror matches are balanced by seat** (46/44/10), margin ~3.9, first-mover
   ~49%. Draw rate down to ~10% (Robin tie-break helping).
-- **Games run longer** (~70 plies vs ~65) — animals keep the board alive a
-  little — but it still deadlocks ~100% of the time. The stall freeze fires
+- **Games run longer** (~70 plies vs ~65) - animals keep the board alive a
+  little - but it still deadlocks ~100% of the time. The stall freeze fires
   in <2% of games, so it isn't triggering spuriously.
 
 ## What's broken: the roster is not balanced
 
-The archetype matrix is lopsided — **tempo ≫ economy > anchor**:
+The archetype matrix is lopsided - **tempo ≫ economy > anchor**:
 
 | matchup | result |
 |---|---|
@@ -148,31 +148,31 @@ The archetype matrix is lopsided — **tempo ≫ economy > anchor**:
 | economy vs anchor | 69.2% / 22.8% |
 | all mirrors | ~46 / 46 / 8 |
 
-A team stacking the **action-economy passives — Wren (extra placement), Lark
-(wild), Mole (removal), Sparrow (hop) — on the low digits wins ~97% against
+A team stacking the **action-economy passives - Wren (extra placement), Lark
+(wild), Mole (removal), Sparrow (hop) - on the low digits wins ~97% against
 any positional team** (Tortoise / Hedgehog / Otter / Robin). Putting the
-power animals on digits 1–4 (played more often, easier to place early) makes
+power animals on digits 1-4 (played more often, easier to place early) makes
 it worse.
 
 Caveat: `animalBot` is tuned to value Wren/tempo, which may inflate the
-magnitude — but the skew is a pure loadout effect (same bot both sides), so
+magnitude - but the skew is a pure loadout effect (same bot both sides), so
 the direction is real.
 
 ## Recommendation before the energy/ability layer
 
-1. **Rebalance the roster.** Isolate the culprits — run `tempo`-minus-one
-   variants vs `anchor` — then either weaken the action-economy passives
+1. **Rebalance the roster.** Isolate the culprits - run `tempo`-minus-one
+   variants vs `anchor` - then either weaken the action-economy passives
    (Wren costs a placement's worth of tempo elsewhere; Mole only on a
    contested region; Lark can't complete a region) or strengthen the
    positional ones (Otter x3 weight; Hedgehog also steals the region on a
    contested freeze; Tortoise scores +1 on its own).
-2. **Consider a draft that prevents stacking** — snake draft from a shared
+2. **Consider a draft that prevents stacking** - snake draft from a shared
    pool, or "no more than 2 action-economy animals per team", or ban binding
-   power animals to digits 1–3.
+   power animals to digits 1-3.
 3. **The digit assignment matters as much as the pick.** Low digits are
    played more; a balance pass has to weight passives by expected placements.
-4. Tempo (last-mover ~60–70%) and draw rate (~8%) are both improved but not
-   solved — the tiebreak (locked regions → energy → first leg) is still
+4. Tempo (last-mover ~60-70%) and draw rate (~8%) are both improved but not
+   solved - the tiebreak (locked regions → energy → first leg) is still
    worth adding.
 
 ---
@@ -197,13 +197,43 @@ direction (milestone 4).
 
 ---
 
+# Milestone 4 - creatures, snake draft, theme
+
+18 creatures across 6 categories / friendly "types" (Stone, Gust, Dream,
+Sun, Shell, Spark), 3 each, in `src/engine/creatures.ts` - add more by
+appending to `ROSTER`. Draft is now a **snake pick from the shared pool**
+(`src/engine/draft.ts`): exclusive picks, order 0,1,1,0,0,1..., then each
+player binds their 9 picks to digits. `critterBot` plays the full action
+set; `autoDraft` handles bots. New light, colourful UI with hand-built SVG
+characters. Original creatures, not tied to any existing franchise (keeps
+the project clear of IP problems while keeping the collector feel).
+
+New mechanics: per-team hop budget summed from drafted Gust critters,
+two-turn sleep (Fogkit), diagonal hop (Glidewing), opponent-lock energy
+payout (Sunbeetle), permanent + double weight (Mossback), sleep-then-
+permanent (Slumberstone).
+
+Sim (`sim-results/report-m4.md`): the snake draft removes the hoarding
+problem by construction - there is no way for one team to take all of
+Snap. The remaining questions the sim answers: is `critter -v- critter`
+near 45/45/10, is the auto-drafter's value ranking roughly fair, and does
+the deadlock / stall / margin picture still look like milestone 3.
+
+## Still open
+
+- Tempo (last-mover) and exact creature balance want a stronger bot
+  (min-max / MCTS) and a bigger sim before calling it tuned.
+- A proper best-of-2 match wrapper in the UI (engine + sim already do it).
+- Roster can grow: 4th creature per category, evolution tiers, a 6x6
+  quick mode.
+
+---
+
 ## Repro
 
 ```bash
 npm install
-npm test                      # engine tests (26)
-npm run sim                   # milestone-3 archetype matrix -> sim-results/report-m3.md
-LEGS=1500 npm run sim         # tighter numbers
-npx tsx src/sim/diagnose.ts   # deadlock sanity check
-npm run dev                   # hot-seat UI: draft two teams, then play
+npm test        # engine tests (26)
+npm run sim     # current milestone's simulation -> sim-results/report-m4.md
+npm run dev     # hot-seat UI: snake-draft two teams, then play
 ```

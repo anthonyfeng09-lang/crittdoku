@@ -412,11 +412,8 @@ h1 {
 .crcard .cr-name {
   font-weight: 700;
   font-size: 13px;
-}
-.crcard .cr-name span {
-  font-weight: 500;
-  color: var(--ink-soft);
-  font-size: 11px;
+  display: flex;
+  align-items: center;
 }
 .crcard .cr-blurb {
   font-size: 11px;
@@ -489,6 +486,45 @@ h1 {
 .team-row b {
   color: var(--ink);
   width: 14px;
+}
+
+.type-chip {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin-left: 8px;
+  text-transform: uppercase;
+}
+.type-chip.sm {
+  font-size: 9px;
+  padding: 1px 6px;
+  margin-left: 0;
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+.crcard svg,
+.slot svg {
+  animation: bob 3.2s ease-in-out infinite;
+}
+.crcard:nth-child(even) svg {
+  animation-delay: -1.6s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .crcard svg,
+  .slot svg {
+    animation: none;
+  }
 }
 
 .log {

@@ -15,19 +15,21 @@ export type Category = "anchor" | "drift" | "hush" | "thrift" | "ward" | "snap";
 
 export interface CategoryDef {
   id: Category;
+  /** the mechanical family name */
   name: string;
+  /** the friendly "type" name shown as a badge */
+  element: string;
   tagline: string;
-  /** CSS custom-property suffix, e.g. --cat-anchor */
   hue: string;
 }
 
 export const CATEGORIES: Record<Category, CategoryDef> = {
-  anchor: { id: "anchor", name: "Anchor", tagline: "hold the ground", hue: "#5aa469" },
-  drift: { id: "drift", name: "Drift", tagline: "move after you land", hue: "#3fa3a3" },
-  hush: { id: "hush", name: "Hush", tagline: "play with timing", hue: "#8f7fd4" },
-  thrift: { id: "thrift", name: "Thrift", tagline: "gather energy", hue: "#e0a83d" },
-  ward: { id: "ward", name: "Ward", tagline: "protect what you hold", hue: "#e2857b" },
-  snap: { id: "snap", name: "Snap", tagline: "disrupt the board", hue: "#e2915b" },
+  anchor: { id: "anchor", name: "Anchor", element: "Stone", tagline: "hold the ground", hue: "#5aa469" },
+  drift: { id: "drift", name: "Drift", element: "Gust", tagline: "move after you land", hue: "#3fa3a3" },
+  hush: { id: "hush", name: "Hush", element: "Dream", tagline: "play with timing", hue: "#8f7fd4" },
+  thrift: { id: "thrift", name: "Thrift", element: "Sun", tagline: "gather energy", hue: "#e0a83d" },
+  ward: { id: "ward", name: "Ward", element: "Shell", tagline: "protect what you hold", hue: "#e2857b" },
+  snap: { id: "snap", name: "Snap", element: "Spark", tagline: "disrupt the board", hue: "#e2915b" },
 };
 
 export interface CreatureDef {
