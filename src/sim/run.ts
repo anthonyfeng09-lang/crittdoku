@@ -2,27 +2,14 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import {
   CONFIG_9x9,
   GameState,
-  Loadout,
   Player,
   applyAction,
-  archetypeLoadout,
+  autoDraft,
   createGame,
   generateSeeds,
-  randomLoadout,
 } from "../engine";
-import { ARCHETYPES } from "../engine/animals";
 import { makeRng } from "../engine/rng";
 import { Bot, bots } from "./bots";
-
-type LoadoutSpec = keyof typeof ARCHETYPES | "random" | "mirror-random";
-
-interface Scenario {
-  seedCount: number;
-  loadoutA: LoadoutSpec;
-  loadoutB: LoadoutSpec;
-  botA: Bot;
-  botB: Bot;
-}
 
 interface LegResult {
   score: [number, number];
@@ -32,22 +19,10 @@ interface LegResult {
   plies: number;
 }
 
-function loadoutsFor(sc: Scenario, rng: ReturnType<typeof makeRng>): [Loadout, Loadout] {
-  const one = (spec: LoadoutSpec): Loadout =>
-    spec === "random" || spec === "mirror-random"
-      ? randomLoadout(9, rng)
-      : archetypeLoadout(spec, 9);
-  if (sc.loadoutA === "mirror-random") {
-    const l = randomLoadout(9, rng);
-    return [l, l];
-  }
-  return [one(sc.loadoutA), one(sc.loadoutB)];
-}
-
-function playLeg(sc: Scenario, firstPlayer: Player, seed: number): LegResult {
+function playLeg(botA: Bot, botB: Bot, firstPlayer: Player, seed: number): LegResult {
   const rng = makeRng(seed);
-  const loadouts = loadoutsFor(sc, rng);
-  const seeds = generateSeeds(CONFIG_9x9, sc.seedCount, rng);
+  const { loadouts } = autoDraft(9, rng);
+  const seeds = generateSeeds(CONFIG_9x9, 6, rng);
   const state = createGame({
     config: CONFIG_9x9,
     rules: { endScoring: "majority" },
@@ -55,7 +30,7 @@ function playLeg(sc: Scenario, firstPlayer: Player, seed: number): LegResult {
     firstPlayer,
     loadouts,
   });
-  const seat: [Bot, Bot] = [sc.botA, sc.botB];
+  const seat: [Bot, Bot] = [botA, botB];
   let guard = 0;
   while (state.status === "playing" && guard++ < 400) {
     applyAction(state, seat[state.current].choose(state, rng));
@@ -122,13 +97,13 @@ function record(agg: Agg, r: LegResult) {
   agg.marginSum += Math.abs(a - b);
 }
 
-const pct = (x: number, d: number) => (d === 0 ? "  -  " : `${((100 * x) / d).toFixed(1)}%`);
+const pct = (x: number, d: number) =>
+  d === 0 ? "  -  " : `${((100 * x) / d).toFixed(1)}%`;
 
-function run(sc: Scenario, legs: number): Agg {
-  const label = `${sc.loadoutA} -v- ${sc.loadoutB} | ${sc.botA.name}-v-${sc.botB.name} | seeds=${sc.seedCount}`;
+function run(label: string, botA: Bot, botB: Bot, legs: number): Agg {
   const agg = emptyAgg(label);
   for (let i = 0; i < legs; i++) {
-    record(agg, playLeg(sc, (i % 2) as Player, 0x2000 + i * 2654435761));
+    record(agg, playLeg(botA, botB, (i % 2) as Player, 0x3000 + i * 2654435761));
   }
   return agg;
 }
@@ -154,44 +129,26 @@ function table(rows: Agg[]): string {
 }
 
 function main() {
-  const LEGS = Number(process.env.LEGS ?? 1500);
-  const rows: Agg[] = [];
-  const arche = Object.keys(ARCHETYPES) as Array<keyof typeof ARCHETYPES>;
-
-  const A = bots.animal;
-  // 1. skill check + baseline end-reason distribution
-  rows.push(run({ seedCount: 6, loadoutA: "mirror-random", loadoutB: "mirror-random", botA: A, botB: bots["random+"] }, LEGS));
-  rows.push(run({ seedCount: 6, loadoutA: "random", loadoutB: "random", botA: A, botB: A }, LEGS));
-
-  // 2. archetype balance: every mirror + every ordered asymmetric pair once
-  for (const a of arche) {
-    rows.push(run({ seedCount: 6, loadoutA: a, loadoutB: a, botA: A, botB: A }, LEGS));
-  }
-  for (let i = 0; i < arche.length; i++) {
-    for (let j = i + 1; j < arche.length; j++) {
-      rows.push(
-        run({ seedCount: 6, loadoutA: arche[i], loadoutB: arche[j], botA: A, botB: A }, LEGS),
-      );
-    }
-  }
+  const LEGS = Number(process.env.LEGS ?? 1200);
+  const rows: Agg[] = [
+    run("critter -v- random+ (skill)", bots.critter, bots["random+"], LEGS),
+    run("critter -v- critter (balance)", bots.critter, bots.critter, LEGS),
+    run("territory -v- critter (abilities matter)", bots.territory, bots.critter, LEGS),
+  ];
 
   const md =
-    `# Dendoku milestone 3 — animals & drafting\n\n` +
+    `# Dendoku milestone 4 - creatures + snake draft\n\n` +
     `Legs per scenario: ${LEGS}. 9x9, endScoring=majority, seeds=6.\n` +
-    `First move alternates each leg. "A wins" is the first-named loadout.\n` +
-    `A big skew in an asymmetric archetype row = that loadout dominates.\n` +
-    `Mirror rows (same archetype both sides) should sit near 40/40/20.\n\n` +
-    `Archetype teams (digit 1..9):\n` +
-    arche.map((k) => `- **${k}**: ${ARCHETYPES[k].join(", ")}`).join("\n") +
-    `\n\n` +
+    `Loadouts come from an auto snake draft of the shared 18-creature pool\n` +
+    `(exclusive picks), so neither side can hoard a category. First move\n` +
+    `alternates each leg. "critter -v- critter" should sit near 45/45/10.\n\n` +
     table(rows) +
     "\n";
 
   console.log(md);
   mkdirSync("sim-results", { recursive: true });
-  writeFileSync("sim-results/report-m3.md", md);
-  writeFileSync("sim-results/report-m3.json", JSON.stringify(rows, null, 2));
-  console.log("\nwrote sim-results/report-m3.md");
+  writeFileSync("sim-results/report-m4.md", md);
+  console.log("\nwrote sim-results/report-m4.md");
 }
 
 main();

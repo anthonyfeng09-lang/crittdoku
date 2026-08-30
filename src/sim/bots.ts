@@ -38,7 +38,7 @@ const asPlace = (m: Move): Action => ({
 });
 
 /* ------------------------------------------------------------------ *
- * milestone 1/2 bots — normal placements only, no ability use
+ * milestone 1/2 bots - normal placements only, no ability use
  * ------------------------------------------------------------------ */
 
 export const randomBot: Bot = {
@@ -100,11 +100,11 @@ export const territoryBot: Bot = {
 };
 
 /* ------------------------------------------------------------------ *
- * milestone 3 bot — plays the full action set incl. animal abilities
+ * milestone 3 bot - plays the full action set incl. critter abilities
  * ------------------------------------------------------------------ */
 
-export const animalBot: Bot = {
-  name: "animal",
+export const critterBot: Bot = {
+  name: "critter",
   choose(state, rng) {
     const me = state.current as Player;
     const actions = legalActions(state);
@@ -156,5 +156,5 @@ export const bots: Record<string, Bot> = {
   random: randomBot,
   "random+": randomActionBot,
   territory: territoryBot,
-  animal: animalBot,
+  critter: critterBot,
 };

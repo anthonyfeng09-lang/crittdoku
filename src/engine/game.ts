@@ -1,7 +1,7 @@
-import { ANIMALS, AnimalDef } from "./animals";
+import { ROSTER, CreatureDef } from "./creatures";
 import {
   Action,
-  AnimalId,
+  CreatureId,
   BoardConfig,
   Charges,
   CONFIG_9x9,
@@ -101,32 +101,32 @@ function buildRegions(config: BoardConfig): {
 }
 
 /* ------------------------------------------------------------------ *
- * Animals
+ * Creatures
  * ------------------------------------------------------------------ */
 
-export function animalFor(
+export function creatureFor(
   state: GameState,
   player: Player,
   digit: number,
-): AnimalDef | null {
-  const id = state.loadouts[player]?.[digit] as AnimalId | undefined;
-  return id ? ANIMALS[id] : null;
+): CreatureDef | null {
+  const id = state.loadouts[player]?.[digit] as CreatureId | undefined;
+  return id ? ROSTER[id] : null;
 }
 
-export function animalAt(state: GameState, cell: number): AnimalDef | null {
+export function creatureAt(state: GameState, cell: number): CreatureDef | null {
   const digit = state.grid[cell];
   const by = state.placedBy[cell];
   if (digit === 0 || by < 0) return null;
-  return animalFor(state, by as Player, digit);
+  return creatureFor(state, by as Player, digit);
 }
 
-/** grid-occupied and not sleeping — counts toward completion and territory */
+/** grid-occupied and not sleeping - counts toward completion and territory */
 export function isActive(state: GameState, cell: number): boolean {
   return state.grid[cell] !== 0 && state.dormant[cell] === 0;
 }
 
 function isPermanent(state: GameState, cell: number): boolean {
-  return animalAt(state, cell)?.permanent === true;
+  return creatureAt(state, cell)?.permanent === true;
 }
 
 /* ------------------------------------------------------------------ *
@@ -172,11 +172,20 @@ export function createGame(opts: CreateOptions = {}): GameState {
     history: [],
   };
 
+  // hop budget is the sum of the hops each drafted Drift critter contributes
+  for (const p of [0, 1] as const) {
+    let hops = 0;
+    for (const id of Object.values(state.loadouts[p])) {
+      hops += ROSTER[id]?.hops ?? 0;
+    }
+    state.charges[p].hops = hops;
+  }
+
   for (const seed of opts.seeds ?? []) {
     if (!isLegal(state, seed.cell, seed.digit)) {
       throw new Error(`illegal seed: digit ${seed.digit} at cell ${seed.cell}`);
     }
-    fillCell(state, seed.cell, seed.digit, -1 as Player, false, 0, true);
+    fillCell(state, seed.cell, seed.digit, -1 as Player, 0, 0, true);
   }
 
   return state;
@@ -203,7 +212,7 @@ export function isLegal(
   return true;
 }
 
-/** normal placements only — the milestone-1/2 move set, still used widely */
+/** normal placements only - the milestone-1/2 move set, still used widely */
 export function legalMoves(state: GameState): Move[] {
   const moves: Move[] = [];
   if (state.status !== "playing") return moves;
@@ -226,15 +235,24 @@ export function hasLegalMove(state: GameState): boolean {
   return legalMoves(state).length > 0;
 }
 
-export function adjacentCells(state: GameState, cell: number): number[] {
+export function adjacentCells(
+  state: GameState,
+  cell: number,
+  diagonal = false,
+): number[] {
   const size = state.config.size;
   const r = Math.floor(cell / size);
   const c = cell % size;
   const out: number[] = [];
-  if (r > 0) out.push(cell - size);
-  if (r < size - 1) out.push(cell + size);
-  if (c > 0) out.push(cell - 1);
-  if (c < size - 1) out.push(cell + 1);
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      if (!diagonal && dr !== 0 && dc !== 0) continue;
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr >= 0 && nr < size && nc >= 0 && nc < size) out.push(nr * size + nc);
+    }
+  }
   return out;
 }
 
@@ -258,7 +276,7 @@ function wouldComplete(state: GameState, cell: number): boolean {
   return false;
 }
 
-/** is `cell` in a region the given player is contesting — leading on
+/** is `cell` in a region the given player is contesting - leading on
  *  territory, or one move from completing? (gates Mole) */
 function contestedBy(state: GameState, cell: number, player: Player): boolean {
   for (let k = 0; k < 3; k++) {
@@ -279,11 +297,11 @@ function canReplace(
   by: Player,
 ): boolean {
   if (!state.charges[by].mole) return false;
-  if (animalFor(state, by, digit)?.replaceOncePerGame !== true) return false;
+  if (creatureFor(state, by, digit)?.replaceOncePerGame !== true) return false;
   const victim = state.placedBy[cell];
   if (victim !== other(by)) return false;
   if (isPermanent(state, cell)) return false;
-  if (animalAt(state, cell)?.regrowIfRemoved === true) return false;
+  if (creatureAt(state, cell)?.regrowIfRemoved === true) return false;
   if (regionsClaimed(state, cell)) return false;
   // Mole must matter: the target has to sit in a region the victim is
   // contesting, not just any stray cell
@@ -311,7 +329,7 @@ export function legalActions(state: GameState): Action[] {
   const larkDigits: number[] = [];
   const moleDigits: number[] = [];
   for (let d = 1; d <= size; d++) {
-    const a = animalFor(state, by, d);
+    const a = creatureFor(state, by, d);
     if (a?.wildOncePerGame && state.charges[by].lark) larkDigits.push(d);
     if (a?.replaceOncePerGame && state.charges[by].mole) moleDigits.push(d);
   }
@@ -335,14 +353,15 @@ export function legalActions(state: GameState): Action[] {
     }
   }
 
-  // Sparrow hops
+  // Drift hops
   if (state.charges[by].hops > 0) {
     for (let cell = 0; cell < state.grid.length; cell++) {
       if (state.placedBy[cell] !== by || !isActive(state, cell)) continue;
-      if (animalAt(state, cell)?.moveAdjacent !== true) continue;
+      const cr = creatureAt(state, cell);
+      if (cr?.moveAdjacent !== true) continue;
       if (regionsClaimed(state, cell)) continue;
       const digit = state.grid[cell];
-      for (const to of adjacentCells(state, cell)) {
+      for (const to of adjacentCells(state, cell, cr.moveDiagonal === true)) {
         if (state.grid[to] !== 0) continue;
         if (moveLegal(state, cell, to, digit) && !wouldComplete(state, to)) {
           out.push({ type: "move", from: cell, to });
@@ -399,13 +418,23 @@ function lockRegion(
     if (
       state.placedBy[cell] === opp &&
       isActive(state, cell) &&
-      animalAt(state, cell)?.denyOpponentLock === true
+      creatureAt(state, cell)?.denyOpponentLock === true
     ) {
       return false;
     }
   }
   region.claimedBy = by;
   region.claimedOnTurn = turn;
+  // Sunbeetle: the opponent who lost this region to a lock gets a payout
+  for (const cell of region.cells) {
+    if (
+      state.placedBy[cell] === opp &&
+      isActive(state, cell) &&
+      creatureAt(state, cell)?.energyOnOpponentLock === true
+    ) {
+      state.energy[opp] += 3;
+    }
+  }
   return true;
 }
 
@@ -415,21 +444,25 @@ function fillCell(
   cell: number,
   digit: number,
   by: Player,
-  dormant: boolean,
+  dormantTurns: number,
   turn: number,
   seeded = false,
 ): number[] {
   state.grid[cell] = digit;
   state.placedBy[cell] = by;
   if (seeded) state.seeded[cell] = true;
-  if (dormant) state.dormant[cell] = Math.max(1, state.turn);
+  // wake once state.turn has advanced past this threshold on the owner's turn;
+  // each extra sleep-turn costs ~2 actions
+  if (dormantTurns > 0) {
+    state.dormant[cell] = Math.max(1, state.turn + (dormantTurns - 1) * 2);
+  }
 
   const bit = 1 << digit;
   const claimed: number[] = [];
   for (let k = 0; k < 3; k++) {
     const rid = state.cellRegions[cell * 3 + k];
     state.regionMask[rid] |= bit;
-    if (dormant) continue;
+    if (dormantTurns > 0) continue;
     const region = state.regions[rid];
     region.filled++;
     if (region.filled === state.config.size && lockRegion(state, region, by, turn)) {
@@ -492,13 +525,14 @@ export function applyAction(state: GameState, action: Action): GameState {
   if (action.type === "move") {
     const { from, to } = action;
     const digit = state.grid[from];
+    const mover = creatureAt(state, from);
     if (
       state.charges[by].hops <= 0 ||
       state.placedBy[from] !== by ||
       !isActive(state, from) ||
-      animalAt(state, from)?.moveAdjacent !== true ||
+      mover?.moveAdjacent !== true ||
       regionsClaimed(state, from) ||
-      !adjacentCells(state, from).includes(to) ||
+      !adjacentCells(state, from, mover.moveDiagonal === true).includes(to) ||
       !moveLegal(state, from, to, digit) ||
       wouldComplete(state, to)
     ) {
@@ -506,7 +540,7 @@ export function applyAction(state: GameState, action: Action): GameState {
     }
     state.charges[by].hops -= 1;
     clearCell(state, from);
-    claimed = fillCell(state, to, digit, by, false, state.turn);
+    claimed = fillCell(state, to, digit, by, 0, state.turn);
     state.energy[by] += ENERGY_PER_PLACE;
   } else {
     const { cell, digit } = action;
@@ -514,14 +548,14 @@ export function applyAction(state: GameState, action: Action): GameState {
     if (action.wild) {
       if (
         !state.charges[by].lark ||
-        animalFor(state, by, digit)?.wildOncePerGame !== true ||
+        creatureFor(state, by, digit)?.wildOncePerGame !== true ||
         state.grid[cell] !== 0 ||
         wouldComplete(state, cell)
       ) {
         throw new Error("illegal wild placement");
       }
       state.charges[by].lark = false;
-      claimed = fillCell(state, cell, digit, by, false, state.turn);
+      claimed = fillCell(state, cell, digit, by, 0, state.turn);
     } else if (state.grid[cell] !== 0) {
       if (!canReplace(state, cell, digit, by)) {
         throw new Error("illegal replacement");
@@ -530,7 +564,7 @@ export function applyAction(state: GameState, action: Action): GameState {
       replaced = true;
       const victimDigit = state.grid[cell];
       const victimBy = state.placedBy[cell] as Player;
-      const victimAnimal = animalFor(state, victimBy, victimDigit);
+      const victimAnimal = creatureFor(state, victimBy, victimDigit);
       clearCell(state, cell);
       if (victimAnimal?.regrowIfRemoved) {
         state.regrow.push({
@@ -540,16 +574,17 @@ export function applyAction(state: GameState, action: Action): GameState {
           at: state.turn,
         });
       }
-      claimed = fillCell(state, cell, digit, by, false, state.turn);
+      claimed = fillCell(state, cell, digit, by, 0, state.turn);
     } else {
       if (!isLegal(state, cell, digit)) {
         throw new Error(`illegal move: digit ${digit} at cell ${cell}`);
       }
-      const dormant = animalFor(state, by, digit)?.dormant === true;
-      claimed = fillCell(state, cell, digit, by, dormant, state.turn);
+      const cr = creatureFor(state, by, digit);
+      const dt = cr?.dormant ? (cr.dormantTurns ?? 1) : 0;
+      claimed = fillCell(state, cell, digit, by, dt, state.turn);
     }
     state.energy[by] += ENERGY_PER_PLACE;
-    const bonus = animalFor(state, by, digit)?.energyBonus ?? 0;
+    const bonus = creatureFor(state, by, digit)?.energyBonus ?? 0;
     state.energy[by] += bonus;
   }
 
@@ -566,7 +601,7 @@ export function applyAction(state: GameState, action: Action): GameState {
     !action.wild &&
     !replaced &&
     placedDigit > 0 &&
-    animalFor(state, by, placedDigit)?.extraPlacementOncePerGame === true &&
+    creatureFor(state, by, placedDigit)?.extraPlacementOncePerGame === true &&
     state.charges[by].wren
   ) {
     state.charges[by].wren = false;
@@ -612,7 +647,7 @@ export function applyAction(state: GameState, action: Action): GameState {
 function beginTurn(state: GameState): GameState {
   const p = state.current;
 
-  // a forfeited turn (Wren burst) — hand it straight back
+  // a forfeited turn (Wren burst) - hand it straight back
   if (state.skipNext[p]) {
     state.skipNext[p] = false;
     state.current = other(p);
@@ -638,7 +673,7 @@ function beginTurn(state: GameState): GameState {
   state.regrow = state.regrow.filter((e) => {
     if (e.owner !== p || e.at >= state.turn) return true;
     if (state.grid[e.cell] === 0 && isLegal(state, e.cell, e.digit)) {
-      const claimed = fillCell(state, e.cell, e.digit, p, false, state.turn);
+      const claimed = fillCell(state, e.cell, e.digit, p, 0, state.turn);
       for (const _rid of claimed) {
         state.score[p] += 1;
         state.energy[p] += ENERGY_PER_CLAIM;
@@ -699,7 +734,7 @@ function endGame(
   return state;
 }
 
-/** regions total, then — on a tie — regions locked in play, then energy */
+/** regions total, then - on a tie - regions locked in play, then energy */
 function decideWinner(state: GameState): Player | "draw" {
   if (state.score[0] !== state.score[1]) {
     return state.score[0] > state.score[1] ? 0 : 1;
@@ -783,7 +818,7 @@ export function territoryHolder(
     if (!isActive(state, cell)) continue;
     const p = state.placedBy[cell];
     if (p !== 0 && p !== 1) continue;
-    const animal = animalAt(state, cell);
+    const animal = creatureAt(state, cell);
     const w = animal?.territoryWeight ?? 1;
     if (p === 0) a += w;
     else b += w;

@@ -73,8 +73,8 @@ export interface Rules {
  *  main point source. */
 export const DEFAULT_RULES: Rules = { endScoring: "majority" };
 
-/** A player's team: which animal is bound to each digit 1..size. */
-export type Loadout = Record<number, AnimalId>;
+/** A player's team: which critter is bound to each digit 1..size. */
+export type Loadout = Record<number, CreatureId>;
 
 export interface Charges {
   mole: boolean;
@@ -85,7 +85,7 @@ export interface Charges {
 }
 
 export function fullCharges(): Charges {
-  return { mole: true, wren: true, lark: true, hops: 2 };
+  return { mole: true, wren: true, lark: true, hops: 0 };
 }
 
 export interface RegrowEntry {
@@ -139,15 +139,22 @@ export interface GameState {
 export const ENERGY_PER_PLACE = 1;
 export const ENERGY_PER_CLAIM = 5;
 
-export type AnimalId =
-  | "tortoise"
-  | "sparrow"
-  | "dormouse"
-  | "squirrel"
-  | "hedgehog"
-  | "mole"
-  | "newt"
-  | "wren"
-  | "robin"
-  | "otter"
-  | "lark";
+export type CreatureId =
+  | "boulderpup"
+  | "mossback"
+  | "slumberstone"
+  | "breezefinch"
+  | "tumbleweed"
+  | "glidewing"
+  | "snoozemouse"
+  | "fogkit"
+  | "dozderling"
+  | "nutsquirrel"
+  | "acorncache"
+  | "sunbeetle"
+  | "pricklehog"
+  | "shellclam"
+  | "barknewt"
+  | "swiftwren"
+  | "digmole"
+  | "wildlark";

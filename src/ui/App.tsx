@@ -1,58 +1,63 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ALL_ANIMALS,
-  ANIMALS,
+  ALL_CREATURES,
+  ROSTER,
+  CATEGORIES,
+  Category,
   Action,
-  AnimalId,
+  CreatureId,
   GameState,
   applyAction,
   cloneState,
   createGame,
+  creaturesByCategory,
   generateSeeds,
   lastTouchedCell,
   legalActions,
-  loadoutFrom,
+  loadoutFromIds,
   projectedScore,
   regionLabel,
+  snakeOrder,
   territoryHolder,
 } from "../engine";
 import { makeRng } from "../engine/rng";
-import { animalBot } from "../sim/bots";
+import { critterBot } from "../sim/bots";
+import { Critter } from "./Critter";
 
 const SIZE = 9;
-const PLAYER_NAMES = ["Sage", "Clay"] as const;
-
-function randomTeam(rng: ReturnType<typeof makeRng>): AnimalId[] {
-  return rng.shuffle(ALL_ANIMALS.slice()).slice(0, SIZE);
-}
+const NAMES = ["Sage", "Clay"] as const;
+const CAT_ORDER: Category[] = ["anchor", "drift", "hush", "thrift", "ward", "snap"];
 
 export function App() {
-  const [phase, setPhase] = useState<"draft" | "play">("draft");
-  const [teams, setTeams] = useState<[AnimalId[], AnimalId[]]>(() => {
-    const rng = makeRng(Date.now() >>> 0);
-    return [randomTeam(rng), randomTeam(rng)];
-  });
-  const [seedCount, setSeedCount] = useState(6);
   const [game, setGame] = useState<GameState | null>(null);
+  const [teams, setTeams] = useState<[CreatureId[], CreatureId[]] | null>(null);
+  const [seedCount, setSeedCount] = useState(6);
   const [sel, setSel] = useState<number | null>(null);
   const [auto, setAuto] = useState(false);
   const botRng = useRef(makeRng(98765));
 
-  const start = useCallback(() => {
-    const rng = makeRng((Date.now() ^ (seedCount * 40503)) >>> 0);
-    const seeds = generateSeeds({ size: SIZE, box: { rows: 3, cols: 3 } }, seedCount, rng);
-    setGame(
-      createGame({
-        rules: { endScoring: "majority" },
-        seeds,
-        firstPlayer: 0,
-        loadouts: [loadoutFrom(teams[0], SIZE), loadoutFrom(teams[1], SIZE)],
-      }),
-    );
-    setSel(null);
-    setAuto(false);
-    setPhase("play");
-  }, [teams, seedCount]);
+  const start = useCallback(
+    (t: [CreatureId[], CreatureId[]]) => {
+      const rng = makeRng((Date.now() ^ (seedCount * 40503)) >>> 0);
+      const seeds = generateSeeds(
+        { size: SIZE, box: { rows: 3, cols: 3 } },
+        seedCount,
+        rng,
+      );
+      setGame(
+        createGame({
+          rules: { endScoring: "majority" },
+          seeds,
+          firstPlayer: 0,
+          loadouts: [loadoutFromIds(t[0], SIZE), loadoutFromIds(t[1], SIZE)],
+        }),
+      );
+      setTeams(t);
+      setSel(null);
+      setAuto(false);
+    },
+    [seedCount],
+  );
 
   const commit = useCallback((g: GameState) => setGame(cloneState(g)), []);
 
@@ -68,7 +73,7 @@ export function App() {
 
   const botMove = useCallback(() => {
     if (!game || game.status !== "playing") return;
-    applyAction(game, animalBot.choose(game, botRng.current));
+    applyAction(game, critterBot.choose(game, botRng.current));
     commit(game);
     setSel(null);
   }, [game, commit]);
@@ -79,11 +84,9 @@ export function App() {
     return () => clearTimeout(t);
   }, [auto, game, botMove]);
 
-  if (phase === "draft" || !game) {
+  if (!game || !teams) {
     return (
       <Draft
-        teams={teams}
-        setTeams={setTeams}
         seedCount={seedCount}
         setSeedCount={setSeedCount}
         onStart={start}
@@ -92,7 +95,7 @@ export function App() {
   }
 
   return (
-    <Board
+    <Play
       game={game}
       teams={teams}
       sel={sel}
@@ -103,115 +106,219 @@ export function App() {
       setAuto={setAuto}
       onNewDraft={() => {
         setGame(null);
-        setPhase("draft");
+        setTeams(null);
       }}
-      onRematch={start}
+      onRematch={() => start(teams)}
     />
   );
 }
 
-/* ------------------------------------------------------------------ */
+/* ================================================================= *
+ * Draft - snake pick from a shared pool, then assign to digits
+ * ================================================================= */
 
 function Draft({
-  teams,
-  setTeams,
   seedCount,
   setSeedCount,
   onStart,
 }: {
-  teams: [AnimalId[], AnimalId[]];
-  setTeams: (t: [AnimalId[], AnimalId[]]) => void;
   seedCount: number;
   setSeedCount: (n: number) => void;
-  onStart: () => void;
+  onStart: (t: [CreatureId[], CreatureId[]]) => void;
 }) {
-  const setSlot = (p: 0 | 1, digit: number, animal: AnimalId) => {
-    const team = teams[p].slice();
-    const existing = team.indexOf(animal);
-    if (existing >= 0) team[existing] = team[digit - 1]; // swap to keep 9 distinct
-    team[digit - 1] = animal;
-    const next = teams.slice() as [AnimalId[], AnimalId[]];
-    next[p] = team;
-    setTeams(next);
+  const order = useMemo(() => snakeOrder(SIZE), []);
+  const [picks, setPicks] = useState<[CreatureId[], CreatureId[]]>([[], []]);
+  const [stage, setStage] = useState<"pick" | "assign">("pick");
+  const [assigned, setAssigned] = useState<[CreatureId[], CreatureId[]]>([
+    [],
+    [],
+  ]);
+
+  const step = picks[0].length + picks[1].length;
+  const current = order[step] ?? 0;
+  const takenBy = (id: CreatureId): 0 | 1 | null =>
+    picks[0].includes(id) ? 0 : picks[1].includes(id) ? 1 : null;
+
+  const pick = (id: CreatureId) => {
+    if (stage !== "pick" || takenBy(id) !== null || step >= order.length) return;
+    const next: [CreatureId[], CreatureId[]] = [
+      picks[0].slice(),
+      picks[1].slice(),
+    ];
+    next[current].push(id);
+    setPicks(next);
+    if (next[0].length + next[1].length === order.length) toAssign(next);
   };
-  const shuffle = (p: 0 | 1) => {
-    const rng = makeRng((Date.now() + p) >>> 0);
-    const next = teams.slice() as [AnimalId[], AnimalId[]];
-    next[p] = rng.shuffle(ALL_ANIMALS.slice()).slice(0, SIZE);
-    setTeams(next);
+
+  const autoRest = () => {
+    const rng = makeRng((Date.now() ^ step) >>> 0);
+    const next: [CreatureId[], CreatureId[]] = [
+      picks[0].slice(),
+      picks[1].slice(),
+    ];
+    let s = next[0].length + next[1].length;
+    const taken = new Set([...next[0], ...next[1]]);
+    while (s < order.length) {
+      const avail = ALL_CREATURES.filter((c) => !taken.has(c));
+      const choice = rng.pick(avail);
+      taken.add(choice);
+      next[order[s]].push(choice);
+      s++;
+    }
+    setPicks(next);
+    toAssign(next);
+  };
+
+  const toAssign = (p: [CreatureId[], CreatureId[]]) => {
+    setAssigned([p[0].slice(), p[1].slice()]);
+    setStage("assign");
+  };
+
+  const setSlot = (p: 0 | 1, digit: number, id: CreatureId) => {
+    const arr = assigned[p].slice();
+    const cur = arr[digit - 1];
+    const other = arr.indexOf(id);
+    if (other >= 0) arr[other] = cur;
+    arr[digit - 1] = id;
+    const next: [CreatureId[], CreatureId[]] = [
+      assigned[0].slice(),
+      assigned[1].slice(),
+    ];
+    next[p] = arr;
+    setAssigned(next);
   };
 
   return (
     <div className="wrap">
       <h1>DENDOKU</h1>
       <p className="sub">
-        Draft a team of nine animals, one bound to each digit. Each animal
-        changes how that digit behaves. The two teams differ, so the same grid
-        plays differently for each side.
+        A quiet contest over a shared grid. First, draft a team of nine
+        critters from the shared meadow. Picks alternate and each critter goes
+        to one team only, so the two teams always differ. Every critter changes
+        how its digit behaves.
       </p>
 
-      <div className="draft">
-        {([0, 1] as const).map((p) => (
-          <div key={p} className="panel draft-col">
-            <div className="turn">
-              <span className={`dot p${p}`} /> {PLAYER_NAMES[p]}
-              <button
-                style={{ marginLeft: "auto" }}
-                className="mini"
-                onClick={() => shuffle(p)}
-              >
-                shuffle
-              </button>
-            </div>
-            {Array.from({ length: SIZE }, (_, i) => {
-              const digit = i + 1;
-              const cur = teams[p][i];
-              return (
-                <div key={digit} className="slot">
-                  <span className="slot-d">{digit}</span>
-                  <select
-                    value={cur}
-                    onChange={(e) => setSlot(p, digit, e.target.value as AnimalId)}
-                  >
-                    {ALL_ANIMALS.map((a) => (
-                      <option key={a} value={a}>
-                        {ANIMALS[a].name} — {ANIMALS[a].epithet}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="slot-blurb">{ANIMALS[cur].blurb}</span>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      <div className="panel">
-        <div className="controls">
-          <label>
-            seeded cells
-            <select
-              value={seedCount}
-              onChange={(e) => setSeedCount(Number(e.target.value))}
-            >
-              {[0, 1, 3, 6, 10, 16].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
+      {stage === "pick" ? (
+        <>
+          <div className="draft-head">
+            <span className="draft-turn">
+              <span className={`dot p${current}`} /> {NAMES[current]} picks
+            </span>
+            <span className="draft-order">
+              {order.map((o, i) => (
+                <span
+                  key={i}
+                  className={
+                    "pip " +
+                    (i < step ? `done${o}` : "") +
+                    (i === step ? " now" : "")
+                  }
+                />
               ))}
-            </select>
-          </label>
-          <button onClick={onStart}>Start match</button>
-        </div>
-      </div>
+            </span>
+            <button className="mini" onClick={autoRest} style={btnStyle}>
+              auto-fill the rest
+            </button>
+          </div>
+
+          <div className="cats">
+            {CAT_ORDER.map((cat) => (
+              <div key={cat} className="cat">
+                <div className="cat-name" style={{ color: CATEGORIES[cat].hue }}>
+                  {CATEGORIES[cat].name}
+                  <span className="cat-tag">{CATEGORIES[cat].tagline}</span>
+                </div>
+                <div className="crlist">
+                  {creaturesByCategory(cat).map((c) => {
+                    const t = takenBy(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        className={`crcard ${t === 0 ? "taken0" : t === 1 ? "taken1" : ""}`}
+                        disabled={t !== null}
+                        onClick={() => pick(c.id)}
+                      >
+                        <Critter id={c.id} size={38} />
+                        <div className="cr-name">
+                          {c.name} <span>· {c.epithet}</span>
+                        </div>
+                        <div className="cr-blurb">{c.blurb}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="assign">
+            {([0, 1] as const).map((p) => (
+              <div key={p} className="panel">
+                <div className="turn">
+                  <span className={`dot p${p}`} /> {NAMES[p]}: bind to digits
+                </div>
+                {Array.from({ length: SIZE }, (_, i) => {
+                  const digit = i + 1;
+                  const id = assigned[p][i];
+                  return (
+                    <div key={digit} className="slot">
+                      <span className="slot-d">{digit}</span>
+                      <Critter id={id} size={30} />
+                      <select
+                        value={id}
+                        onChange={(e) =>
+                          setSlot(p, digit, e.target.value as CreatureId)
+                        }
+                      >
+                        {assigned[p].map((cid) => (
+                          <option key={cid} value={cid}>
+                            {ROSTER[cid].name}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="slot-blurb">{ROSTER[id].blurb}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="panel">
+            <div className="controls">
+              <label>
+                seeded cells
+                <select
+                  value={seedCount}
+                  onChange={(e) => setSeedCount(Number(e.target.value))}
+                >
+                  {[0, 1, 3, 6, 10, 16].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button className="primary" onClick={() => onStart(assigned)}>
+                Start match
+              </button>
+              <button onClick={() => setStage("pick")}>back to picking</button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
+const btnStyle = { marginLeft: "auto" } as const;
 
-function Board({
+/* ================================================================= *
+ * Play
+ * ================================================================= */
+
+function Play({
   game,
   teams,
   sel,
@@ -224,7 +331,7 @@ function Board({
   onRematch,
 }: {
   game: GameState;
-  teams: [AnimalId[], AnimalId[]];
+  teams: [CreatureId[], CreatureId[]];
   sel: number | null;
   setSel: (n: number | null) => void;
   doAction: (a: Action) => void;
@@ -238,6 +345,7 @@ function Board({
   const live = projectedScore(game);
   const lastCell = lastTouchedCell(game);
   const playing = game.status === "playing";
+  const cur = game.current;
 
   const selActions = useMemo(() => {
     if (sel === null || !playing) return [] as Action[];
@@ -268,16 +376,14 @@ function Board({
     return out;
   }, [game]);
 
-  const animalName = (cell: number) => {
+  const creatureLabel = (cell: number) => {
     const d = game.grid[cell];
     const p = game.placedBy[cell];
     if (d === 0 || p < 0) return "";
-    const id = teams[p][d - 1];
-    return `${ANIMALS[id].name} · ${d}`;
+    return `${ROSTER[teams[p][d - 1]].name} · ${d}`;
   };
 
   const claimed = game.regions.filter((r) => r.claimedBy !== null);
-  const cur = game.current;
 
   return (
     <div className="wrap">
@@ -286,7 +392,7 @@ function Board({
       <div className="layout">
         <div
           className="board"
-          style={{ gridTemplateColumns: `repeat(${SIZE}, 44px)` }}
+          style={{ gridTemplateColumns: `repeat(${SIZE}, 46px)` }}
         >
           {Array.from({ length: SIZE * SIZE }, (_, cell) => {
             const r = Math.floor(cell / SIZE);
@@ -296,14 +402,12 @@ function Board({
             const selectable =
               playing &&
               (v === 0 ||
-                mine === cur || // own cell (sparrow)
-                (mine === (cur === 0 ? 1 : 0) &&
-                  legalActions(game).some(
-                    (a) => a.type === "place" && a.cell === cell,
-                  )));
+                mine === cur ||
+                legalActions(game).some(
+                  (a) => a.type === "place" && a.cell === cell,
+                ));
             const cls = [
               "cell",
-              v !== 0 ? "filled" : "",
               game.seeded[cell] ? "seeded" : "",
               game.dormant[cell] ? "dormant" : "",
               sel === cell ? "sel" : "",
@@ -317,7 +421,7 @@ function Board({
               <button
                 key={cell}
                 className={cls}
-                title={animalName(cell)}
+                title={creatureLabel(cell)}
                 disabled={!selectable}
                 onClick={() => setSel(sel === cell ? null : cell)}
               >
@@ -334,16 +438,16 @@ function Board({
               <div className="turn">
                 <span className={`dot p${cur}`} />
                 <span>
-                  {PLAYER_NAMES[cur]} to move
-                  {game.pendingExtra ? " — place again (Wren)" : ""}
+                  {NAMES[cur]} to move
+                  {game.pendingExtra ? " · place again" : ""}
                 </span>
               </div>
             ) : (
               <div className="banner">
                 {game.winner === "draw"
                   ? "A level game."
-                  : `${PLAYER_NAMES[game.winner as 0 | 1]} takes the match.`}{" "}
-                <span style={{ color: "var(--ink-soft)" }}>
+                  : `${NAMES[game.winner as 0 | 1]} takes the match.`}{" "}
+                <span style={{ color: "var(--ink-soft)", fontWeight: 500 }}>
                   (
                   {game.endReason === "no-legal-move"
                     ? "play froze"
@@ -396,12 +500,10 @@ function Board({
 
             {sel !== null && playing && (
               <div className="picker-wrap">
-                <div className="hint">
+                <div className="hint" style={{ marginTop: 0 }}>
                   {game.grid[sel] === 0
                     ? `cell r${Math.floor(sel / SIZE) + 1} c${(sel % SIZE) + 1}`
-                    : `${animalName(sel)} — r${Math.floor(sel / SIZE) + 1} c${
-                        (sel % SIZE) + 1
-                      }`}
+                    : creatureLabel(sel)}
                 </div>
                 <div className="picker">
                   {selActions.length === 0 && (
@@ -412,7 +514,7 @@ function Board({
                       {a.type === "move"
                         ? `hop → r${Math.floor(a.to / SIZE) + 1} c${(a.to % SIZE) + 1}`
                         : game.grid[a.cell] !== 0
-                          ? `Mole → ${a.digit}`
+                          ? `remove → ${a.digit}`
                           : a.wild
                             ? `✦ ${a.digit}`
                             : `${a.digit}`}
@@ -425,13 +527,15 @@ function Board({
 
           <div className="panel">
             <div className="controls">
-              <button onClick={onRematch}>Rematch</button>
+              <button className="primary" onClick={onRematch}>
+                Rematch
+              </button>
               <button onClick={onNewDraft}>New draft</button>
               <button onClick={botMove} disabled={!playing}>
                 Bot move
               </button>
               <button onClick={() => setAuto((x) => !x)} disabled={!playing}>
-                {auto ? "Stop auto-play" : "Auto-play"}
+                {auto ? "Stop" : "Auto-play"}
               </button>
             </div>
           </div>
@@ -441,11 +545,13 @@ function Board({
               {([0, 1] as const).map((p) => (
                 <div key={p}>
                   <div className="hint" style={{ marginTop: 0 }}>
-                    <span className={`dot p${p}`} /> {PLAYER_NAMES[p]}
+                    <span className={`dot p${p}`} /> {NAMES[p]}
                   </div>
                   {teams[p].map((id, i) => (
-                    <div key={i} className="team-row" title={ANIMALS[id].blurb}>
-                      <b>{i + 1}</b> {ANIMALS[id].name}
+                    <div key={i} className="team-row" title={ROSTER[id].blurb}>
+                      <b>{i + 1}</b>
+                      <Critter id={id} size={22} />
+                      {ROSTER[id].name}
                     </div>
                   ))}
                 </div>
@@ -465,7 +571,7 @@ function Board({
                 .map((rg) => (
                   <div key={rg.id}>
                     turn {rg.claimedOnTurn}: {regionLabel(rg)} →{" "}
-                    {PLAYER_NAMES[rg.claimedBy as 0 | 1]}
+                    {NAMES[rg.claimedBy as 0 | 1]}
                   </div>
                 ))}
             </div>
