@@ -24,12 +24,12 @@ export interface CategoryDef {
 }
 
 export const CATEGORIES: Record<Category, CategoryDef> = {
-  anchor: { id: "anchor", name: "Anchor", element: "Stone", tagline: "hold the ground", hue: "#5aa469" },
-  drift: { id: "drift", name: "Drift", element: "Gust", tagline: "move after you land", hue: "#3fa3a3" },
-  hush: { id: "hush", name: "Hush", element: "Dream", tagline: "play with timing", hue: "#8f7fd4" },
-  thrift: { id: "thrift", name: "Thrift", element: "Sun", tagline: "gather energy", hue: "#e0a83d" },
-  ward: { id: "ward", name: "Ward", element: "Shell", tagline: "protect what you hold", hue: "#e2857b" },
-  snap: { id: "snap", name: "Snap", element: "Spark", tagline: "disrupt the board", hue: "#e2915b" },
+  anchor: { id: "anchor", name: "Anchor", element: "Stone", tagline: "hold the ground", hue: "#22c55e" },
+  drift: { id: "drift", name: "Drift", element: "Gust", tagline: "move after you land", hue: "#06b6d4" },
+  hush: { id: "hush", name: "Hush", element: "Dream", tagline: "play with timing", hue: "#a855f7" },
+  thrift: { id: "thrift", name: "Thrift", element: "Sun", tagline: "gather energy", hue: "#f59e0b" },
+  ward: { id: "ward", name: "Ward", element: "Shell", tagline: "protect what you hold", hue: "#f43f5e" },
+  snap: { id: "snap", name: "Snap", element: "Spark", tagline: "disrupt the board", hue: "#fb923c" },
 };
 
 export interface CreatureDef {

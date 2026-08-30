@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   ALL_CREATURES,
   ROSTER,
@@ -151,7 +158,7 @@ export function App() {
 }
 
 /* ================================================================= *
- * Draft - snake pick from a shared pool, then assign to digits
+ * Draft - one roster grid, alternating picks from the shared pool
  * ================================================================= */
 
 function Draft({
@@ -170,18 +177,22 @@ function Draft({
     [],
     [],
   ]);
+  const [filter, setFilter] = useState<Category | "all">("all");
 
   const step = picks[0].length + picks[1].length;
+  const done = step >= order.length;
   const current = order[step] ?? 0;
   const takenBy = (id: CreatureId): 0 | 1 | null =>
     picks[0].includes(id) ? 0 : picks[1].includes(id) ? 1 : null;
 
+  const toAssign = (p: [CreatureId[], CreatureId[]]) => {
+    setAssigned([p[0].slice(), p[1].slice()]);
+    setStage("assign");
+  };
+
   const pick = (id: CreatureId) => {
-    if (stage !== "pick" || takenBy(id) !== null || step >= order.length) return;
-    const next: [CreatureId[], CreatureId[]] = [
-      picks[0].slice(),
-      picks[1].slice(),
-    ];
+    if (stage !== "pick" || takenBy(id) !== null || done) return;
+    const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
     next[current].push(id);
     setPicks(next);
     if (next[0].length + next[1].length === order.length) toAssign(next);
@@ -189,15 +200,11 @@ function Draft({
 
   const autoRest = () => {
     const rng = makeRng((Date.now() ^ step) >>> 0);
-    const next: [CreatureId[], CreatureId[]] = [
-      picks[0].slice(),
-      picks[1].slice(),
-    ];
-    let s = next[0].length + next[1].length;
+    const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
     const taken = new Set([...next[0], ...next[1]]);
+    let s = taken.size;
     while (s < order.length) {
-      const avail = ALL_CREATURES.filter((c) => !taken.has(c));
-      const choice = rng.pick(avail);
+      const choice = rng.pick(ALL_CREATURES.filter((c) => !taken.has(c)));
       taken.add(choice);
       next[order[s]].push(choice);
       s++;
@@ -206,9 +213,12 @@ function Draft({
     toAssign(next);
   };
 
-  const toAssign = (p: [CreatureId[], CreatureId[]]) => {
-    setAssigned([p[0].slice(), p[1].slice()]);
-    setStage("assign");
+  const undo = () => {
+    if (step === 0) return;
+    const last = order[step - 1];
+    const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
+    next[last].pop();
+    setPicks(next);
   };
 
   const setSlot = (p: 0 | 1, digit: number, id: CreatureId) => {
@@ -225,143 +235,184 @@ function Draft({
     setAssigned(next);
   };
 
+  if (stage === "assign") {
+    return (
+      <div className="wrap">
+        <h1>DENDOKU</h1>
+        <p className="sub">
+          Bind each of your drafted critters to a digit. That digit now plays
+          the way the critter says, for you.
+        </p>
+        <div className="assign">
+          {([0, 1] as const).map((p) => (
+            <div key={p} className="panel">
+              <div className="turn">
+                <span className={`dot p${p}`} /> {NAMES[p]}: bind to digits
+              </div>
+              {Array.from({ length: SIZE }, (_, i) => {
+                const digit = i + 1;
+                const id = assigned[p][i];
+                return (
+                  <div key={digit} className="slot">
+                    <span className="slot-d">{digit}</span>
+                    <Critter id={id} size={30} />
+                    <select
+                      value={id}
+                      onChange={(e) =>
+                        setSlot(p, digit, e.target.value as CreatureId)
+                      }
+                    >
+                      {assigned[p].map((cid) => (
+                        <option key={cid} value={cid}>
+                          {ROSTER[cid].name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="slot-blurb">{ROSTER[id].blurb}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <div className="panel">
+          <div className="controls">
+            <label>
+              seeded cells
+              <select
+                value={seedCount}
+                onChange={(e) => setSeedCount(Number(e.target.value))}
+              >
+                {[0, 1, 3, 6, 10, 16].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="primary" onClick={() => onStart(assigned)}>
+              Start match
+            </button>
+            <button onClick={() => setStage("pick")}>back to draft</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const shown =
+    filter === "all" ? ALL_CREATURES.map((id) => ROSTER[id]) : creaturesByCategory(filter);
+
   return (
     <div className="wrap">
       <h1>DENDOKU</h1>
       <p className="sub">
-        A quiet contest over a shared 9x9 grid. You take turns placing a digit
-        where it does not repeat in its row, column, or box. When play freezes
-        (it almost always does before the grid fills), every region - each row,
-        column, and box - goes to whoever holds the most cells in it. Complete
-        a region during play to lock it early.
-      </p>
-      <p className="sub" style={{ marginTop: -12 }}>
-        First, draft. Pick nine critters from the shared meadow, one per type.
-        Picks alternate and each critter joins one team only, so the two teams
-        always play the same grid differently.
+        Draft nine critters from the roster. Picks alternate; each critter joins
+        one team only. Then place digits on a shared grid where they can't repeat
+        in a row, column, or box. When play freezes, every region goes to
+        whoever holds the most of it.
       </p>
 
-      {stage === "pick" ? (
-        <>
-          <div className="draft-head">
-            <span className="draft-turn">
-              <span className={`dot p${current}`} /> {NAMES[current]} picks
-            </span>
-            <span className="draft-order">
-              {order.map((o, i) => (
-                <span
-                  key={i}
-                  className={
-                    "pip " +
-                    (i < step ? `done${o}` : "") +
-                    (i === step ? " now" : "")
-                  }
-                />
-              ))}
-            </span>
-            <button className="mini" onClick={autoRest} style={btnStyle}>
-              auto-fill the rest
+      <div className="draft-bar">
+        <div className="draft-bar-top">
+          <span className="draft-turn">
+            <span className={`dot p${current}`} />
+            {NAMES[current]} to pick &middot; {step}/{order.length}
+          </span>
+          <div className="controls" style={{ marginLeft: "auto" }}>
+            <button onClick={undo} disabled={step === 0}>
+              undo
             </button>
+            <button onClick={autoRest}>auto-fill</button>
           </div>
-
-          <div className="cats">
-            {CAT_ORDER.map((cat) => (
-              <div key={cat} className="cat">
-                <div className="cat-name" style={{ color: CATEGORIES[cat].hue }}>
-                  {CATEGORIES[cat].name}
-                  <span className="cat-tag">{CATEGORIES[cat].tagline}</span>
-                </div>
-                <div className="crlist">
-                  {creaturesByCategory(cat).map((c) => {
-                    const t = takenBy(c.id);
-                    return (
-                      <button
-                        key={c.id}
-                        className={`crcard ${t === 0 ? "taken0" : t === 1 ? "taken1" : ""}`}
-                        disabled={t !== null}
-                        onClick={() => pick(c.id)}
-                      >
-                        <Critter id={c.id} size={38} />
-                        <div className="cr-name">
-                          {c.name}
-                          <span
-                            className="type-chip"
-                            style={{ background: CATEGORIES[cat].hue }}
-                          >
-                            {CATEGORIES[cat].element}
-                          </span>
-                        </div>
-                        <div className="cr-blurb">{c.blurb}</div>
-                      </button>
-                    );
-                  })}
-                </div>
+        </div>
+        <div className="tray">
+          {([0, 1] as const).map((p) => (
+            <div
+              key={p}
+              className={`tray-side ${current === p && !done ? "now" : ""}`}
+            >
+              <div className="turn" style={{ fontSize: 13 }}>
+                <span className={`dot p${p}`} /> {NAMES[p]}
               </div>
-            ))}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="assign">
-            {([0, 1] as const).map((p) => (
-              <div key={p} className="panel">
-                <div className="turn">
-                  <span className={`dot p${p}`} /> {NAMES[p]}: bind to digits
-                </div>
-                {Array.from({ length: SIZE }, (_, i) => {
-                  const digit = i + 1;
-                  const id = assigned[p][i];
-                  return (
-                    <div key={digit} className="slot">
-                      <span className="slot-d">{digit}</span>
-                      <Critter id={id} size={30} />
-                      <select
-                        value={id}
-                        onChange={(e) =>
-                          setSlot(p, digit, e.target.value as CreatureId)
-                        }
-                      >
-                        {assigned[p].map((cid) => (
-                          <option key={cid} value={cid}>
-                            {ROSTER[cid].name}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="slot-blurb">{ROSTER[id].blurb}</span>
-                    </div>
-                  );
-                })}
+              <div className="tray-slots">
+                {Array.from({ length: SIZE }, (_, i) => (
+                  <div
+                    key={i}
+                    className={`tray-slot ${picks[p][i] ? "filled" : ""}`}
+                  >
+                    {picks[p][i] && <Critter id={picks[p][i]} size={26} />}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="panel">
-            <div className="controls">
-              <label>
-                seeded cells
-                <select
-                  value={seedCount}
-                  onChange={(e) => setSeedCount(Number(e.target.value))}
-                >
-                  {[0, 1, 3, 6, 10, 16].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button className="primary" onClick={() => onStart(assigned)}>
-                Start match
-              </button>
-              <button onClick={() => setStage("pick")}>back to picking</button>
             </div>
-          </div>
-        </>
-      )}
+          ))}
+        </div>
+      </div>
+
+      <div className="controls" style={{ marginBottom: 12 }}>
+        <button
+          className={filter === "all" ? "primary" : ""}
+          onClick={() => setFilter("all")}
+        >
+          all
+        </button>
+        {CAT_ORDER.map((cat) => (
+          <button
+            key={cat}
+            className={filter === cat ? "primary" : ""}
+            onClick={() => setFilter(cat)}
+            style={
+              filter === cat
+                ? { background: CATEGORIES[cat].hue, borderColor: "transparent" }
+                : { color: CATEGORIES[cat].hue }
+            }
+          >
+            {CATEGORIES[cat].element}
+          </button>
+        ))}
+      </div>
+
+      <div className="roster">
+        {shown.map((c) => {
+          const t = takenBy(c.id);
+          return (
+            <button
+              key={c.id}
+              className={`rcard ${
+                t === 0 ? "taken0" : t === 1 ? "taken1" : t !== null ? "taken" : ""
+              }`}
+              disabled={t !== null || done}
+              onClick={() => pick(c.id)}
+              style={
+                { "--tint": CATEGORIES[c.category].hue } as CSSProperties
+              }
+            >
+              {t !== null && (
+                <span
+                  className="rc-owner"
+                  style={{ background: t === 0 ? "var(--p0)" : "var(--p1)" }}
+                >
+                  {NAMES[t]}
+                </span>
+              )}
+              <Critter id={c.id} size={52} />
+              <div className="rc-name">{c.name}</div>
+              <div className="rc-ep">{c.epithet}</div>
+              <span
+                className="type-chip"
+                style={{ background: CATEGORIES[c.category].hue }}
+              >
+                {CATEGORIES[c.category].element}
+              </span>
+              <div className="rc-blurb">{c.blurb}</div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
-
-const btnStyle = { marginLeft: "auto" } as const;
 
 /* ================================================================= *
  * Play

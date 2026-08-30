@@ -12,29 +12,29 @@ interface Spec {
 }
 
 const SPEC: Record<CreatureId, Spec> = {
-  boulderpup: { body: "pebble", feature: "ears", accent: "#3c7a4a" },
-  mossback: { body: "pebble", feature: "sprout", accent: "#2f6b3c" },
-  slumberstone: { body: "round", feature: "tuft", accent: "#4c8c5b" },
+  boulderpup: { body: "pebble", feature: "ears", accent: "#15803d" },
+  mossback: { body: "pebble", feature: "sprout", accent: "#166534" },
+  slumberstone: { body: "round", feature: "tuft", accent: "#15803d" },
 
-  breezefinch: { body: "egg", feature: "wings", accent: "#2b8a8a" },
-  tumbleweed: { body: "spiky", feature: "none", accent: "#2b8a8a" },
-  glidewing: { body: "leaf", feature: "wings", accent: "#2b8a8a" },
+  breezefinch: { body: "egg", feature: "wings", accent: "#0e7490" },
+  tumbleweed: { body: "spiky", feature: "none", accent: "#0e7490" },
+  glidewing: { body: "leaf", feature: "wings", accent: "#0e7490" },
 
-  snoozemouse: { body: "round", feature: "ears", accent: "#6f5fc0" },
-  fogkit: { body: "egg", feature: "tuft", accent: "#6f5fc0" },
-  dozderling: { body: "round", feature: "antenna", accent: "#6f5fc0" },
+  snoozemouse: { body: "round", feature: "ears", accent: "#7e22ce" },
+  fogkit: { body: "egg", feature: "tuft", accent: "#7e22ce" },
+  dozderling: { body: "round", feature: "antenna", accent: "#7e22ce" },
 
-  nutsquirrel: { body: "egg", feature: "tuft", accent: "#c58f28" },
-  acorncache: { body: "pebble", feature: "sprout", accent: "#c58f28" },
-  sunbeetle: { body: "round", feature: "horn", accent: "#c58f28" },
+  nutsquirrel: { body: "egg", feature: "tuft", accent: "#b45309" },
+  acorncache: { body: "pebble", feature: "sprout", accent: "#b45309" },
+  sunbeetle: { body: "round", feature: "horn", accent: "#b45309" },
 
-  pricklehog: { body: "spiky", feature: "none", accent: "#c96a5f" },
-  shellclam: { body: "pebble", feature: "shell", accent: "#c96a5f" },
-  barknewt: { body: "leaf", feature: "sprout", accent: "#c96a5f" },
+  pricklehog: { body: "spiky", feature: "none", accent: "#be123c" },
+  shellclam: { body: "pebble", feature: "shell", accent: "#be123c" },
+  barknewt: { body: "leaf", feature: "sprout", accent: "#be123c" },
 
-  swiftwren: { body: "egg", feature: "wings", accent: "#c9743f" },
-  digmole: { body: "round", feature: "horn", accent: "#c9743f" },
-  wildlark: { body: "leaf", feature: "antenna", accent: "#c9743f" },
+  swiftwren: { body: "egg", feature: "wings", accent: "#c2410c" },
+  digmole: { body: "round", feature: "horn", accent: "#c2410c" },
+  wildlark: { body: "leaf", feature: "antenna", accent: "#c2410c" },
 };
 
 function bodyPath(body: Body): JSX.Element {
