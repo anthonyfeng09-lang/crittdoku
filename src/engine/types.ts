@@ -34,6 +34,12 @@ export interface Move {
   digit: number;
 }
 
+/** a pre-placed cell; `owner` set means it counts as that player's
+ *  territory from the start (used to compensate the first draft pick) */
+export interface Seed extends Move {
+  owner?: Player;
+}
+
 export type Action =
   | { type: "place"; cell: number; digit: number; wild?: boolean }
   | { type: "move"; from: number; to: number };

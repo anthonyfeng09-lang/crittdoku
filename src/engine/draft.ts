@@ -16,26 +16,28 @@ export function snakeOrder(teamSize: number): Player[] {
   return order;
 }
 
-/** rough power ranking for the auto-drafter; higher = picked sooner */
+/** Mild draft preferences for the auto-drafter (from self-play win rates,
+ *  post M4-balance). Deliberately flat: real drafts are close, and a steep
+ *  greedy model makes the snake draft look unfair when it mostly isn't. */
 const VALUE: Record<CreatureId, number> = {
-  swiftwren: 9,
-  digmole: 8,
-  wildlark: 7,
-  pricklehog: 7,
-  shellclam: 6,
-  acorncache: 6,
-  mossback: 6,
-  sunbeetle: 5,
-  nutsquirrel: 5,
-  barknewt: 5,
-  boulderpup: 4,
-  tumbleweed: 4,
-  breezefinch: 4,
-  fogkit: 3,
-  snoozemouse: 3,
-  slumberstone: 3,
-  dozderling: 3,
+  mossback: 3,
+  digmole: 3,
+  pricklehog: 2,
+  shellclam: 2,
+  boulderpup: 2,
+  acorncache: 2,
+  swiftwren: 2,
+  wildlark: 2,
+  sunbeetle: 2,
+  nutsquirrel: 2,
+  barknewt: 2,
+  tumbleweed: 2,
+  breezefinch: 2,
   glidewing: 2,
+  fogkit: 2,
+  snoozemouse: 2,
+  slumberstone: 2,
+  dozderling: 2,
 };
 
 export interface DraftResult {
@@ -53,8 +55,8 @@ export function autoDraft(size: number, rng: RNG): DraftResult {
 
   for (const p of order) {
     const avail = [...pool];
-    // pick the best available, but sometimes take the 2nd or 3rd best
-    avail.sort((a, b) => VALUE[b] - VALUE[a] + (rng.next() - 0.5) * 3);
+    // mild preference + large noise: bots draft plausibly, not identically
+    avail.sort((a, b) => VALUE[b] - VALUE[a] + (rng.next() - 0.5) * 6);
     const choice = avail[0];
     pool.delete(choice);
     picks[p].push(choice);

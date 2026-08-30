@@ -50,6 +50,9 @@ export interface CreatureDef {
   dormant?: boolean;
   /** how many of the owner's turns it stays asleep (default 1) */
   dormantTurns?: number;
+  /** when it wakes, immediately lock any of its regions the owner leads on
+   *  territory (a delayed pounce) */
+  claimRegionsOnWake?: boolean;
   /** energy granted on placement, on top of the base */
   energyBonus?: number;
   /** +3 energy whenever the opponent locks a region holding an active one */
@@ -88,8 +91,7 @@ export const ROSTER: Record<CreatureId, CreatureDef> = {
     name: "Mossback",
     epithet: "Old growth",
     category: "anchor",
-    blurb: "Permanent, and each of its cells counts double toward holding a region.",
-    permanent: true,
+    blurb: "Each of its cells counts double toward holding a region.",
     territoryWeight: 2,
   },
   slumberstone: {
@@ -138,26 +140,30 @@ export const ROSTER: Record<CreatureId, CreatureDef> = {
     name: "Snoozemouse",
     epithet: "Drowsy",
     category: "hush",
-    blurb: "Sleeps for one turn. It does not count toward a region until it wakes.",
+    blurb: "Sleeps a turn, then wakes and locks any of its regions you are leading.",
     dormant: true,
+    claimRegionsOnWake: true,
   },
   fogkit: {
     id: "fogkit",
     name: "Fogkit",
     epithet: "Hazy",
     category: "hush",
-    blurb: "Sleeps for two turns before it counts, stalling a region for longer.",
+    blurb: "Sleeps two turns, then wakes and locks any of its regions you are leading. A big delayed pounce.",
     dormant: true,
     dormantTurns: 2,
+    claimRegionsOnWake: true,
   },
   dozderling: {
     id: "dozderling",
     name: "Dozderling",
     epithet: "Dozy forager",
     category: "hush",
-    blurb: "Sleeps for a turn, and stores 3 energy when placed.",
+    blurb: "Stores 3 energy, sleeps a turn, then wakes and locks any of its regions you are leading.",
     dormant: true,
+    dormantTurns: 1,
     energyBonus: 3,
+    claimRegionsOnWake: true,
   },
 
   // ---- Thrift -------------------------------------------------

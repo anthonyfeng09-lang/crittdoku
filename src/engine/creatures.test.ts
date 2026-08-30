@@ -96,6 +96,22 @@ describe("Fogkit sleeps two turns", () => {
   });
 });
 
+describe("Snoozemouse pounce on wake", () => {
+  it("locks a region the owner leads when it wakes", () => {
+    const s = createGame({ loadouts: [lo({ 6: "snoozemouse" }), lo({})] });
+    // p0 builds a lead in row 0, then drops a Snoozemouse there
+    applyAction(s, place(cell(0, 0), 1)); // p0
+    applyAction(s, place(cell(5, 5), 1)); // p1 far away
+    applyAction(s, place(cell(0, 2), 2)); // p0  (row 0: p0 leads 2-0)
+    applyAction(s, place(cell(5, 6), 2)); // p1
+    applyAction(s, place(cell(0, 4), 6)); // p0 Snoozemouse, asleep
+    expect(rowOf(s, 0).claimedBy).toBeNull();
+    pass(s); // p1
+    // p0's turn: Snoozemouse wakes and pounces on row 0 (and col 4, box 1)
+    expect(rowOf(s, 0).claimedBy).toBe(0);
+  });
+});
+
 describe("Sunbeetle payout", () => {
   it("gains 3 energy when the opponent locks a region it sits in", () => {
     const s = createGame({ loadouts: [lo({}), lo({ 5: "sunbeetle" })] });
@@ -117,22 +133,17 @@ describe("Sunbeetle payout", () => {
   });
 });
 
-describe("Mossback: permanent and double weight", () => {
-  it("out-holds two ordinary opponent cells and resists a Mole", () => {
+describe("Mossback: double territory weight", () => {
+  it("out-holds two ordinary opponent cells", () => {
     const s = createGame({
-      loadouts: [lo({ 1: "mossback" }), lo({ 9: "digmole", 2: "nutsquirrel" })],
+      loadouts: [lo({ 1: "mossback" }), lo({ 2: "nutsquirrel" })],
     });
     applyAction(s, place(cell(0, 0), 1)); // p0 mossback (weight 2)
     applyAction(s, place(cell(0, 1), 2)); // p1
     applyAction(s, place(cell(3, 3), 1)); // p0 filler far away
     applyAction(s, place(cell(0, 5), 4)); // p1, 2 cells in row 0 (weight 2)
-    // p0 mossback weight 2 vs p1 weight 2 -> tie, both hold a shellclam
-    // filler so ties cancel -> null. Give p0 one more:
     applyAction(s, place(cell(0, 8), 3)); // p0, weight 2 + 1 = 3 vs 2
     expect(territoryHolder(s, rowOf(s, 0))).toBe(0);
-    // Mole can't take a permanent Mossback
-    pass(s); // p1
-    expect(() => applyAction(s, place(cell(0, 0), 9))).toThrow();
   });
 });
 

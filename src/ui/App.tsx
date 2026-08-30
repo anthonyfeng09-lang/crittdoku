@@ -192,10 +192,16 @@ function Draft({
     <div className="wrap">
       <h1>DENDOKU</h1>
       <p className="sub">
-        A quiet contest over a shared grid. First, draft a team of nine
-        critters from the shared meadow. Picks alternate and each critter goes
-        to one team only, so the two teams always differ. Every critter changes
-        how its digit behaves.
+        A quiet contest over a shared 9x9 grid. You take turns placing a digit
+        where it does not repeat in its row, column, or box. When play freezes
+        (it almost always does before the grid fills), every region - each row,
+        column, and box - goes to whoever holds the most cells in it. Complete
+        a region during play to lock it early.
+      </p>
+      <p className="sub" style={{ marginTop: -12 }}>
+        First, draft. Pick nine critters from the shared meadow, one per type.
+        Picks alternate and each critter joins one team only, so the two teams
+        always play the same grid differently.
       </p>
 
       {stage === "pick" ? (

@@ -14,6 +14,7 @@ import {
   Player,
   Region,
   Rules,
+  Seed,
   fullCharges,
   other,
 } from "./types";
@@ -136,9 +137,11 @@ function isPermanent(state: GameState, cell: number): boolean {
 export interface CreateOptions {
   config?: BoardConfig;
   rules?: Partial<Rules>;
-  seeds?: Move[];
+  seeds?: Seed[];
   firstPlayer?: Player;
   loadouts?: [Loadout, Loadout];
+  /** starting energy, e.g. to compensate the first overall draft pick */
+  startEnergy?: [number, number];
 }
 
 export function createGame(opts: CreateOptions = {}): GameState {
@@ -165,7 +168,9 @@ export function createGame(opts: CreateOptions = {}): GameState {
     pendingExtra: false,
     skipNext: [false, false],
     score: [0, 0],
-    energy: [0, 0],
+    energy: opts.startEnergy
+      ? [opts.startEnergy[0], opts.startEnergy[1]]
+      : [0, 0],
     status: "playing",
     endReason: null,
     winner: null,
@@ -185,7 +190,8 @@ export function createGame(opts: CreateOptions = {}): GameState {
     if (!isLegal(state, seed.cell, seed.digit)) {
       throw new Error(`illegal seed: digit ${seed.digit} at cell ${seed.cell}`);
     }
-    fillCell(state, seed.cell, seed.digit, -1 as Player, 0, 0, true);
+    const owner = seed.owner ?? (-1 as Player);
+    fillCell(state, seed.cell, seed.digit, owner, 0, 0, owner < 0);
   }
 
   return state;
@@ -415,13 +421,10 @@ function lockRegion(
   if (region.claimedBy !== null || by < 0) return false;
   const opp = other(by);
   for (const cell of region.cells) {
-    if (
-      state.placedBy[cell] === opp &&
-      isActive(state, cell) &&
-      creatureAt(state, cell)?.denyOpponentLock === true
-    ) {
-      return false;
-    }
+    if (state.placedBy[cell] !== opp) continue;
+    const cr = creatureAt(state, cell);
+    if (!cr) continue;
+    if (isActive(state, cell) && cr.denyOpponentLock) return false;
   }
   region.claimedBy = by;
   region.claimedOnTurn = turn;
@@ -481,6 +484,19 @@ function activateCell(state: GameState, cell: number, turn: number): number[] {
     region.filled++;
     if (region.filled === state.config.size && lockRegion(state, region, by, turn)) {
       claimed.push(region.id);
+    }
+  }
+  // a Hush critter pounces on wake: lock the regions its owner is leading
+  if (creatureAt(state, cell)?.claimRegionsOnWake) {
+    for (let k = 0; k < 3; k++) {
+      const region = state.regions[state.cellRegions[cell * 3 + k]];
+      if (
+        region.claimedBy === null &&
+        territoryHolder(state, region) === by &&
+        lockRegion(state, region, by, turn)
+      ) {
+        claimed.push(region.id);
+      }
     }
   }
   return claimed;
