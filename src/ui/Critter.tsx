@@ -27,10 +27,12 @@ const SPEC: Record<CreatureId, Spec> = {
   nutsquirrel: { body: "egg", feature: "tuft", accent: "#b45309" },
   acorncache: { body: "pebble", feature: "sprout", accent: "#b45309" },
   sunbeetle: { body: "round", feature: "horn", accent: "#b45309" },
+  tallykit: { body: "egg", feature: "antenna", accent: "#b45309" },
 
   pricklehog: { body: "spiky", feature: "none", accent: "#be123c" },
   shellclam: { body: "pebble", feature: "shell", accent: "#be123c" },
   barknewt: { body: "leaf", feature: "sprout", accent: "#be123c" },
+  thornpod: { body: "spiky", feature: "sprout", accent: "#be123c" },
 
   swiftwren: { body: "egg", feature: "wings", accent: "#c2410c" },
   digmole: { body: "round", feature: "horn", accent: "#c2410c" },

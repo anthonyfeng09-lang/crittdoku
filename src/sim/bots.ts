@@ -117,11 +117,14 @@ export const critterBot: Bot = {
     // cheap pre-score to build a shortlist
     const cheap = (a: Action): number => {
       if (a.type === "move") return 0.5; // hops rarely worth it
+      if (a.type === "mine") return 0.4;
+      if (a.type === "clear") return 0.3;
       if (a.wild) return 1; // save the wild unless deep-eval loves it
       const m: Move = { cell: a.cell, digit: a.digit };
       const isReplace = state.grid[a.cell] !== 0;
       let v = placeTerritoryDelta(state, m, me) * 4 + claimGain(state, a.cell);
       if (isReplace) v += 1; // denying an opponent cell has some value
+      if (a.burst) v += 0.5;
       return v;
     };
 

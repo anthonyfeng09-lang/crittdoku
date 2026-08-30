@@ -229,21 +229,27 @@ h1 {
   border-radius: 10px;
 }
 
-.charges {
-  display: flex;
-  gap: 14px;
+.abilities {
   margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ab-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
   flex-wrap: wrap;
 }
 .chip {
   font-size: 10px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: 999px;
-  margin-left: 4px;
   border: 2px solid var(--line-strong);
   font-weight: 800;
+  white-space: nowrap;
 }
 .chip.on {
   background: var(--accent);
@@ -251,8 +257,36 @@ h1 {
   border-color: var(--accent);
 }
 .chip.off {
-  color: var(--line-strong);
-  text-decoration: line-through;
+  color: var(--ink-soft);
+  opacity: 0.55;
+}
+.chip.mine-chip {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.cell.mine {
+  color: #fff;
+  font-size: 15px;
+}
+.cell.mine0 {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(22, 163, 74, 0.5),
+    rgba(22, 163, 74, 0.5) 5px,
+    rgba(22, 163, 74, 0.28) 5px,
+    rgba(22, 163, 74, 0.28) 10px
+  );
+}
+.cell.mine1 {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(244, 63, 94, 0.5),
+    rgba(244, 63, 94, 0.5) 5px,
+    rgba(244, 63, 94, 0.28) 5px,
+    rgba(244, 63, 94, 0.28) 10px
+  );
 }
 
 .picker-wrap {

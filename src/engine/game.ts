@@ -1,9 +1,9 @@
 import { ROSTER, CreatureDef } from "./creatures";
 import {
+  ABILITY_COST,
   Action,
   CreatureId,
   BoardConfig,
-  Charges,
   CONFIG_9x9,
   DEFAULT_RULES,
   ENERGY_PER_CLAIM,
@@ -15,7 +15,6 @@ import {
   Region,
   Rules,
   Seed,
-  fullCharges,
   other,
 } from "./types";
 
@@ -121,6 +120,39 @@ export function creatureAt(state: GameState, cell: number): CreatureDef | null {
   return creatureFor(state, by as Player, digit);
 }
 
+/** does this player's team include a creature with the given capability? */
+export function teamHas(
+  state: GameState,
+  player: Player,
+  flag: keyof CreatureDef,
+): boolean {
+  for (const id of Object.values(state.loadouts[player])) {
+    if (ROSTER[id]?.[flag]) return true;
+  }
+  return false;
+}
+
+/** digits this player's team can use a given ability on */
+function abilityDigits(
+  state: GameState,
+  player: Player,
+  flag: keyof CreatureDef,
+): number[] {
+  const out: number[] = [];
+  for (let d = 1; d <= state.config.size; d++) {
+    if (creatureFor(state, player, d)?.[flag]) out.push(d);
+  }
+  return out;
+}
+
+export function mineCount(state: GameState, player: Player): number {
+  let n = 0;
+  for (let i = 0; i < state.mines.length; i++) if (state.mines[i] === player) n++;
+  return n;
+}
+
+export const MAX_MINES = 3;
+
 /** grid-occupied and not sleeping - counts toward completion and territory */
 export function isActive(state: GameState, cell: number): boolean {
   return state.grid[cell] !== 0 && state.dormant[cell] === 0;
@@ -140,7 +172,6 @@ export interface CreateOptions {
   seeds?: Seed[];
   firstPlayer?: Player;
   loadouts?: [Loadout, Loadout];
-  /** starting energy, e.g. to compensate the first overall draft pick */
   startEnergy?: [number, number];
 }
 
@@ -160,13 +191,12 @@ export function createGame(opts: CreateOptions = {}): GameState {
     cellRegions,
     regionMask: new Int32Array(regions.length),
     loadouts: opts.loadouts ?? [{}, {}],
-    charges: [fullCharges(), fullCharges()],
+    mines: new Int8Array(g.cellCount).fill(-1),
     regrow: [],
     turn: 0,
     staleTurns: 0,
     current: opts.firstPlayer ?? 0,
     pendingExtra: false,
-    skipNext: [false, false],
     score: [0, 0],
     energy: opts.startEnergy
       ? [opts.startEnergy[0], opts.startEnergy[1]]
@@ -176,15 +206,6 @@ export function createGame(opts: CreateOptions = {}): GameState {
     winner: null,
     history: [],
   };
-
-  // hop budget is the sum of the hops each drafted Drift critter contributes
-  for (const p of [0, 1] as const) {
-    let hops = 0;
-    for (const id of Object.values(state.loadouts[p])) {
-      hops += ROSTER[id]?.hops ?? 0;
-    }
-    state.charges[p].hops = hops;
-  }
 
   for (const seed of opts.seeds ?? []) {
     if (!isLegal(state, seed.cell, seed.digit)) {
@@ -205,10 +226,12 @@ export function isLegal(
   state: GameState,
   cell: number,
   digit: number,
-  opts: { wild?: boolean } = {},
+  opts: { wild?: boolean; by?: Player } = {},
 ): boolean {
   if (digit < 1 || digit > state.config.size) return false;
   if (state.grid[cell] !== 0) return false;
+  const mine = state.mines[cell];
+  if (mine !== -1 && mine !== opts.by) return false;
   if (opts.wild) return true;
   const bit = 1 << digit;
   const base = cell * 3;
@@ -218,13 +241,15 @@ export function isLegal(
   return true;
 }
 
-/** normal placements only - the milestone-1/2 move set, still used widely */
+/** normal placements only for the player to move (respects mines) */
 export function legalMoves(state: GameState): Move[] {
   const moves: Move[] = [];
   if (state.status !== "playing") return moves;
   const { size } = state.config;
+  const by = state.current;
   for (let cell = 0; cell < state.grid.length; cell++) {
     if (state.grid[cell] !== 0) continue;
+    if (state.mines[cell] !== -1 && state.mines[cell] !== by) continue;
     const base = cell * 3;
     const used =
       state.regionMask[state.cellRegions[base + 0]] |
@@ -282,8 +307,7 @@ function wouldComplete(state: GameState, cell: number): boolean {
   return false;
 }
 
-/** is `cell` in a region the given player is contesting - leading on
- *  territory, or one move from completing? (gates Mole) */
+/** is `cell` in a region the given player is contesting? (gates Mole) */
 function contestedBy(state: GameState, cell: number, player: Player): boolean {
   for (let k = 0; k < 3; k++) {
     const region = state.regions[state.cellRegions[cell * 3 + k]];
@@ -294,62 +318,81 @@ function contestedBy(state: GameState, cell: number, player: Player): boolean {
   return false;
 }
 
-/** Can `by` place `digit` onto the already-occupied `cell`, removing what's
- *  there? (Mole) */
 function canReplace(
   state: GameState,
   cell: number,
   digit: number,
   by: Player,
 ): boolean {
-  if (!state.charges[by].mole) return false;
-  if (creatureFor(state, by, digit)?.replaceOncePerGame !== true) return false;
+  if (creatureFor(state, by, digit)?.canMole !== true) return false;
+  if (state.energy[by] < ABILITY_COST.replace) return false;
   const victim = state.placedBy[cell];
   if (victim !== other(by)) return false;
   if (isPermanent(state, cell)) return false;
   if (creatureAt(state, cell)?.regrowIfRemoved === true) return false;
   if (regionsClaimed(state, cell)) return false;
-  // Mole must matter: the target has to sit in a region the victim is
-  // contesting, not just any stray cell
   if (!contestedBy(state, cell, victim as Player)) return false;
-  // the new digit must be legal once the victim is gone
   const vbit = 1 << state.grid[cell];
   const bit = 1 << digit;
   for (let k = 0; k < 3; k++) {
     const rid = state.cellRegions[cell * 3 + k];
     let mask = state.regionMask[rid];
-    if (state.grid[cell] !== digit) mask &= ~vbit; // victim leaving
+    if (state.grid[cell] !== digit) mask &= ~vbit;
     if (mask & bit) return false;
   }
   return true;
 }
 
-/** All actions available to the player to move: normal + wild placements,
- *  Mole replacements, Sparrow hops. Used for stuck detection and bots. */
+/** Every action available to the player to move. Used for the UI, bots and
+ *  stuck detection. Ability actions are only listed when affordable. */
 export function legalActions(state: GameState): Action[] {
   const out: Action[] = [];
   if (state.status !== "playing") return out;
   const by = state.current;
   const { size } = state.config;
+  const energy = state.energy[by];
 
-  const larkDigits: number[] = [];
-  const moleDigits: number[] = [];
-  for (let d = 1; d <= size; d++) {
-    const a = creatureFor(state, by, d);
-    if (a?.wildOncePerGame && state.charges[by].lark) larkDigits.push(d);
-    if (a?.replaceOncePerGame && state.charges[by].mole) moleDigits.push(d);
-  }
+  const larkDigits =
+    energy >= ABILITY_COST.wild ? abilityDigits(state, by, "canWild") : [];
+  const moleDigits =
+    energy >= ABILITY_COST.replace ? abilityDigits(state, by, "canMole") : [];
+  const burstDigits =
+    !state.pendingExtra && energy >= ABILITY_COST.extra
+      ? abilityDigits(state, by, "canBurst")
+      : [];
+  const canMine =
+    energy >= ABILITY_COST.mine &&
+    mineCount(state, by) < MAX_MINES &&
+    teamHas(state, by, "canMine");
 
   for (let cell = 0; cell < state.grid.length; cell++) {
-    if (state.grid[cell] === 0) {
+    const empty = state.grid[cell] === 0;
+    const mineHere = state.mines[cell];
+    if (empty && mineHere === -1) {
       for (let d = 1; d <= size; d++) {
-        if (isLegal(state, cell, d)) out.push({ type: "place", cell, digit: d });
+        if (isLegal(state, cell, d, { by })) {
+          out.push({ type: "place", cell, digit: d });
+          if (burstDigits.includes(d)) {
+            out.push({ type: "place", cell, digit: d, burst: true });
+          }
+        }
       }
       if (larkDigits.length && !wouldComplete(state, cell)) {
         for (const d of larkDigits) {
           out.push({ type: "place", cell, digit: d, wild: true });
         }
       }
+      if (canMine && !regionsClaimed(state, cell) && !wouldComplete(state, cell)) {
+        out.push({ type: "mine", cell });
+      }
+    } else if (empty && mineHere === by) {
+      for (let d = 1; d <= size; d++) {
+        if (isLegal(state, cell, d, { by })) {
+          out.push({ type: "place", cell, digit: d });
+        }
+      }
+    } else if (empty && mineHere === other(by) && energy >= ABILITY_COST.clear) {
+      out.push({ type: "clear", cell });
     } else if (moleDigits.length && state.placedBy[cell] === other(by)) {
       for (const d of moleDigits) {
         if (canReplace(state, cell, d, by)) {
@@ -359,8 +402,8 @@ export function legalActions(state: GameState): Action[] {
     }
   }
 
-  // Drift hops
-  if (state.charges[by].hops > 0) {
+  // hops
+  if (energy >= ABILITY_COST.hop) {
     for (let cell = 0; cell < state.grid.length; cell++) {
       if (state.placedBy[cell] !== by || !isActive(state, cell)) continue;
       const cr = creatureAt(state, cell);
@@ -368,7 +411,7 @@ export function legalActions(state: GameState): Action[] {
       if (regionsClaimed(state, cell)) continue;
       const digit = state.grid[cell];
       for (const to of adjacentCells(state, cell, cr.moveDiagonal === true)) {
-        if (state.grid[to] !== 0) continue;
+        if (state.grid[to] !== 0 || state.mines[to] !== -1) continue;
         if (moveLegal(state, cell, to, digit) && !wouldComplete(state, to)) {
           out.push({ type: "move", from: cell, to });
         }
@@ -390,7 +433,7 @@ function moveLegal(
   to: number,
   digit: number,
 ): boolean {
-  if (state.grid[to] !== 0) return false;
+  if (state.grid[to] !== 0 || state.mines[to] !== -1) return false;
   const bit = 1 << digit;
   const fromRegions = [
     state.cellRegions[from * 3 + 0],
@@ -400,7 +443,7 @@ function moveLegal(
   for (let k = 0; k < 3; k++) {
     const rid = state.cellRegions[to * 3 + k];
     let mask = state.regionMask[rid];
-    if (fromRegions.includes(rid)) mask &= ~bit; // the mover is leaving
+    if (fromRegions.includes(rid)) mask &= ~bit;
     if (mask & bit) return false;
   }
   return true;
@@ -410,8 +453,6 @@ function moveLegal(
  * Region / cell mutation
  * ------------------------------------------------------------------ */
 
-/** Lock a region to `by` on completion, unless an opponent's Hedgehog cell
- *  forbids it. Returns whether the lock actually happened. */
 function lockRegion(
   state: GameState,
   region: Region,
@@ -423,12 +464,10 @@ function lockRegion(
   for (const cell of region.cells) {
     if (state.placedBy[cell] !== opp) continue;
     const cr = creatureAt(state, cell);
-    if (!cr) continue;
-    if (isActive(state, cell) && cr.denyOpponentLock) return false;
+    if (cr && isActive(state, cell) && cr.denyOpponentLock) return false;
   }
   region.claimedBy = by;
   region.claimedOnTurn = turn;
-  // Sunbeetle: the opponent who lost this region to a lock gets a payout
   for (const cell of region.cells) {
     if (
       state.placedBy[cell] === opp &&
@@ -441,7 +480,6 @@ function lockRegion(
   return true;
 }
 
-/** Put `digit` into an empty `cell`. Returns region ids newly locked. */
 function fillCell(
   state: GameState,
   cell: number,
@@ -453,9 +491,8 @@ function fillCell(
 ): number[] {
   state.grid[cell] = digit;
   state.placedBy[cell] = by;
+  state.mines[cell] = -1; // placing consumes any mine on the cell
   if (seeded) state.seeded[cell] = true;
-  // wake once state.turn has advanced past this threshold on the owner's turn;
-  // each extra sleep-turn costs ~2 actions
   if (dormantTurns > 0) {
     state.dormant[cell] = Math.max(1, state.turn + (dormantTurns - 1) * 2);
   }
@@ -486,7 +523,6 @@ function activateCell(state: GameState, cell: number, turn: number): number[] {
       claimed.push(region.id);
     }
   }
-  // a Hush critter pounces on wake: lock the regions its owner is leading
   if (creatureAt(state, cell)?.claimRegionsOnWake) {
     for (let k = 0; k < 3; k++) {
       const region = state.regions[state.cellRegions[cell * 3 + k]];
@@ -502,7 +538,6 @@ function activateCell(state: GameState, cell: number, turn: number): number[] {
   return claimed;
 }
 
-/** Remove whatever is in `cell` (never call on a cell in a claimed region). */
 function clearCell(state: GameState, cell: number): void {
   const digit = state.grid[cell];
   if (digit === 0) return;
@@ -513,7 +548,7 @@ function clearCell(state: GameState, cell: number): void {
   state.dormant[cell] = 0;
   for (let k = 0; k < 3; k++) {
     const rid = state.cellRegions[cell * 3 + k];
-    state.regionMask[rid] &= ~bit; // sudoku => this was the only one
+    state.regionMask[rid] &= ~bit;
     if (!wasDormant) state.regions[rid].filled--;
   }
 }
@@ -522,8 +557,10 @@ function clearCell(state: GameState, cell: number): void {
  * Applying actions
  * ------------------------------------------------------------------ */
 
-/** consecutive no-progress actions (hops / replacements) that freeze the game */
-export const STALE_LIMIT = 6;
+/** consecutive no-progress actions (hops, clears, replaces) that freeze the
+ *  game so nobody can stall forever. Placing a digit or laying a mine counts
+ *  as progress. */
+export const STALE_LIMIT = 7;
 
 export function applyMove(state: GameState, move: Move): GameState {
   return applyAction(state, { type: "place", cell: move.cell, digit: move.digit });
@@ -536,14 +573,42 @@ export function applyAction(state: GameState, action: Action): GameState {
   state.turn++;
   let claimed: number[] = [];
   let replaced = false;
-  let placedDigit = 0;
+  let progressed = false;
+  let burstDigit = 0;
 
-  if (action.type === "move") {
+  if (action.type === "mine") {
+    const { cell } = action;
+    if (
+      !teamHas(state, by, "canMine") ||
+      state.energy[by] < ABILITY_COST.mine ||
+      mineCount(state, by) >= MAX_MINES ||
+      state.grid[cell] !== 0 ||
+      state.mines[cell] !== -1 ||
+      regionsClaimed(state, cell) ||
+      wouldComplete(state, cell)
+    ) {
+      throw new Error("illegal mine");
+    }
+    state.energy[by] -= ABILITY_COST.mine;
+    state.mines[cell] = by;
+    progressed = true; // a mine is a board change, not a stall
+  } else if (action.type === "clear") {
+    const { cell } = action;
+    if (
+      state.mines[cell] !== other(by) ||
+      state.energy[by] < ABILITY_COST.clear
+    ) {
+      throw new Error("illegal clear");
+    }
+    state.energy[by] -= ABILITY_COST.clear;
+    state.energy[other(by)] += 2; // the mine-layer gets a little back
+    state.mines[cell] = -1;
+  } else if (action.type === "move") {
     const { from, to } = action;
     const digit = state.grid[from];
     const mover = creatureAt(state, from);
     if (
-      state.charges[by].hops <= 0 ||
+      state.energy[by] < ABILITY_COST.hop ||
       state.placedBy[from] !== by ||
       !isActive(state, from) ||
       mover?.moveAdjacent !== true ||
@@ -554,35 +619,35 @@ export function applyAction(state: GameState, action: Action): GameState {
     ) {
       throw new Error(`illegal move ${from} -> ${to}`);
     }
-    state.charges[by].hops -= 1;
+    state.energy[by] -= ABILITY_COST.hop;
     clearCell(state, from);
     claimed = fillCell(state, to, digit, by, 0, state.turn);
-    state.energy[by] += ENERGY_PER_PLACE;
   } else {
     const { cell, digit } = action;
-    placedDigit = digit;
     if (action.wild) {
       if (
-        !state.charges[by].lark ||
-        creatureFor(state, by, digit)?.wildOncePerGame !== true ||
+        creatureFor(state, by, digit)?.canWild !== true ||
+        state.energy[by] < ABILITY_COST.wild ||
         state.grid[cell] !== 0 ||
+        (state.mines[cell] !== -1 && state.mines[cell] !== by) ||
         wouldComplete(state, cell)
       ) {
         throw new Error("illegal wild placement");
       }
-      state.charges[by].lark = false;
+      state.energy[by] -= ABILITY_COST.wild;
       claimed = fillCell(state, cell, digit, by, 0, state.turn);
+      progressed = true;
     } else if (state.grid[cell] !== 0) {
       if (!canReplace(state, cell, digit, by)) {
         throw new Error("illegal replacement");
       }
-      state.charges[by].mole = false;
+      state.energy[by] -= ABILITY_COST.replace;
       replaced = true;
       const victimDigit = state.grid[cell];
       const victimBy = state.placedBy[cell] as Player;
-      const victimAnimal = creatureFor(state, victimBy, victimDigit);
+      const victimCreature = creatureFor(state, victimBy, victimDigit);
       clearCell(state, cell);
-      if (victimAnimal?.regrowIfRemoved) {
+      if (victimCreature?.regrowIfRemoved) {
         state.regrow.push({
           cell,
           digit: victimDigit,
@@ -592,16 +657,28 @@ export function applyAction(state: GameState, action: Action): GameState {
       }
       claimed = fillCell(state, cell, digit, by, 0, state.turn);
     } else {
-      if (!isLegal(state, cell, digit)) {
+      if (!isLegal(state, cell, digit, { by })) {
         throw new Error(`illegal move: digit ${digit} at cell ${cell}`);
       }
       const cr = creatureFor(state, by, digit);
       const dt = cr?.dormant ? (cr.dormantTurns ?? 1) : 0;
       claimed = fillCell(state, cell, digit, by, dt, state.turn);
+      progressed = true;
+      if (action.burst) {
+        if (cr?.canBurst !== true || state.energy[by] < ABILITY_COST.extra) {
+          throw new Error("illegal burst");
+        }
+        state.energy[by] -= ABILITY_COST.extra;
+        burstDigit = digit;
+      }
     }
+    // placement energy: base + creature bonus (+ mine-scaling for Tallykit)
     state.energy[by] += ENERGY_PER_PLACE;
-    const bonus = creatureFor(state, by, digit)?.energyBonus ?? 0;
-    state.energy[by] += bonus;
+    const crHere = creatureFor(state, by, digit);
+    if (crHere?.energyBonus) state.energy[by] += crHere.energyBonus;
+    if (crHere?.minesScaleEnergy) {
+      state.energy[by] += 2 * mineCount(state, by);
+    }
   }
 
   for (const _rid of claimed) {
@@ -611,16 +688,7 @@ export function applyAction(state: GameState, action: Action): GameState {
 
   const wasPendingExtra = state.pendingExtra;
   let grantedExtra = false;
-  if (
-    !wasPendingExtra &&
-    action.type === "place" &&
-    !action.wild &&
-    !replaced &&
-    placedDigit > 0 &&
-    creatureFor(state, by, placedDigit)?.extraPlacementOncePerGame === true &&
-    state.charges[by].wren
-  ) {
-    state.charges[by].wren = false;
+  if (!wasPendingExtra && burstDigit > 0) {
     state.pendingExtra = true;
     grantedExtra = true;
   }
@@ -634,9 +702,6 @@ export function applyAction(state: GameState, action: Action): GameState {
     grantedExtra: grantedExtra || undefined,
   });
 
-  // a hop or a replacement adds no new digit; too many in a row and the
-  // game is stalling, so freeze it
-  const progressed = action.type === "place" && !replaced;
   state.staleTurns = progressed ? 0 : state.staleTurns + 1;
 
   if (isGridFull(state)) return endGame(state, "grid-full", null);
@@ -645,15 +710,10 @@ export function applyAction(state: GameState, action: Action): GameState {
   }
 
   if (grantedExtra) {
-    // same player places again; if they somehow can't, fall through to pass
     if (hasAnyAction(state)) return state;
     state.pendingExtra = false;
   }
-
-  if (wasPendingExtra) {
-    state.pendingExtra = false;
-    state.skipNext[by] = true; // the Wren burst costs the next turn
-  }
+  if (wasPendingExtra) state.pendingExtra = false;
 
   state.current = other(by);
   beginTurn(state);
@@ -663,14 +723,6 @@ export function applyAction(state: GameState, action: Action): GameState {
 function beginTurn(state: GameState): GameState {
   const p = state.current;
 
-  // a forfeited turn (Wren burst) - hand it straight back
-  if (state.skipNext[p]) {
-    state.skipNext[p] = false;
-    state.current = other(p);
-    return beginTurn(state);
-  }
-
-  // wake this player's dormant cells placed on an earlier turn
   for (let cell = 0; cell < state.grid.length; cell++) {
     if (
       state.dormant[cell] !== 0 &&
@@ -685,10 +737,9 @@ function beginTurn(state: GameState): GameState {
     }
   }
 
-  // regrow this player's removed Newt digits
   state.regrow = state.regrow.filter((e) => {
     if (e.owner !== p || e.at >= state.turn) return true;
-    if (state.grid[e.cell] === 0 && isLegal(state, e.cell, e.digit)) {
+    if (state.grid[e.cell] === 0 && isLegal(state, e.cell, e.digit, { by: p })) {
       const claimed = fillCell(state, e.cell, e.digit, p, 0, state.turn);
       for (const _rid of claimed) {
         state.score[p] += 1;
@@ -750,7 +801,6 @@ function endGame(
   return state;
 }
 
-/** regions total, then - on a tie - regions locked in play, then energy */
 function decideWinner(state: GameState): Player | "draw" {
   if (state.score[0] !== state.score[1]) {
     return state.score[0] > state.score[1] ? 0 : 1;
@@ -783,12 +833,8 @@ export function cloneState(state: GameState): GameState {
     cellRegions: state.cellRegions,
     regionMask: state.regionMask.slice(),
     loadouts: state.loadouts,
-    charges: [{ ...state.charges[0] }, { ...state.charges[1] }] as [
-      Charges,
-      Charges,
-    ],
+    mines: state.mines.slice(),
     regrow: state.regrow.map((e) => ({ ...e })),
-    skipNext: [state.skipNext[0], state.skipNext[1]],
     score: [state.score[0], state.score[1]],
     energy: [state.energy[0], state.energy[1]],
     history: state.history.slice(),
@@ -808,19 +854,18 @@ export function regionLabel(region: Region): string {
   return `${region.kind} ${region.index + 1}`;
 }
 
-/** The cell an action lands on (destination for a move). */
 export function actionCell(action: Action): number {
   return action.type === "move" ? action.to : action.cell;
 }
 
-/** The cell most recently changed, or -1. */
 export function lastTouchedCell(state: GameState): number {
   const h = state.history[state.history.length - 1];
   return h ? actionCell(h.action) : -1;
 }
 
-/** Who currently holds the most cells in a region (null = tied/empty),
- *  weighted by Otter and broken by Robin. Claimed regions return the owner. */
+/** Who currently holds the most of a region (null = tied/empty). Active
+ *  cells count by their creature's weight; a mine counts as one held cell
+ *  for its layer; Robin breaks ties. Claimed regions return the owner. */
 export function territoryHolder(
   state: GameState,
   region: Region,
@@ -831,16 +876,21 @@ export function territoryHolder(
   let robinA = false;
   let robinB = false;
   for (const cell of region.cells) {
-    if (!isActive(state, cell)) continue;
-    const p = state.placedBy[cell];
-    if (p !== 0 && p !== 1) continue;
-    const animal = creatureAt(state, cell);
-    const w = animal?.territoryWeight ?? 1;
-    if (p === 0) a += w;
-    else b += w;
-    if (animal?.breakTiesToOwner) {
-      if (p === 0) robinA = true;
-      else robinB = true;
+    if (isActive(state, cell)) {
+      const p = state.placedBy[cell];
+      if (p !== 0 && p !== 1) continue;
+      const cr = creatureAt(state, cell);
+      const w = cr?.territoryWeight ?? 1;
+      if (p === 0) a += w;
+      else b += w;
+      if (cr?.breakTiesToOwner) {
+        if (p === 0) robinA = true;
+        else robinB = true;
+      }
+    } else if (state.mines[cell] === 0) {
+      a += 1;
+    } else if (state.mines[cell] === 1) {
+      b += 1;
     }
   }
   if (a > b) return 0;

@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from "react";
 import {
+  ABILITY_COST,
   ALL_CREATURES,
   ROSTER,
   CATEGORIES,
@@ -14,6 +15,7 @@ import {
   Action,
   CreatureId,
   GameState,
+  Player,
   applyAction,
   cloneState,
   createGame,
@@ -25,6 +27,7 @@ import {
   projectedScore,
   regionLabel,
   snakeOrder,
+  teamHas,
   territoryHolder,
 } from "../engine";
 import { makeRng } from "../engine/rng";
@@ -34,6 +37,55 @@ import { Critter } from "./Critter";
 const SIZE = 9;
 const NAMES = ["Sage", "Clay"] as const;
 const CAT_ORDER: Category[] = ["anchor", "drift", "hush", "thrift", "ward", "snap"];
+const rc = (cell: number) => `r${Math.floor(cell / SIZE) + 1}c${(cell % SIZE) + 1}`;
+
+interface AbilityInfo {
+  name: string;
+  label: string;
+  cost: number;
+  help: string;
+}
+
+/** which abilities a player's team can use, with prices */
+function teamAbilities(g: GameState, p: Player): AbilityInfo[] {
+  const out: AbilityInfo[] = [];
+  if (teamHas(g, p, "moveAdjacent"))
+    out.push({ name: "hop", label: "hop", cost: ABILITY_COST.hop, help: "move one of your cells to a neighbour" });
+  if (teamHas(g, p, "canBurst"))
+    out.push({ name: "extra", label: "burst", cost: ABILITY_COST.extra, help: "place a second digit this turn" });
+  if (teamHas(g, p, "canWild"))
+    out.push({ name: "wild", label: "wild", cost: ABILITY_COST.wild, help: "place ignoring the row/col/box rule" });
+  if (teamHas(g, p, "canMole"))
+    out.push({ name: "replace", label: "remove", cost: ABILITY_COST.replace, help: "remove an opponent digit in a contested region" });
+  if (teamHas(g, p, "canMine"))
+    out.push({ name: "mine", label: "mine", cost: ABILITY_COST.mine, help: "block a cell until the opponent clears it" });
+  return out;
+}
+
+function actionLabel(a: Action): string {
+  switch (a.type) {
+    case "move":
+      return `hop → ${rc(a.to)}  ${ABILITY_COST.hop}⚡`;
+    case "mine":
+      return `mine ${rc(a.cell)}  ${ABILITY_COST.mine}⚡`;
+    case "clear":
+      return `clear mine  ${ABILITY_COST.clear}⚡`;
+    default:
+      if (a.burst) return `${a.digit} + burst  ${ABILITY_COST.extra}⚡`;
+      if (a.wild) return `✦ ${a.digit}  ${ABILITY_COST.wild}⚡`;
+      return `${a.digit}`;
+  }
+}
+
+function actionHelp(a: Action): string {
+  if (a.type === "place" && "digit" in a && !a.wild && !a.burst) {
+    return "place this digit";
+  }
+  if (a.type === "place" && a.burst) return "place, then place again this turn";
+  if (a.type === "place" && a.wild) return "wild placement, ignores the rules";
+  if (a.type === "place") return "remove the opponent digit here";
+  return "";
+}
 
 interface Match {
   /** the two drafted teams, index 0 = first picker's team */
@@ -511,18 +563,22 @@ function Play({
             const r = Math.floor(cell / SIZE);
             const c = cell % SIZE;
             const v = game.grid[cell];
-            const mine = game.placedBy[cell];
+            const owner = game.placedBy[cell];
+            const mineOwner = game.mines[cell];
             const selectable =
               playing &&
-              (v === 0 ||
-                mine === cur ||
+              (mineOwner !== -1 ||
+                v === 0 ||
+                owner === cur ||
                 legalActions(game).some(
-                  (a) => a.type === "place" && a.cell === cell,
+                  (a) =>
+                    (a.type === "place" || a.type === "mine") && a.cell === cell,
                 ));
             const cls = [
               "cell",
               game.seeded[cell] ? "seeded" : "",
               game.dormant[cell] ? "dormant" : "",
+              mineOwner !== -1 ? `mine mine${mineOwner}` : "",
               sel === cell ? "sel" : "",
               cellTint[cell],
               (c + 1) % box.cols === 0 && c < SIZE - 1 ? "box-r" : "",
@@ -538,7 +594,7 @@ function Play({
                 disabled={!selectable}
                 onClick={() => setSel(sel === cell ? null : cell)}
               >
-                {v !== 0 ? v : ""}
+                {v !== 0 ? v : mineOwner !== -1 ? "◆" : ""}
                 {cell === lastCell && <span className="just-placed" />}
               </button>
             );
@@ -610,48 +666,54 @@ function Play({
               {playing ? "regions if play froze now" : "final"} · energy{" "}
               {game.energy[0]} / {game.energy[1]}
             </div>
-            <div className="charges">
-              {([0, 1] as const).map((p) => (
-                <span key={p} className="s">
-                  <span className={`dot p${p}`} />
-                  {(["mole", "wren", "lark"] as const).map((ch) => (
-                    <span
-                      key={ch}
-                      className={`chip ${game.charges[p][ch] ? "on" : "off"}`}
-                    >
-                      {ch}
-                    </span>
-                  ))}
-                  <span
-                    className={`chip ${game.charges[p].hops > 0 ? "on" : "off"}`}
-                  >
-                    hop ×{game.charges[p].hops}
-                  </span>
-                  {game.skipNext[p] && <span className="chip off">skip</span>}
-                </span>
-              ))}
+            <div className="abilities">
+              {([0, 1] as const).map((p) => {
+                const list = teamAbilities(game, p);
+                return (
+                  <div key={p} className="ab-row">
+                    <span className={`dot p${p}`} />
+                    {list.length === 0 && (
+                      <span className="hint" style={{ margin: 0 }}>
+                        no abilities
+                      </span>
+                    )}
+                    {list.map((ab) => (
+                      <span
+                        key={ab.name}
+                        className={`chip ${
+                          game.energy[p] >= ab.cost ? "on" : "off"
+                        }`}
+                        title={ab.help}
+                      >
+                        {ab.label} {ab.cost}⚡
+                      </span>
+                    ))}
+                    {game.mines.some((m) => m === p) && (
+                      <span className="chip mine-chip">
+                        {game.mines.filter((m) => m === p).length} mines
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {sel !== null && playing && (
               <div className="picker-wrap">
                 <div className="hint" style={{ marginTop: 0 }}>
-                  {game.grid[sel] === 0
-                    ? `cell r${Math.floor(sel / SIZE) + 1} c${(sel % SIZE) + 1}`
-                    : creatureLabel(sel)}
+                  {game.mines[sel] !== -1
+                    ? `mine (${NAMES[game.mines[sel] as 0 | 1]})`
+                    : game.grid[sel] === 0
+                      ? `cell r${Math.floor(sel / SIZE) + 1} c${(sel % SIZE) + 1}`
+                      : creatureLabel(sel)}
                 </div>
                 <div className="picker">
                   {selActions.length === 0 && (
                     <span className="hint">nothing legal here</span>
                   )}
                   {selActions.map((a, i) => (
-                    <button key={i} onClick={() => doAction(a)}>
-                      {a.type === "move"
-                        ? `hop → r${Math.floor(a.to / SIZE) + 1} c${(a.to % SIZE) + 1}`
-                        : game.grid[a.cell] !== 0
-                          ? `remove → ${a.digit}`
-                          : a.wild
-                            ? `✦ ${a.digit}`
-                            : `${a.digit}`}
+                    <button key={i} onClick={() => doAction(a)} title={actionHelp(a)}>
+                      {actionLabel(a)}
                     </button>
                   ))}
                 </div>

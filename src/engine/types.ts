@@ -41,8 +41,10 @@ export interface Seed extends Move {
 }
 
 export type Action =
-  | { type: "place"; cell: number; digit: number; wild?: boolean }
-  | { type: "move"; from: number; to: number };
+  | { type: "place"; cell: number; digit: number; wild?: boolean; burst?: boolean }
+  | { type: "move"; from: number; to: number }
+  | { type: "mine"; cell: number }
+  | { type: "clear"; cell: number };
 
 export interface AppliedMove {
   action: Action;
@@ -82,17 +84,19 @@ export const DEFAULT_RULES: Rules = { endScoring: "majority" };
 /** A player's team: which critter is bound to each digit 1..size. */
 export type Loadout = Record<number, CreatureId>;
 
-export interface Charges {
-  mole: boolean;
-  wren: boolean;
-  lark: boolean;
-  /** Sparrow hops remaining */
-  hops: number;
-}
+/** Energy price of each active ability. Placing a digit earns
+ *  ENERGY_PER_PLACE; locking a region earns ENERGY_PER_CLAIM. Abilities are
+ *  paid for from that pool, so an economy team can afford more of them. */
+export const ABILITY_COST = {
+  hop: 2,
+  wild: 6,
+  replace: 12,
+  extra: 5,
+  mine: 4,
+  clear: 5,
+} as const;
 
-export function fullCharges(): Charges {
-  return { mole: true, wren: true, lark: true, hops: 0 };
-}
+export type AbilityName = keyof typeof ABILITY_COST;
 
 export interface RegrowEntry {
   cell: number;
@@ -121,7 +125,10 @@ export interface GameState {
   /** per-region digit-presence bitmask, indexed by region id */
   regionMask: Int32Array;
   loadouts: [Loadout, Loadout];
-  charges: [Charges, Charges];
+  /** length size*size, -1 = no mine, else the player who laid it. A mined
+   *  cell blocks normal placement by the other player until it is cleared;
+   *  it counts as a held cell for its owner. */
+  mines: Int8Array;
   regrow: RegrowEntry[];
   /** number of actions played so far */
   turn: number;
@@ -131,8 +138,6 @@ export interface GameState {
   current: Player;
   /** the current player owes an extra placement before the turn passes (Wren) */
   pendingExtra: boolean;
-  /** per player: their next turn is forfeit (the cost of a Wren burst) */
-  skipNext: [boolean, boolean];
   score: [number, number];
   energy: [number, number];
   status: "playing" | "ended";
@@ -163,4 +168,6 @@ export type CreatureId =
   | "barknewt"
   | "swiftwren"
   | "digmole"
-  | "wildlark";
+  | "wildlark"
+  | "thornpod"
+  | "tallykit";

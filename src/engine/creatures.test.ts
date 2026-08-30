@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ABILITY_COST,
   ALL_CREATURES,
   CreatureId,
   Loadout,
@@ -57,27 +58,58 @@ describe("snake draft", () => {
   });
 });
 
-describe("hop budget comes from the drafted Drift critters", () => {
-  it("Breezefinch adds 2, Tumbleweed adds 4, Glidewing adds 1", () => {
+describe("hops cost energy", () => {
+  it("a hop needs a Drift cell and enough energy, and spends it", () => {
     const s = createGame({
-      loadouts: [
-        lo({ 1: "breezefinch", 2: "tumbleweed", 3: "glidewing" }),
-        lo({}),
-      ],
+      loadouts: [lo({ 4: "glidewing" }), lo({})],
+      startEnergy: [10, 0],
     });
-    expect(s.charges[0].hops).toBe(7);
-    expect(s.charges[1].hops).toBe(0);
+    applyAction(s, place(cell(4, 4), 4)); // p0, +1 energy -> 11
+    pass(s);
+    const before = s.energy[0];
+    applyAction(s, { type: "move", from: cell(4, 4), to: cell(5, 5) }); // diagonal
+    expect(s.grid[cell(5, 5)]).toBe(4);
+    expect(s.energy[0]).toBe(before - ABILITY_COST.hop);
+  });
+
+  it("no energy, no hop", () => {
+    const s = createGame({ loadouts: [lo({ 4: "breezefinch" }), lo({})] });
+    applyAction(s, place(cell(4, 4), 4)); // energy now 1, hop costs 2
+    pass(s);
+    expect(() =>
+      applyAction(s, { type: "move", from: cell(4, 4), to: cell(4, 5) }),
+    ).toThrow();
   });
 });
 
-describe("Glidewing hops diagonally", () => {
-  it("a Glidewing cell can hop to a diagonal neighbour", () => {
-    const s = createGame({ loadouts: [lo({ 4: "glidewing" }), lo({})] });
-    applyAction(s, place(cell(4, 4), 4));
+describe("landmines (Thornpod) and Tallykit synergy", () => {
+  it("a mine blocks the opponent, counts as your territory, and can be cleared", () => {
+    const s = createGame({
+      loadouts: [lo({ 1: "thornpod" }), lo({})],
+      startEnergy: [20, 20],
+    });
+    applyAction(s, { type: "mine", cell: cell(0, 3) }); // p0 lays a mine
+    expect(s.mines[cell(0, 3)]).toBe(0);
+    expect(territoryHolder(s, rowOf(s, 0))).toBe(0); // mine = a held cell
+    // p1 cannot place on the mined cell
+    expect(legalActions(s).some((a) => a.type === "place" && a.cell === cell(0, 3))).toBe(false);
+    // p1 clears it
+    applyAction(s, { type: "clear", cell: cell(0, 3) });
+    expect(s.mines[cell(0, 3)]).toBe(-1);
+  });
+
+  it("Tallykit stores 2 energy per mine you hold", () => {
+    const s = createGame({
+      loadouts: [lo({ 1: "thornpod", 2: "tallykit" }), lo({})],
+      startEnergy: [30, 0],
+    });
+    applyAction(s, { type: "mine", cell: cell(0, 0) });
     pass(s);
-    applyAction(s, { type: "move", from: cell(4, 4), to: cell(5, 5) });
-    expect(s.grid[cell(5, 5)]).toBe(4);
-    expect(s.charges[0].hops).toBe(0);
+    applyAction(s, { type: "mine", cell: cell(3, 3) });
+    pass(s);
+    const before = s.energy[0];
+    applyAction(s, place(cell(1, 1), 2)); // Tallykit: +1 base +2*2 mines
+    expect(s.energy[0]).toBe(before + 1 + 4);
   });
 });
 
@@ -148,16 +180,18 @@ describe("Mossback: double territory weight", () => {
 });
 
 describe("core passives still hold after the refactor", () => {
-  it("Swiftwren burst forfeits the next turn", () => {
-    const s = createGame({ loadouts: [lo({ 3: "swiftwren" }), lo({})] });
-    applyAction(s, place(cell(0, 0), 3));
+  it("Swiftwren burst costs energy and lets you place twice", () => {
+    const s = createGame({
+      loadouts: [lo({ 3: "swiftwren" }), lo({})],
+      startEnergy: [10, 0],
+    });
+    const before = s.energy[0];
+    applyAction(s, { type: "place", cell: cell(0, 0), digit: 3, burst: true });
     expect(s.pendingExtra).toBe(true);
-    applyAction(s, place(cell(1, 1), 1));
-    expect(s.skipNext[0]).toBe(true);
-    pass(s); // p1
-    expect(s.current).toBe(1); // p0 skipped
-    pass(s);
-    expect(s.current).toBe(0);
+    expect(s.current).toBe(0); // still your turn
+    expect(s.energy[0]).toBe(before + 1 - ABILITY_COST.extra); // +1 place, -burst
+    applyAction(s, place(cell(1, 1), 1)); // the second placement
+    expect(s.current).toBe(1); // now it passes
   });
 
   it("Wildlark wild placement can't complete a region", () => {

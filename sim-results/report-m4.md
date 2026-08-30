@@ -1,15 +1,12 @@
 # Dendoku milestone 4 - creatures + snake draft
 
-Legs per scenario: 600. 9x9, endScoring=majority, seeds=6.
+Legs per scenario: 80. 9x9, endScoring=majority, seeds=6.
 Loadouts come from an auto snake draft of the shared 18-creature pool
 (exclusive picks), so neither side can hoard a category. First move
 alternates each leg. "critter -v- critter" should sit near 45/45/10.
 
 | scenario | legs | A wins | B wins | draw | 1st-mover W | last-mover W | stuck | stalled | grid-full | avg plies | avg margin |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| critter -v- random+ (skill) | 600 | 85.7% | 11.3% | 3.0% | 52.4% | 53.6% | 100.0% | 0.0% | 0.0% | 62.3 | 8.07 |
-| critter -v- critter (balance) | 600 | 45.3% | 52.8% | 1.8% | 53.1% | 53.0% | 100.0% | 0.0% | 0.0% | 65.4 | 9.17 |
-| territory -v- critter (abilities matter) | 600 | 56.3% | 38.2% | 5.5% | 51.3% | 54.0% | 100.0% | 0.0% | 0.0% | 64.5 | 6.67 |
-
-
-wrote sim-results/report-m4.md
+| critter -v- random+ (skill) | 80 | 87.5% | 11.3% | 1.3% | 58.2% | 55.7% | 83.8% | 16.3% | 0.0% | 70.7 | 9.54 |
+| critter -v- critter (balance) | 80 | 45.0% | 52.5% | 2.5% | 61.5% | 60.3% | 73.8% | 26.3% | 0.0% | 69.8 | 6.91 |
+| territory -v- critter (abilities matter) | 80 | 55.0% | 42.5% | 2.5% | 50.0% | 59.0% | 91.3% | 8.8% | 0.0% | 66.2 | 5.49 |

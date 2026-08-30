@@ -19,26 +19,13 @@ export function snakeOrder(teamSize: number): Player[] {
 /** Mild draft preferences for the auto-drafter (from self-play win rates,
  *  post M4-balance). Deliberately flat: real drafts are close, and a steep
  *  greedy model makes the snake draft look unfair when it mostly isn't. */
-const VALUE: Record<CreatureId, number> = {
+const VALUE_OVERRIDES: Partial<Record<CreatureId, number>> = {
   mossback: 3,
   digmole: 3,
-  pricklehog: 2,
-  shellclam: 2,
-  boulderpup: 2,
-  acorncache: 2,
-  swiftwren: 2,
-  wildlark: 2,
-  sunbeetle: 2,
-  nutsquirrel: 2,
-  barknewt: 2,
-  tumbleweed: 2,
-  breezefinch: 2,
-  glidewing: 2,
-  fogkit: 2,
-  snoozemouse: 2,
-  slumberstone: 2,
-  dozderling: 2,
+  pricklehog: 3,
+  acorncache: 3,
 };
+const value = (id: CreatureId) => VALUE_OVERRIDES[id] ?? 2;
 
 export interface DraftResult {
   /** each player's picks, in the order they were taken */
@@ -56,7 +43,7 @@ export function autoDraft(size: number, rng: RNG): DraftResult {
   for (const p of order) {
     const avail = [...pool];
     // mild preference + large noise: bots draft plausibly, not identically
-    avail.sort((a, b) => VALUE[b] - VALUE[a] + (rng.next() - 0.5) * 6);
+    avail.sort((a, b) => value(b) - value(a) + (rng.next() - 0.5) * 6);
     const choice = avail[0];
     pool.delete(choice);
     picks[p].push(choice);
