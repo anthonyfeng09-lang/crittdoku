@@ -5,7 +5,7 @@ a digit is legal as long as it doesn't repeat in its row, column, or 3×3 box.
 Players alternate placing digits on a shared grid; completing a region (a full
 row, column, or box) claims it.
 
-## Status: milestone 4 - creatures, snake draft, friendly theme
+## Status: milestone 5 - energy, landmines, no-scroll layout
 
 Each milestone is playtested by simulation before the next is built.
 **Read [FINDINGS.md](FINDINGS.md) - each milestone turned up something.**

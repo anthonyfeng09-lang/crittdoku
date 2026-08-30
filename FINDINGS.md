@@ -246,11 +246,35 @@ Deadlock is still ~100%, stall freeze <1%, margins ~8/27, first-mover ~52%.
 
 ---
 
+# Milestone 5 - energy economy, landmines, restyle, layout
+
+- **Abilities now cost energy** instead of once-per-match charges:
+  hop 2, burst 5, wild 6, replace 12, mine 4, clear 5. Energy (already
+  tracked: +1/place, +5/claim) finally does something, and the Sun/economy
+  creatures become build enablers.
+- **Landmines**: Thornpod pays to lay a mine on an empty cell (max 3). The
+  opponent can't place there until they pay to clear it; a mine counts as a
+  cell you hold. Tallykit stores 2 energy for every mine you hold - mine
+  up, then cash in. Roster 18 -> 20.
+- **Vibrant theme**: saturated type colours, gradient background, rainbow
+  wordmark; single-roster-grid draft; full-body critter art.
+- **No page scroll.** Desktop puts the board and info side by side and the
+  roster grid fits all 20 on screen. Mobile makes the stage a horizontal
+  scroll-snap pager: swipe left/right, never up and down.
+
+Sim after the change: games still resolve, skill still reads (critter beats
+random-action ~87%), margins ~5-9/27. Stall-freeze endings are up
+(~15-25%) because mines/clears/hops give players ways to delay; STALE_LIMIT
+is 7 and laying a mine counts as progress to keep that in check. Real
+balance tuning still wants a stronger (MCTS) bot.
+
+---
+
 ## Repro
 
 ```bash
 npm install
-npm test        # engine tests (27)
-npm run sim     # current milestone's simulation -> sim-results/report-m4.md
-npm run dev     # hot-seat UI: snake-draft, then a best-of-2 match
+npm test        # engine tests (29)
+npm run sim     # current milestone's simulation
+npm run dev     # hot-seat UI: draft, then a best-of-2 match
 ```
