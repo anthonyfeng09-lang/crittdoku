@@ -246,3 +246,110 @@ h1 {
   color: var(--ink-soft);
   margin-top: 8px;
 }
+
+.cell.dormant {
+  color: var(--ink-soft);
+  opacity: 0.55;
+}
+.cell.dormant::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 50%;
+}
+
+/* draft */
+.draft {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.draft-col {
+  flex: 1;
+  min-width: 320px;
+}
+.slot {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 4px 8px;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+.slot-d {
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.slot select {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 4px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.slot-blurb {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.mini {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.charges {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 4px;
+  border: 1px solid var(--line-strong);
+}
+.chip.on {
+  background: rgba(125, 154, 134, 0.16);
+  color: var(--ink);
+}
+.chip.off {
+  color: var(--line-strong);
+  text-decoration: line-through;
+}
+
+.picker-wrap {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.teams {
+  display: flex;
+  gap: 20px;
+  font-size: 12px;
+}
+.teams > div {
+  flex: 1;
+}
+.team-row {
+  padding: 2px 0;
+  color: var(--ink-soft);
+}
+.team-row b {
+  color: var(--ink);
+  margin-right: 4px;
+}

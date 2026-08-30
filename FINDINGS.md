@@ -109,13 +109,81 @@ Sim: 400 matches/scenario, `sim-results/report-m2.md`.
 
 ---
 
+# Milestone 3 — animals & drafting
+
+An 11-animal roster (`src/engine/animals.ts`), each a declarative passive the
+engine reads. A team = 9 animals bound to digits 1–9. Engine now supports
+`move` (Sparrow), replace (Mole), wild placement (Lark), extra placement
+(Wren), dormancy (Dormouse), regrow immunity (Newt), Hedgehog lock-denial,
+Otter double weight, Robin tie-break, plus a **stall freeze** (6 consecutive
+no-progress actions end the game) so hop/replace loops can't run forever.
+`animalBot` plays the full action set. 26 engine tests.
+
+Sim: 250 legs/scenario, `sim-results/report-m3.md`, archetype teams:
+
+| team | digits 1–9 |
+|---|---|
+| **anchor** | tortoise hedgehog newt robin otter dormouse squirrel sparrow wren |
+| **tempo** | wren sparrow mole lark squirrel otter robin hedgehog tortoise |
+| **economy** | squirrel otter robin dormouse newt hedgehog tortoise wren sparrow |
+
+## What works
+
+- **Abilities are decisive skill, not noise.** `animalBot` beats a
+  random-action bot 100% (margin ~15/27).
+- **Mirror matches are balanced by seat** (46/44/10), margin ~3.9, first-mover
+  ~49%. Draw rate down to ~10% (Robin tie-break helping).
+- **Games run longer** (~70 plies vs ~65) — animals keep the board alive a
+  little — but it still deadlocks ~100% of the time. The stall freeze fires
+  in <2% of games, so it isn't triggering spuriously.
+
+## What's broken: the roster is not balanced
+
+The archetype matrix is lopsided — **tempo ≫ economy > anchor**:
+
+| matchup | result |
+|---|---|
+| tempo vs anchor | **98.8% / 0.8%** |
+| tempo vs economy | **94.4% / 4.0%** |
+| economy vs anchor | 69.2% / 22.8% |
+| all mirrors | ~46 / 46 / 8 |
+
+A team stacking the **action-economy passives — Wren (extra placement), Lark
+(wild), Mole (removal), Sparrow (hop) — on the low digits wins ~97% against
+any positional team** (Tortoise / Hedgehog / Otter / Robin). Putting the
+power animals on digits 1–4 (played more often, easier to place early) makes
+it worse.
+
+Caveat: `animalBot` is tuned to value Wren/tempo, which may inflate the
+magnitude — but the skew is a pure loadout effect (same bot both sides), so
+the direction is real.
+
+## Recommendation before the energy/ability layer
+
+1. **Rebalance the roster.** Isolate the culprits — run `tempo`-minus-one
+   variants vs `anchor` — then either weaken the action-economy passives
+   (Wren costs a placement's worth of tempo elsewhere; Mole only on a
+   contested region; Lark can't complete a region) or strengthen the
+   positional ones (Otter x3 weight; Hedgehog also steals the region on a
+   contested freeze; Tortoise scores +1 on its own).
+2. **Consider a draft that prevents stacking** — snake draft from a shared
+   pool, or "no more than 2 action-economy animals per team", or ban binding
+   power animals to digits 1–3.
+3. **The digit assignment matters as much as the pick.** Low digits are
+   played more; a balance pass has to weight passives by expected placements.
+4. Tempo (last-mover ~60–70%) and draw rate (~8%) are both improved but not
+   solved — the tiebreak (locked regions → energy → first leg) is still
+   worth adding.
+
+---
+
 ## Repro
 
 ```bash
 npm install
-npm test                      # engine tests (15)
-npm run sim                   # milestone-2 matrix -> sim-results/report-m2.md
-MATCHES=2000 npm run sim      # tighter numbers
+npm test                      # engine tests (26)
+npm run sim                   # milestone-3 archetype matrix -> sim-results/report-m3.md
+LEGS=1500 npm run sim         # tighter numbers
 npx tsx src/sim/diagnose.ts   # deadlock sanity check
-npm run dev                   # hot-seat UI (grid / seeds / freeze-rule selectors)
+npm run dev                   # hot-seat UI: draft two teams, then play
 ```

@@ -1,10 +1,11 @@
 import {
+  Action,
   GameState,
   Move,
   Player,
+  applyAction,
   cloneState,
-  applyMove,
-  isLegal,
+  legalActions,
   legalMoves,
   projectedScore,
 } from "../engine";
@@ -12,177 +13,144 @@ import { RNG } from "../engine/rng";
 
 export interface Bot {
   name: string;
-  choose(state: GameState, rng: RNG): Move;
+  choose(state: GameState, rng: RNG): Action;
 }
 
-function argmaxRandom(
-  moves: Move[],
-  score: (m: Move) => number,
-  rng: RNG,
-): Move {
-  let best: Move[] = [];
+function argmaxRandom<T>(items: T[], score: (x: T) => number, rng: RNG): T {
+  let best: T[] = [];
   let bestScore = -Infinity;
-  for (const m of moves) {
-    const sc = score(m);
+  for (const x of items) {
+    const sc = score(x);
     if (sc > bestScore) {
       bestScore = sc;
-      best = [m];
+      best = [x];
     } else if (sc === bestScore) {
-      best.push(m);
+      best.push(x);
     }
   }
   return rng.pick(best);
 }
 
-/** Uniformly random legal move. The neutral probe for structural bias. */
+const asPlace = (m: Move): Action => ({
+  type: "place",
+  cell: m.cell,
+  digit: m.digit,
+});
+
+/* ------------------------------------------------------------------ *
+ * milestone 1/2 bots — normal placements only, no ability use
+ * ------------------------------------------------------------------ */
+
 export const randomBot: Bot = {
   name: "random",
-  choose(state, rng) {
-    return rng.pick(legalMoves(state));
-  },
+  choose: (state, rng) => asPlace(rng.pick(legalMoves(state))),
 };
 
-/** Count regions this move would complete right now (claim + lock). */
-function claimGain(state: GameState, move: Move): number {
+/** uniformly random over EVERY legal action (incl. abilities) */
+export const randomActionBot: Bot = {
+  name: "random+",
+  choose: (state, rng) => rng.pick(legalActions(state)),
+};
+
+function claimGain(state: GameState, cell: number): number {
   let gain = 0;
   const size = state.config.size;
   for (let k = 0; k < 3; k++) {
-    const region = state.regions[state.cellRegions[move.cell * 3 + k]];
+    const region = state.regions[state.cellRegions[cell * 3 + k]];
     if (region.claimedBy === null && region.filled === size - 1) gain++;
   }
   return gain;
 }
 
-/** Territory-greedy: pick the move that most improves my frozen-now score,
- *  with a nudge toward completing (locking) regions. A legible opponent. */
+/** cheap frozen-now territory delta for a normal placement, via mask toggle */
+function placeTerritoryDelta(state: GameState, m: Move, me: Player): number {
+  const base = projectedScore(state);
+  const bit = 1 << m.digit;
+  state.grid[m.cell] = m.digit;
+  state.placedBy[m.cell] = me;
+  const touched: number[] = [];
+  for (let k = 0; k < 3; k++) {
+    const rid = state.cellRegions[m.cell * 3 + k];
+    state.regionMask[rid] |= bit;
+    state.regions[rid].filled++;
+    touched.push(rid);
+  }
+  const after = projectedScore(state);
+  state.grid[m.cell] = 0;
+  state.placedBy[m.cell] = -1;
+  for (const rid of touched) {
+    state.regionMask[rid] &= ~bit;
+    state.regions[rid].filled--;
+  }
+  return after[me] - after[1 - me] - (base[me] - base[1 - me]);
+}
+
 export const territoryBot: Bot = {
   name: "territory",
   choose(state, rng) {
     const me = state.current as Player;
-    const moves = legalMoves(state);
-    const base = projectedScore(state);
-    return argmaxRandom(
-      moves,
-      (m) => {
-        const bit = 1 << m.digit;
-        state.grid[m.cell] = m.digit;
-        const touched: number[] = [];
-        for (let k = 0; k < 3; k++) {
-          const rid = state.cellRegions[m.cell * 3 + k];
-          state.regionMask[rid] |= bit;
-          state.regions[rid].filled++;
-          state.placedBy[m.cell] = me;
-          touched.push(rid);
-        }
-        const after = projectedScore(state);
-        state.grid[m.cell] = 0;
-        state.placedBy[m.cell] = -1;
-        for (const rid of touched) {
-          state.regionMask[rid] &= ~bit;
-          state.regions[rid].filled--;
-        }
-        const mine = after[me] - base[me];
-        const theirs = after[1 - me] - base[1 - me];
-        return (mine - theirs) * 4 + claimGain(state, m);
-      },
-      rng,
+    return asPlace(
+      argmaxRandom(
+        legalMoves(state),
+        (m) => placeTerritoryDelta(state, m, me) * 4 + claimGain(state, m.cell),
+        rng,
+      ),
     );
   },
 };
 
-/** Territory value first, then — among the few best territory moves — the
- *  one that keeps the board most alive. A deadlock hands the tempo (and the
- *  final placement) to the opponent, so a bot that can choose *when* to
- *  freeze is the interesting skill test. Shortlists to stay cheap. */
-export const mobilityBot: Bot = {
-  name: "mobility",
+/* ------------------------------------------------------------------ *
+ * milestone 3 bot — plays the full action set incl. animal abilities
+ * ------------------------------------------------------------------ */
+
+export const animalBot: Bot = {
+  name: "animal",
   choose(state, rng) {
     const me = state.current as Player;
+    const actions = legalActions(state);
+
+    // cheap pre-score to build a shortlist
+    const cheap = (a: Action): number => {
+      if (a.type === "move") return 0.5; // hops rarely worth it
+      if (a.wild) return 1; // save the wild unless deep-eval loves it
+      const m: Move = { cell: a.cell, digit: a.digit };
+      const isReplace = state.grid[a.cell] !== 0;
+      let v = placeTerritoryDelta(state, m, me) * 4 + claimGain(state, a.cell);
+      if (isReplace) v += 1; // denying an opponent cell has some value
+      return v;
+    };
+
+    const shortlist = actions
+      .map((a) => ({ a, c: cheap(a) }))
+      .sort((x, y) => y.c - x.c)
+      .slice(0, 10)
+      .map((x) => x.a);
+    // always consider a couple of random tails so abilities get explored
+    if (actions.length > shortlist.length) {
+      shortlist.push(rng.pick(actions), rng.pick(actions));
+    }
+
     const base = projectedScore(state);
-    const scored = legalMoves(state).map((m) => {
-      const bit = 1 << m.digit;
-      state.grid[m.cell] = m.digit;
-      state.placedBy[m.cell] = me;
-      const touched: number[] = [];
-      for (let k = 0; k < 3; k++) {
-        const rid = state.cellRegions[m.cell * 3 + k];
-        state.regionMask[rid] |= bit;
-        state.regions[rid].filled++;
-        touched.push(rid);
-      }
-      const after = projectedScore(state);
-      state.grid[m.cell] = 0;
-      state.placedBy[m.cell] = -1;
-      for (const rid of touched) {
-        state.regionMask[rid] &= ~bit;
-        state.regions[rid].filled--;
-      }
-      const terr = after[me] - after[1 - me] - (base[me] - base[1 - me]);
-      return { m, v: terr * 4 + claimGain(state, m) };
-    });
-    scored.sort((x, y) => y.v - x.v);
-    const shortlist = scored.slice(0, 8);
-
     return argmaxRandom(
-      shortlist.map((s) => s.m),
-      (m) => {
-        const idx = shortlist.findIndex((s) => s.m === m);
-        const next = cloneState(state);
-        applyMove(next, m);
-        // if this move ends the game, is it in my favour?
+      shortlist,
+      (a) => {
+        let next: GameState;
+        try {
+          next = cloneState(state);
+          applyAction(next, a);
+        } catch {
+          return -Infinity;
+        }
+        const after = projectedScore(next);
+        let v = (after[me] - after[1 - me]) * 5 - (base[me] - base[1 - me]) * 5;
         if (next.status === "ended") {
-          return shortlist[idx].v + (next.winner === me ? 6 : -6);
+          v += next.winner === me ? 8 : next.winner === "draw" ? 0 : -8;
+        } else if (next.current === me) {
+          v += 1.5; // kept the turn (Wren) — tempo is worth something
+        } else {
+          v += Math.min(legalActions(next).length, 150) * 0.01; // keep alive
         }
-        const mine = legalMoves(next).length; // board-alive proxy
-        return shortlist[idx].v + Math.min(mine, 200) * 0.02;
-      },
-      rng,
-    );
-  },
-};
-
-/** Legacy greedy (completion-focused). Kept for comparison with v1 rules. */
-export const greedyBot: Bot = {
-  name: "greedy",
-  choose(state, rng) {
-    const moves = legalMoves(state);
-    return argmaxRandom(
-      moves,
-      (m) => {
-        const gain = claimGain(state, m);
-        if (gain > 0) return gain * 10;
-        // avoid handing the opponent a lone-empty-cell region
-        const bit = 1 << m.digit;
-        state.grid[m.cell] = m.digit;
-        const touched: number[] = [];
-        for (let k = 0; k < 3; k++) {
-          const rid = state.cellRegions[m.cell * 3 + k];
-          state.regionMask[rid] |= bit;
-          state.regions[rid].filled++;
-          touched.push(rid);
-        }
-        let gifts = 0;
-        const size = state.config.size;
-        for (const rid of touched) {
-          const region = state.regions[rid];
-          if (region.claimedBy !== null || region.filled !== size - 1) continue;
-          for (const c of region.cells) {
-            if (state.grid[c] !== 0) continue;
-            for (let d = 1; d <= size; d++) {
-              if (isLegal(state, c, d)) {
-                gifts++;
-                break;
-              }
-            }
-            break;
-          }
-        }
-        state.grid[m.cell] = 0;
-        for (const rid of touched) {
-          state.regionMask[rid] &= ~bit;
-          state.regions[rid].filled--;
-        }
-        return -gifts * 3;
+        return v;
       },
       rng,
     );
@@ -191,7 +159,7 @@ export const greedyBot: Bot = {
 
 export const bots: Record<string, Bot> = {
   random: randomBot,
-  greedy: greedyBot,
+  "random+": randomActionBot,
   territory: territoryBot,
-  mobility: mobilityBot,
+  animal: animalBot,
 };

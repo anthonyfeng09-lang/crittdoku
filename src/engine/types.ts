@@ -34,14 +34,27 @@ export interface Move {
   digit: number;
 }
 
-export interface AppliedMove extends Move {
+export type Action =
+  | { type: "place"; cell: number; digit: number; wild?: boolean }
+  | { type: "move"; from: number; to: number };
+
+export interface AppliedMove {
+  action: Action;
   by: Player;
   turn: number;
-  /** regions claimed as a direct result of this move */
+  /** regions claimed as a direct result of this action */
   claimed: number[];
+  /** true if this action removed an opponent digit (Mole) */
+  replaced?: boolean;
+  /** true if the acting player still has an extra placement to make (Wren) */
+  grantedExtra?: boolean;
 }
 
-export type EndReason = "grid-full" | "no-legal-move" | null;
+export type EndReason =
+  | "grid-full"
+  | "no-legal-move"
+  | "stalled"
+  | null;
 
 /** How regions that are still unclaimed when the game ends are scored.
  *  - "sweep":    the player who still had a move takes ALL of them (spec v1)
@@ -60,6 +73,27 @@ export interface Rules {
  *  main point source. */
 export const DEFAULT_RULES: Rules = { endScoring: "majority" };
 
+/** A player's team: which animal is bound to each digit 1..size. */
+export type Loadout = Record<number, AnimalId>;
+
+export interface Charges {
+  mole: boolean;
+  wren: boolean;
+  lark: boolean;
+}
+
+export function fullCharges(): Charges {
+  return { mole: true, wren: true, lark: true };
+}
+
+export interface RegrowEntry {
+  cell: number;
+  digit: number;
+  owner: Player;
+  /** action number after which the digit may regrow */
+  at: number;
+}
+
 export interface GameState {
   config: BoardConfig;
   rules: Rules;
@@ -69,14 +103,26 @@ export interface GameState {
   placedBy: Int8Array;
   /** true for cells that were pre-seeded */
   seeded: boolean[];
+  /** 0 = not dormant; else the action number on which it was placed. The cell
+   *  blocks legality immediately but does not count toward completion or
+   *  territory until its owner's next turn (Dormouse). */
+  dormant: Int32Array;
   regions: Region[];
   /** cell index -> [rowRegionId, colRegionId, boxRegionId] */
   cellRegions: Int16Array;
   /** per-region digit-presence bitmask, indexed by region id */
   regionMask: Int32Array;
-  /** number of moves played so far */
+  loadouts: [Loadout, Loadout];
+  charges: [Charges, Charges];
+  regrow: RegrowEntry[];
+  /** number of actions played so far */
   turn: number;
+  /** consecutive actions that added no new digit to the grid (hops,
+   *  replacements). Enough of these in a row freezes the game. */
+  staleTurns: number;
   current: Player;
+  /** the current player owes an extra placement before the turn passes (Wren) */
+  pendingExtra: boolean;
   score: [number, number];
   energy: [number, number];
   status: "playing" | "ended";
@@ -88,3 +134,16 @@ export interface GameState {
 
 export const ENERGY_PER_PLACE = 1;
 export const ENERGY_PER_CLAIM = 5;
+
+export type AnimalId =
+  | "tortoise"
+  | "sparrow"
+  | "dormouse"
+  | "squirrel"
+  | "hedgehog"
+  | "mole"
+  | "newt"
+  | "wren"
+  | "robin"
+  | "otter"
+  | "lark";
