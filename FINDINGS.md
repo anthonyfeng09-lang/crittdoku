@@ -210,22 +210,39 @@ the project clear of IP problems while keeping the collector feel).
 
 New mechanics: per-team hop budget summed from drafted Gust critters,
 two-turn sleep (Fogkit), diagonal hop (Glidewing), opponent-lock energy
-payout (Sunbeetle), permanent + double weight (Mossback), sleep-then-
-permanent (Slumberstone).
+payout (Sunbeetle), double territory weight (Mossback), sleep-then-permanent
+(Slumberstone), and a Hush pounce (a sleeper wakes and locks the regions its
+owner is leading).
 
-Sim (`sim-results/report-m4.md`): the snake draft removes the hoarding
-problem by construction - there is no way for one team to take all of
-Snap. The remaining questions the sim answers: is `critter -v- critter`
-near 45/45/10, is the auto-drafter's value ranking roughly fair, and does
-the deadlock / stall / margin picture still look like milestone 3.
+## What the sim found
+
+`critter -v- random+`: 86/11 - abilities are decisive skill.
+
+`critter -v- critter` first came out 33/67 by seat. Diagnosed with mirrored
+loadouts (both teams identical) which sat at 50/50, so it was **pure draft
+order**, not an engine or bot bias: in a 2-player snake the player who picks
+2nd gets picks 2 and 3 back-to-back, which beats pick 1 + pick 4.
+
+Two fixes applied:
+1. **Balance pass.** Mossback (permanent + x2 weight) was winning 81% of
+   games it was in - dropped the permanence. The Hush sleepers were at ~40%
+   (sleeping was pure downside) - gave them the wake-pounce. Flattened the
+   auto-drafter's value model. `critter -v- critter` is now 45/53.
+2. **Best-of-2 match with a side swap.** A match is two legs; between them
+   the players trade teams (and first move). Each player pilots each team
+   once, so any residual draft-order or team-strength edge cancels. Sim:
+   ~46/50/4. This is the match structure in the UI now.
+
+Deadlock is still ~100%, stall freeze <1%, margins ~8/27, first-mover ~52%.
 
 ## Still open
 
-- Tempo (last-mover) and exact creature balance want a stronger bot
-  (min-max / MCTS) and a bigger sim before calling it tuned.
-- A proper best-of-2 match wrapper in the UI (engine + sim already do it).
-- Roster can grow: 4th creature per category, evolution tiers, a 6x6
-  quick mode.
+- `territory -v- critter` came out 56/38 - after the nerfs, ability play may
+  be slightly negative EV for the current bot. Real balance tuning needs a
+  stronger bot (min-max / MCTS); the shortlist heuristic bot is near its
+  ceiling.
+- Roster can grow: a 4th creature per category, evolution tiers, a 6x6
+  quick mode, an energy-spend layer.
 
 ---
 
@@ -233,7 +250,7 @@ the deadlock / stall / margin picture still look like milestone 3.
 
 ```bash
 npm install
-npm test        # engine tests (26)
+npm test        # engine tests (27)
 npm run sim     # current milestone's simulation -> sim-results/report-m4.md
-npm run dev     # hot-seat UI: snake-draft two teams, then play
+npm run dev     # hot-seat UI: snake-draft, then a best-of-2 match
 ```

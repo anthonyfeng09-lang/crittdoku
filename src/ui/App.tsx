@@ -28,38 +28,73 @@ const SIZE = 9;
 const NAMES = ["Sage", "Clay"] as const;
 const CAT_ORDER: Category[] = ["anchor", "drift", "hush", "thrift", "ward", "snap"];
 
+interface Match {
+  /** the two drafted teams, index 0 = first picker's team */
+  draftTeams: [CreatureId[], CreatureId[]];
+  seedCount: number;
+  leg: 1 | 2;
+  /** [legIndex] -> [seat0 regions, seat1 regions] once that leg has ended */
+  legScores: Array<[number, number] | null>;
+}
+
+/** In leg 1 seat 0 pilots team A and moves first. In leg 2 the teams swap
+ *  and seat 1 moves first, so each player pilots each team once and any
+ *  draft-order or team-strength edge cancels over the match. */
+function legLoadouts(m: Match): [CreatureId[], CreatureId[]] {
+  return m.leg === 1 ? m.draftTeams : [m.draftTeams[1], m.draftTeams[0]];
+}
+
 export function App() {
+  const [match, setMatch] = useState<Match | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
-  const [teams, setTeams] = useState<[CreatureId[], CreatureId[]] | null>(null);
   const [seedCount, setSeedCount] = useState(6);
   const [sel, setSel] = useState<number | null>(null);
   const [auto, setAuto] = useState(false);
   const botRng = useRef(makeRng(98765));
 
-  const start = useCallback(
-    (t: [CreatureId[], CreatureId[]]) => {
-      const rng = makeRng((Date.now() ^ (seedCount * 40503)) >>> 0);
-      const seeds = generateSeeds(
-        { size: SIZE, box: { rows: 3, cols: 3 } },
+  const beginLeg = useCallback((m: Match) => {
+    const rng = makeRng((Date.now() ^ (m.seedCount * 40503) ^ m.leg) >>> 0);
+    const seeds = generateSeeds(
+      { size: SIZE, box: { rows: 3, cols: 3 } },
+      m.seedCount,
+      rng,
+    );
+    const t = legLoadouts(m);
+    setGame(
+      createGame({
+        rules: { endScoring: "majority" },
+        seeds,
+        firstPlayer: m.leg === 1 ? 0 : 1,
+        loadouts: [loadoutFromIds(t[0], SIZE), loadoutFromIds(t[1], SIZE)],
+      }),
+    );
+    setMatch(m);
+    setSel(null);
+    setAuto(false);
+  }, []);
+
+  const startMatch = useCallback(
+    (draftTeams: [CreatureId[], CreatureId[]]) =>
+      beginLeg({
+        draftTeams,
         seedCount,
-        rng,
-      );
-      setGame(
-        createGame({
-          rules: { endScoring: "majority" },
-          seeds,
-          firstPlayer: 0,
-          loadouts: [loadoutFromIds(t[0], SIZE), loadoutFromIds(t[1], SIZE)],
-        }),
-      );
-      setTeams(t);
-      setSel(null);
-      setAuto(false);
-    },
-    [seedCount],
+        leg: 1,
+        legScores: [null, null],
+      }),
+    [beginLeg, seedCount],
   );
 
-  const commit = useCallback((g: GameState) => setGame(cloneState(g)), []);
+  const commit = useCallback(
+    (g: GameState) => {
+      setGame(cloneState(g));
+      if (g.status === "ended" && match && match.legScores[match.leg - 1] === null) {
+        const ls = match.legScores.slice() as Match["legScores"];
+        ls[match.leg - 1] = [g.score[0], g.score[1]];
+        setMatch({ ...match, legScores: ls });
+      }
+    },
+    [match],
+  );
 
   const doAction = useCallback(
     (a: Action) => {
@@ -84,12 +119,12 @@ export function App() {
     return () => clearTimeout(t);
   }, [auto, game, botMove]);
 
-  if (!game || !teams) {
+  if (!game || !match) {
     return (
       <Draft
         seedCount={seedCount}
         setSeedCount={setSeedCount}
-        onStart={start}
+        onStart={startMatch}
       />
     );
   }
@@ -97,18 +132,20 @@ export function App() {
   return (
     <Play
       game={game}
-      teams={teams}
+      teams={legLoadouts(match)}
+      match={match}
       sel={sel}
       setSel={setSel}
       doAction={doAction}
       botMove={botMove}
       auto={auto}
       setAuto={setAuto}
+      onNextLeg={() => beginLeg({ ...match, leg: 2 })}
       onNewDraft={() => {
         setGame(null);
-        setTeams(null);
+        setMatch(null);
       }}
-      onRematch={() => start(teams)}
+      onRematch={() => startMatch(match.draftTeams)}
     />
   );
 }
@@ -333,27 +370,40 @@ const btnStyle = { marginLeft: "auto" } as const;
 function Play({
   game,
   teams,
+  match,
   sel,
   setSel,
   doAction,
   botMove,
   auto,
   setAuto,
+  onNextLeg,
   onNewDraft,
   onRematch,
 }: {
   game: GameState;
   teams: [CreatureId[], CreatureId[]];
+  match: Match;
   sel: number | null;
   setSel: (n: number | null) => void;
   doAction: (a: Action) => void;
   botMove: () => void;
   auto: boolean;
   setAuto: (f: (a: boolean) => boolean) => void;
+  onNextLeg: () => void;
   onNewDraft: () => void;
   onRematch: () => void;
 }) {
   const box = game.config.box;
+  // aggregate match score (seat 0 / seat 1) across finished legs
+  const agg: [number, number] = [0, 0];
+  for (const ls of match.legScores) {
+    if (ls) {
+      agg[0] += ls[0];
+      agg[1] += ls[1];
+    }
+  }
+  const legOneOver = match.leg === 1 && game.status === "ended";
   const live = projectedScore(game);
   const lastCell = lastTouchedCell(game);
   const playing = game.status === "playing";
@@ -446,6 +496,12 @@ function Play({
 
         <div className="side">
           <div className="panel">
+            <div className="hint" style={{ marginTop: 0, marginBottom: 6 }}>
+              Leg {match.leg} of 2 · Sage pilots{" "}
+              {match.leg === 1 ? "the first team" : "the swapped team"}
+              {match.legScores[0] &&
+                ` · match so far ${agg[0]}–${agg[1]}`}
+            </div>
             {playing ? (
               <div className="turn">
                 <span className={`dot p${cur}`} />
@@ -454,18 +510,33 @@ function Play({
                   {game.pendingExtra ? " · place again" : ""}
                 </span>
               </div>
+            ) : legOneOver ? (
+              <div className="banner">
+                Leg 1: Sage {game.score[0]}, Clay {game.score[1]}. Teams swap
+                for leg 2.{" "}
+                <button
+                  className="primary"
+                  style={{ marginLeft: 6 }}
+                  onClick={onNextLeg}
+                >
+                  Play leg 2
+                </button>
+              </div>
             ) : (
               <div className="banner">
-                {game.winner === "draw"
-                  ? "A level game."
-                  : `${NAMES[game.winner as 0 | 1]} takes the match.`}{" "}
+                {agg[0] === agg[1]
+                  ? "The match is level."
+                  : `${NAMES[agg[0] > agg[1] ? 0 : 1]} takes the match, ${Math.max(
+                      agg[0],
+                      agg[1],
+                    )}–${Math.min(agg[0], agg[1])}.`}{" "}
                 <span style={{ color: "var(--ink-soft)", fontWeight: 500 }}>
-                  (
+                  (leg 2{" "}
                   {game.endReason === "no-legal-move"
-                    ? "play froze"
+                    ? "froze"
                     : game.endReason === "stalled"
-                      ? "the board stalled"
-                      : "grid complete"}
+                      ? "stalled"
+                      : "filled"}
                   )
                 </span>
               </div>

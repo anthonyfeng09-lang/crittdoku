@@ -20,7 +20,8 @@ Each milestone is playtested by simulation before the next is built.
   skill; a free digit-assignment draft let one team hoard the strong
   category (~97% win). Fixed structurally in M4.
 - **M4** 18 creatures in 6 types, **snake draft** from a shared exclusive
-  pool, hand-built SVG characters, light colourful theme.
+  pool, hand-built SVG characters, light colourful theme, and a **best-of-2
+  match** (teams swap between legs) so the draft is fair.
 
 ```
 src/engine/   rules engine + creature registry + draft, tests alongside
