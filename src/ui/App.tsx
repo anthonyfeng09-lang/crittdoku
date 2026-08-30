@@ -289,17 +289,35 @@ function Draft({
 
   if (stage === "assign") {
     return (
-      <div className="wrap">
-        <h1>DENDOKU</h1>
-        <p className="sub">
-          Bind each of your drafted critters to a digit. That digit now plays
-          the way the critter says, for you.
-        </p>
-        <div className="assign">
+      <div className="app">
+        <div className="appbar">
+          <h1>DENDOKU</h1>
+          <span className="status">bind each critter to a digit</span>
+          <div className="controls" style={{ marginLeft: "auto" }}>
+            <label>
+              seeds
+              <select
+                value={seedCount}
+                onChange={(e) => setSeedCount(Number(e.target.value))}
+              >
+                {[0, 1, 3, 6, 10, 16].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button onClick={() => setStage("pick")}>back</button>
+            <button className="primary" onClick={() => onStart(assigned)}>
+              Start match
+            </button>
+          </div>
+        </div>
+        <main className="stage assign">
           {([0, 1] as const).map((p) => (
             <div key={p} className="panel">
               <div className="turn">
-                <span className={`dot p${p}`} /> {NAMES[p]}: bind to digits
+                <span className={`dot p${p}`} /> {NAMES[p]}
               </div>
               {Array.from({ length: SIZE }, (_, i) => {
                 const digit = i + 1;
@@ -326,28 +344,7 @@ function Draft({
               })}
             </div>
           ))}
-        </div>
-        <div className="panel">
-          <div className="controls">
-            <label>
-              seeded cells
-              <select
-                value={seedCount}
-                onChange={(e) => setSeedCount(Number(e.target.value))}
-              >
-                {[0, 1, 3, 6, 10, 16].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button className="primary" onClick={() => onStart(assigned)}>
-              Start match
-            </button>
-            <button onClick={() => setStage("pick")}>back to draft</button>
-          </div>
-        </div>
+        </main>
       </div>
     );
   }
@@ -356,76 +353,65 @@ function Draft({
     filter === "all" ? ALL_CREATURES.map((id) => ROSTER[id]) : creaturesByCategory(filter);
 
   return (
-    <div className="wrap">
-      <h1>DENDOKU</h1>
-      <p className="sub">
-        Draft nine critters from the roster. Picks alternate; each critter joins
-        one team only. Then place digits on a shared grid where they can't repeat
-        in a row, column, or box. When play freezes, every region goes to
-        whoever holds the most of it.
-      </p>
-
-      <div className="draft-bar">
-        <div className="draft-bar-top">
-          <span className="draft-turn">
-            <span className={`dot p${current}`} />
-            {NAMES[current]} to pick &middot; {step}/{order.length}
-          </span>
-          <div className="controls" style={{ marginLeft: "auto" }}>
-            <button onClick={undo} disabled={step === 0}>
-              undo
-            </button>
-            <button onClick={autoRest}>auto-fill</button>
-          </div>
+    <div className="app">
+      <div className="appbar">
+        <h1>DENDOKU</h1>
+        <span className="status">
+          <span className={`dot p${current}`} />
+          {NAMES[current]} drafts &middot; {step}/{order.length}
+        </span>
+        <div className="controls" style={{ marginLeft: "auto" }}>
+          <button onClick={undo} disabled={step === 0}>
+            undo
+          </button>
+          <button onClick={autoRest}>auto-fill</button>
         </div>
-        <div className="tray">
-          {([0, 1] as const).map((p) => (
-            <div
-              key={p}
-              className={`tray-side ${current === p && !done ? "now" : ""}`}
-            >
-              <div className="turn" style={{ fontSize: 13 }}>
-                <span className={`dot p${p}`} /> {NAMES[p]}
-              </div>
-              <div className="tray-slots">
-                {Array.from({ length: SIZE }, (_, i) => (
-                  <div
-                    key={i}
-                    className={`tray-slot ${picks[p][i] ? "filled" : ""}`}
-                  >
-                    {picks[p][i] && <Critter id={picks[p][i]} size={26} />}
-                  </div>
-                ))}
-              </div>
+      </div>
+
+      <div className="draftstrip">
+        {([0, 1] as const).map((p) => (
+          <div
+            key={p}
+            className={`tray-side ${current === p && !done ? "now" : ""}`}
+          >
+            <span className={`dot p${p}`} />
+            <div className="tray-slots">
+              {Array.from({ length: SIZE }, (_, i) => (
+                <div
+                  key={i}
+                  className={`tray-slot ${picks[p][i] ? "filled" : ""}`}
+                >
+                  {picks[p][i] && <Critter id={picks[p][i]} size={22} />}
+                </div>
+              ))}
             </div>
+          </div>
+        ))}
+        <div className="filters">
+          <button
+            className={filter === "all" ? "primary" : ""}
+            onClick={() => setFilter("all")}
+          >
+            all
+          </button>
+          {CAT_ORDER.map((cat) => (
+            <button
+              key={cat}
+              className={filter === cat ? "primary" : ""}
+              onClick={() => setFilter(cat)}
+              style={
+                filter === cat
+                  ? { background: CATEGORIES[cat].hue, borderColor: "transparent" }
+                  : { color: CATEGORIES[cat].hue }
+              }
+            >
+              {CATEGORIES[cat].element}
+            </button>
           ))}
         </div>
       </div>
 
-      <div className="controls" style={{ marginBottom: 12 }}>
-        <button
-          className={filter === "all" ? "primary" : ""}
-          onClick={() => setFilter("all")}
-        >
-          all
-        </button>
-        {CAT_ORDER.map((cat) => (
-          <button
-            key={cat}
-            className={filter === cat ? "primary" : ""}
-            onClick={() => setFilter(cat)}
-            style={
-              filter === cat
-                ? { background: CATEGORIES[cat].hue, borderColor: "transparent" }
-                : { color: CATEGORIES[cat].hue }
-            }
-          >
-            {CATEGORIES[cat].element}
-          </button>
-        ))}
-      </div>
-
-      <div className="roster">
+      <main className="stage roster">
         {shown.map((c) => {
           const t = takenBy(c.id);
           return (
@@ -436,9 +422,7 @@ function Draft({
               }`}
               disabled={t !== null || done}
               onClick={() => pick(c.id)}
-              style={
-                { "--tint": CATEGORIES[c.category].hue } as CSSProperties
-              }
+              style={{ "--tint": CATEGORIES[c.category].hue } as CSSProperties}
             >
               {t !== null && (
                 <span
@@ -448,7 +432,7 @@ function Draft({
                   {NAMES[t]}
                 </span>
               )}
-              <Critter id={c.id} size={52} />
+              <Critter id={c.id} size={54} />
               <div className="rc-name">{c.name}</div>
               <div className="rc-ep">{c.epithet}</div>
               <span
@@ -461,7 +445,7 @@ function Draft({
             </button>
           );
         })}
-      </div>
+      </main>
     </div>
   );
 }
@@ -550,15 +534,38 @@ function Play({
 
   const claimed = game.regions.filter((r) => r.claimedBy !== null);
 
-  return (
-    <div className="wrap">
-      <h1>DENDOKU</h1>
+  const matchLine =
+    game.status !== "playing"
+      ? legOneOver
+        ? `Leg 1 done ${game.score[0]}–${game.score[1]}`
+        : `${agg[0] === agg[1] ? "Level" : NAMES[agg[0] > agg[1] ? 0 : 1] + " wins"} ${Math.max(agg[0], agg[1])}–${Math.min(agg[0], agg[1])}`
+      : `Leg ${match.leg}/2 · ${NAMES[cur]} to move${
+          match.legScores[0] ? ` · match ${agg[0]}–${agg[1]}` : ""
+        }`;
 
-      <div className="layout">
-        <div
-          className="board"
-          style={{ gridTemplateColumns: `repeat(${SIZE}, 46px)` }}
-        >
+  return (
+    <div className="app">
+      <div className="appbar">
+        <h1>DENDOKU</h1>
+        <span className="status">
+          <span className={`dot p${cur}`} />
+          {matchLine}
+        </span>
+        <div className="controls" style={{ marginLeft: "auto" }}>
+          <button onClick={botMove} disabled={!playing}>
+            Bot move
+          </button>
+          <button onClick={() => setAuto((x) => !x)} disabled={!playing}>
+            {auto ? "Stop" : "Auto-play"}
+          </button>
+          <button onClick={onRematch}>Rematch</button>
+          <button onClick={onNewDraft}>New draft</button>
+        </div>
+      </div>
+
+      <main className="stage play">
+        <div className="board-col">
+        <div className="board">
           {Array.from({ length: SIZE * SIZE }, (_, cell) => {
             const r = Math.floor(cell / SIZE);
             const c = cell % SIZE;
@@ -600,25 +607,12 @@ function Play({
             );
           })}
         </div>
+        </div>
 
-        <div className="side">
+        <div className="info-col">
           <div className="panel">
-            <div className="hint" style={{ marginTop: 0, marginBottom: 6 }}>
-              Leg {match.leg} of 2 · Sage pilots{" "}
-              {match.leg === 1 ? "the first team" : "the swapped team"}
-              {match.legScores[0] &&
-                ` · match so far ${agg[0]}–${agg[1]}`}
-            </div>
-            {playing ? (
-              <div className="turn">
-                <span className={`dot p${cur}`} />
-                <span>
-                  {NAMES[cur]} to move
-                  {game.pendingExtra ? " · place again" : ""}
-                </span>
-              </div>
-            ) : legOneOver ? (
-              <div className="banner">
+            {legOneOver && (
+              <div className="banner" style={{ marginBottom: 10 }}>
                 Leg 1: Sage {game.score[0]}, Clay {game.score[1]}. Teams swap
                 for leg 2.{" "}
                 <button
@@ -629,23 +623,20 @@ function Play({
                   Play leg 2
                 </button>
               </div>
-            ) : (
-              <div className="banner">
+            )}
+            {!playing && !legOneOver && (
+              <div className="banner" style={{ marginBottom: 10 }}>
                 {agg[0] === agg[1]
                   ? "The match is level."
                   : `${NAMES[agg[0] > agg[1] ? 0 : 1]} takes the match, ${Math.max(
                       agg[0],
                       agg[1],
-                    )}–${Math.min(agg[0], agg[1])}.`}{" "}
-                <span style={{ color: "var(--ink-soft)", fontWeight: 500 }}>
-                  (leg 2{" "}
-                  {game.endReason === "no-legal-move"
-                    ? "froze"
-                    : game.endReason === "stalled"
-                      ? "stalled"
-                      : "filled"}
-                  )
-                </span>
+                    )}–${Math.min(agg[0], agg[1])}.`}
+              </div>
+            )}
+            {playing && game.pendingExtra && (
+              <div className="banner" style={{ marginBottom: 10 }}>
+                {NAMES[cur]}: place your burst digit.
               </div>
             )}
 
@@ -722,21 +713,6 @@ function Play({
           </div>
 
           <div className="panel">
-            <div className="controls">
-              <button className="primary" onClick={onRematch}>
-                Rematch
-              </button>
-              <button onClick={onNewDraft}>New draft</button>
-              <button onClick={botMove} disabled={!playing}>
-                Bot move
-              </button>
-              <button onClick={() => setAuto((x) => !x)} disabled={!playing}>
-                {auto ? "Stop" : "Auto-play"}
-              </button>
-            </div>
-          </div>
-
-          <div className="panel">
             <div className="teams">
               {([0, 1] as const).map((p) => (
                 <div key={p}>
@@ -781,7 +757,7 @@ function Play({
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
