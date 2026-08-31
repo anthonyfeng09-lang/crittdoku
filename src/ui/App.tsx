@@ -28,8 +28,9 @@ import { MeadowScene } from "./Meadow";
 
 const SIZE = 9;
 const NAMES = ["Sage", "Clay"] as const;
-const MEADOW_SIZE = 6;
+const MEADOW_SIZE = 8;
 const FORAGE_TOKENS = 3;
+const REROLL_COST = 1;
 const rc = (cell: number) => `r${Math.floor(cell / SIZE) + 1}c${(cell % SIZE) + 1}`;
 
 interface AbilityInfo {
@@ -224,7 +225,13 @@ function Draft({
     FORAGE_TOKENS,
     FORAGE_TOKENS,
   ]);
-  const [meadow, setMeadow] = useState<CreatureId[]>([]);
+  // one shared patch of grass; a slice of the roster is out at any time
+  const [meadow, setMeadow] = useState<CreatureId[]>(() =>
+    rng.current.shuffle(ALL_CREATURES.slice()).slice(0, MEADOW_SIZE),
+  );
+  const undoStack = useRef<
+    Array<{ meadow: CreatureId[]; forage: [number, number] }>
+  >([]);
   const [stage, setStage] = useState<"pick" | "assign">("pick");
   const [assigned, setAssigned] = useState<[CreatureId[], CreatureId[]]>([
     [],
@@ -235,22 +242,11 @@ function Draft({
   const done = step >= order.length;
   const current = order[step] ?? 0;
 
-  const pool = useMemo(() => {
-    const taken = new Set<CreatureId>([...picks[0], ...picks[1]]);
-    return ALL_CREATURES.filter((id) => !taken.has(id));
-  }, [picks]);
-
-  const drawMeadow = useCallback(
-    (from: CreatureId[]) =>
-      rng.current.shuffle(from.slice()).slice(0, Math.min(MEADOW_SIZE, from.length)),
-    [],
-  );
-
-  // a fresh meadow whenever it becomes a new drafter's turn
-  useEffect(() => {
-    if (stage !== "pick" || done) return;
-    setMeadow(drawMeadow(pool));
-  }, [step, stage, done, pool, drawMeadow]);
+  // roster still in the wild: not drafted, not currently out in the meadow
+  const wild = useMemo(() => {
+    const used = new Set<CreatureId>([...picks[0], ...picks[1], ...meadow]);
+    return ALL_CREATURES.filter((id) => !used.has(id));
+  }, [picks, meadow]);
 
   const toAssign = (p: [CreatureId[], CreatureId[]]) => {
     setAssigned([p[0].slice(), p[1].slice()]);
@@ -259,18 +255,34 @@ function Draft({
 
   const pick = (id: CreatureId) => {
     if (stage !== "pick" || done || !meadow.includes(id)) return;
+    undoStack.current.push({
+      meadow: meadow.slice(),
+      forage: [forage[0], forage[1]],
+    });
     const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
     next[current].push(id);
+    // the grass fills back in behind the one you took
+    const refill = wild.length ? rng.current.pick(wild) : null;
+    setMeadow(meadow.flatMap((m) => (m === id ? (refill ? [refill] : []) : [m])));
     setPicks(next);
     if (next[0].length + next[1].length === order.length) toAssign(next);
   };
 
   const reroll = () => {
-    if (done || forage[current] <= 0) return;
+    if (done || forage[current] < REROLL_COST) return;
+    // whole pool slips under; a fresh set surfaces from the wild pile
+    const fresh = rng.current.shuffle(wild.slice()).slice(0, MEADOW_SIZE);
+    if (fresh.length < MEADOW_SIZE) {
+      fresh.push(
+        ...rng.current
+          .shuffle(meadow.slice())
+          .slice(0, MEADOW_SIZE - fresh.length),
+      );
+    }
     const f: [number, number] = [forage[0], forage[1]];
-    f[current] -= 1;
+    f[current] -= REROLL_COST;
     setForage(f);
-    setMeadow(drawMeadow(pool));
+    setMeadow(fresh);
   };
 
   const autoRest = () => {
@@ -293,6 +305,11 @@ function Draft({
     const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
     next[last].pop();
     setPicks(next);
+    const snap = undoStack.current.pop();
+    if (snap) {
+      setMeadow(snap.meadow);
+      setForage(snap.forage);
+    }
   };
 
   const setSlot = (p: 0 | 1, digit: number, id: CreatureId) => {
@@ -411,20 +428,6 @@ function Draft({
             </span>
           </div>
         ))}
-        <div className="forage">
-          <button
-            className="forage-btn"
-            onClick={reroll}
-            disabled={done || forage[current] <= 0}
-          >
-            {"↻"} new meadow
-          </button>
-          <span className="hint" style={{ margin: 0 }}>
-            {forage[current] > 0
-              ? `costs 1 forage token · ${forage[current]} left`
-              : "no forage tokens left"}
-          </span>
-        </div>
       </div>
 
       <main className="stage meadow-stage">
@@ -438,6 +441,9 @@ function Draft({
           <MeadowScene
             options={meadow}
             onPick={pick}
+            onReroll={reroll}
+            rerollCost={REROLL_COST}
+            forageLeft={forage[current]}
             disabled={done}
             ownerName={NAMES[current]}
             tint={current === 0 ? "var(--p0)" : "var(--p1)"}
