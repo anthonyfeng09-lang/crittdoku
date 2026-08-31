@@ -947,11 +947,15 @@ function Play({
             <div className="scores">
               <div className="s">
                 <span className="dot p0" /> {who(0)}{" "}
-                <b>{playing ? live[0] : game.score[0]}</b>
+                <b key={`s0-${playing ? live[0] : game.score[0]}`}>
+                  {playing ? live[0] : game.score[0]}
+                </b>
               </div>
               <div className="s">
                 <span className="dot p1" /> {who(1)}{" "}
-                <b>{playing ? live[1] : game.score[1]}</b>
+                <b key={`s1-${playing ? live[1] : game.score[1]}`}>
+                  {playing ? live[1] : game.score[1]}
+                </b>
               </div>
               <div className="s" style={{ alignSelf: "center" }}>
                 of {game.regions.length}

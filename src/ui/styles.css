@@ -1640,3 +1640,254 @@ h1 {
     display: none;
   }
 }
+
+/* =========================================================
+   polish + motion pass
+   ========================================================= */
+
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.94); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ring-out {
+  from { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.55); }
+  to   { box-shadow: 0 0 0 12px rgba(6, 182, 212, 0); }
+}
+@keyframes chip-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  70%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* every screen eases in when it mounts */
+.app {
+  animation: screen-in 0.32s cubic-bezier(0.22, 0.72, 0.3, 1) both;
+}
+
+/* unified button feel across the app */
+button {
+  font-family: inherit;
+}
+.controls button,
+.controls select,
+.picker button,
+.forage-btn,
+.dex-head button,
+.dex-pill,
+.pool-reroll,
+.prof-io-btns button,
+.mode-card,
+.tut-go,
+.avatar-opt,
+.prof-avatar {
+  transition:
+    transform 0.13s ease,
+    box-shadow 0.13s ease,
+    border-color 0.13s ease,
+    background 0.13s ease,
+    color 0.13s ease;
+}
+.controls button:hover,
+.dex-head button:hover,
+.prof-io-btns button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(120, 60, 160, 0.14);
+}
+.controls button:active,
+.dex-head button:active,
+.prof-io-btns button:active,
+.picker button:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+.controls .primary:hover {
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.32);
+}
+
+:focus-visible {
+  outline: 3px solid rgba(124, 58, 237, 0.45);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* home: staggered entrance */
+.home-wordmark { animation: rise-in 0.5s ease both; }
+.home-tag { animation: rise-in 0.5s ease 0.05s both; }
+.home-profile { animation: rise-in 0.45s ease 0.1s both; }
+.home-modes .mode-card { animation: rise-in 0.45s ease both; }
+.home-modes .mode-card:nth-child(1) { animation-delay: 0.14s; }
+.home-modes .mode-card:nth-child(2) { animation-delay: 0.2s; }
+.home-modes .mode-card:nth-child(3) { animation-delay: 0.26s; }
+.home-modes .mode-card:nth-child(4) { animation-delay: 0.32s; }
+.dex-pill { animation: rise-in 0.45s ease 0.36s both; }
+
+.mode-card:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(120, 60, 160, 0.16);
+  border-color: var(--accent);
+}
+.mode-card:active:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+/* the Critterdex pill on the home screen */
+.dex-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(360px, 100%);
+  padding: 10px 14px;
+  border: 2px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--panel);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+.dex-pill:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 10px 24px rgba(120, 60, 160, 0.16);
+}
+.dex-pill-icon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(140deg, #ede9fe, #cffafe);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dex-pill-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.dex-pill-text b {
+  font-size: 14px;
+}
+.dex-pill-text span {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.dex-pill-arrow {
+  font-size: 22px;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+/* dex overlay motion */
+.dex-overlay {
+  animation: fade-in 0.18s ease both;
+}
+.dex {
+  animation: pop-in 0.26s cubic-bezier(0.2, 0.8, 0.3, 1.05) both;
+}
+.dex-card,
+.dex-grid > div {
+  transition: transform 0.13s ease, box-shadow 0.13s ease, border-color 0.13s ease;
+}
+.dex-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+/* pool: detail panel + token badge motion */
+.crit-detail {
+  animation: pop-in 0.16s ease both;
+}
+.meadow-tokens {
+  animation: rise-in 0.4s ease 0.1s both;
+}
+.meadow-tag {
+  animation: rise-in 0.4s ease both;
+}
+.pool-reroll {
+  animation: rise-in 0.4s ease 0.16s both;
+}
+
+/* board: last-placed cell pings */
+.cell .just-placed {
+  animation: ring-out 0.55s ease-out both;
+}
+.cell:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+/* play: team cards + score */
+.panel.team {
+  animation: rise-in 0.4s ease both;
+}
+.info-col .panel:nth-child(2) { animation-delay: 0.06s; }
+.info-col .panel:nth-child(3) { animation-delay: 0.12s; }
+.tcard {
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.tcard:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  box-shadow: 0 4px 12px rgba(120, 60, 160, 0.1);
+}
+.scores b {
+  display: inline-block;
+  animation: chip-pop 0.28s ease both;
+}
+.banner {
+  animation: pop-in 0.24s ease both;
+}
+
+/* tutorial steps slide in */
+.tut-step {
+  animation: rise-in 0.4s ease both;
+}
+.tut-step:nth-child(2) { animation-delay: 0.05s; }
+.tut-step:nth-child(3) { animation-delay: 0.1s; }
+.tut-step:nth-child(4) { animation-delay: 0.15s; }
+.tut-step:nth-child(5) { animation-delay: 0.2s; }
+
+/* profile page cards */
+.prof-card {
+  animation: rise-in 0.4s ease both;
+}
+.prof-card:nth-child(2) { animation-delay: 0.05s; }
+.prof-card:nth-child(3) { animation-delay: 0.1s; }
+.prof-card:nth-child(4) { animation-delay: 0.15s; }
+.prof-card:nth-child(5) { animation-delay: 0.2s; }
+.avatar-opt:hover {
+  transform: translateY(-2px) scale(1.05);
+  border-color: var(--accent);
+}
+.prof-avatar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(120, 60, 160, 0.18);
+}
+.hist-row {
+  animation: fade-in 0.3s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.001s !important;
+  }
+}

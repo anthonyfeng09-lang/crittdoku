@@ -127,12 +127,18 @@ export function Home({
         </button>
       </div>
 
-      <div className="home-foot">
-        <button onClick={onDex}>{t("dex")}</button>
-        <span className="hint" style={{ margin: 0 }}>
-          {ALL_CREATURES.length} critters
+      <button className="dex-pill" onClick={onDex}>
+        <span className="dex-pill-icon" aria-hidden="true">
+          <Critter id="glidewing" size={26} />
         </span>
-      </div>
+        <span className="dex-pill-text">
+          <b>{t("dex")}</b>
+          <span>{ALL_CREATURES.length} critters &middot; six types</span>
+        </span>
+        <span className="dex-pill-arrow" aria-hidden="true">
+          &rsaquo;
+        </span>
+      </button>
 
       <div className="home-parade" aria-hidden="true">
         {PARADE.map((id, i) => (
