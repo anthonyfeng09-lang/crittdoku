@@ -4,6 +4,7 @@ import {
   ALL_CREATURES,
   ROSTER,
   CATEGORIES,
+  Category,
   Action,
   CreatureId,
   GameState,
@@ -11,6 +12,7 @@ import {
   applyAction,
   cloneState,
   createGame,
+  creaturesByCategory,
   generateSeeds,
   lastTouchedCell,
   legalActions,
@@ -31,6 +33,14 @@ const NAMES = ["Sage", "Clay"] as const;
 const MEADOW_SIZE = 8;
 const FORAGE_TOKENS = 3;
 const REROLL_COST = 1;
+const CAT_ORDER: Category[] = [
+  "anchor",
+  "drift",
+  "hush",
+  "thrift",
+  "ward",
+  "snap",
+];
 const rc = (cell: number) => `r${Math.floor(cell / SIZE) + 1}c${(cell % SIZE) + 1}`;
 
 interface AbilityInfo {
@@ -172,34 +182,98 @@ export function App() {
     return () => clearTimeout(t);
   }, [auto, game, botMove]);
 
-  if (!game || !match) {
-    return (
+  const [dex, setDex] = useState(false);
+  const openDex = useCallback(() => setDex(true), []);
+
+  const screen =
+    !game || !match ? (
       <Draft
         seedCount={seedCount}
         setSeedCount={setSeedCount}
         onStart={startMatch}
+        onOpenDex={openDex}
+      />
+    ) : (
+      <Play
+        game={game}
+        teams={legLoadouts(match)}
+        match={match}
+        sel={sel}
+        setSel={setSel}
+        doAction={doAction}
+        botMove={botMove}
+        auto={auto}
+        setAuto={setAuto}
+        onOpenDex={openDex}
+        onNextLeg={() => beginLeg({ ...match, leg: 2 })}
+        onNewDraft={() => {
+          setGame(null);
+          setMatch(null);
+        }}
+        onRematch={() => startMatch(match.draftTeams)}
       />
     );
-  }
 
   return (
-    <Play
-      game={game}
-      teams={legLoadouts(match)}
-      match={match}
-      sel={sel}
-      setSel={setSel}
-      doAction={doAction}
-      botMove={botMove}
-      auto={auto}
-      setAuto={setAuto}
-      onNextLeg={() => beginLeg({ ...match, leg: 2 })}
-      onNewDraft={() => {
-        setGame(null);
-        setMatch(null);
-      }}
-      onRematch={() => startMatch(match.draftTeams)}
-    />
+    <>
+      {screen}
+      {dex && <Dex onClose={() => setDex(false)} />}
+    </>
+  );
+}
+
+/* ================================================================= *
+ * Critterdex - every creature and what it does
+ * ================================================================= */
+
+function Dex({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="dex-overlay" onClick={onClose}>
+      <div
+        className="dex"
+        role="dialog"
+        aria-label="Critterdex"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="dex-head">
+          <h2>Critterdex</h2>
+          <span className="hint" style={{ margin: 0 }}>
+            {ALL_CREATURES.length} critters &middot; six types
+          </span>
+          <button className="primary" style={{ marginLeft: "auto" }} onClick={onClose}>
+            close
+          </button>
+        </div>
+        <div className="dex-body">
+          {CAT_ORDER.map((cat) => (
+            <section key={cat} className="dex-section">
+              <h3 style={{ color: CATEGORIES[cat].hue }}>
+                <span
+                  className="type-chip"
+                  style={{ background: CATEGORIES[cat].hue }}
+                >
+                  {CATEGORIES[cat].element}
+                </span>
+                {CATEGORIES[cat].name}
+                <span className="dex-tagline">{CATEGORIES[cat].tagline}</span>
+              </h3>
+              <div className="dex-grid">
+                {creaturesByCategory(cat).map((c) => (
+                  <div key={c.id} className="dex-card">
+                    <Critter id={c.id} size={72} />
+                    <div className="dex-info">
+                      <div className="dex-name">{c.name}</div>
+                      <div className="dex-ep">{c.epithet}</div>
+                      <div className="dex-blurb">{c.blurb}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -213,10 +287,12 @@ function Draft({
   seedCount,
   setSeedCount,
   onStart,
+  onOpenDex,
 }: {
   seedCount: number;
   setSeedCount: (n: number) => void;
   onStart: (t: [CreatureId[], CreatureId[]]) => void;
+  onOpenDex: () => void;
 }) {
   const order = useMemo(() => snakeOrder(SIZE), []);
   const rng = useRef(makeRng((Date.now() >>> 0) || 1));
@@ -346,6 +422,7 @@ function Draft({
                 ))}
               </select>
             </label>
+            <button onClick={onOpenDex}>Critterdex</button>
             <button onClick={() => setStage("pick")}>back</button>
             <button className="primary" onClick={() => onStart(assigned)}>
               Start match
@@ -397,6 +474,7 @@ function Draft({
           {NAMES[current]} drafts &middot; {step}/{order.length}
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
+          <button onClick={onOpenDex}>Critterdex</button>
           <button onClick={undo} disabled={step === 0}>
             undo
           </button>
@@ -468,6 +546,7 @@ function Play({
   botMove,
   auto,
   setAuto,
+  onOpenDex,
   onNextLeg,
   onNewDraft,
   onRematch,
@@ -481,6 +560,7 @@ function Play({
   botMove: () => void;
   auto: boolean;
   setAuto: (f: (a: boolean) => boolean) => void;
+  onOpenDex: () => void;
   onNextLeg: () => void;
   onNewDraft: () => void;
   onRematch: () => void;
@@ -562,6 +642,7 @@ function Play({
           <button onClick={() => setAuto((x) => !x)} disabled={!playing}>
             {auto ? "Stop" : "Auto-play"}
           </button>
+          <button onClick={onOpenDex}>Critterdex</button>
           <button onClick={onRematch}>Rematch</button>
           <button onClick={onNewDraft}>New draft</button>
         </div>
