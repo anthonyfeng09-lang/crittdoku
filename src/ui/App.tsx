@@ -1,17 +1,9 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ABILITY_COST,
   ALL_CREATURES,
   ROSTER,
   CATEGORIES,
-  Category,
   Action,
   CreatureId,
   GameState,
@@ -19,7 +11,6 @@ import {
   applyAction,
   cloneState,
   createGame,
-  creaturesByCategory,
   generateSeeds,
   lastTouchedCell,
   legalActions,
@@ -33,10 +24,12 @@ import {
 import { makeRng } from "../engine/rng";
 import { critterBot } from "../sim/bots";
 import { Critter } from "./Critter";
+import { MeadowScene } from "./Meadow";
 
 const SIZE = 9;
 const NAMES = ["Sage", "Clay"] as const;
-const CAT_ORDER: Category[] = ["anchor", "drift", "hush", "thrift", "ward", "snap"];
+const MEADOW_SIZE = 6;
+const FORAGE_TOKENS = 3;
 const rc = (cell: number) => `r${Math.floor(cell / SIZE) + 1}c${(cell % SIZE) + 1}`;
 
 interface AbilityInfo {
@@ -210,7 +203,9 @@ export function App() {
 }
 
 /* ================================================================= *
- * Draft - one roster grid, alternating picks from the shared pool
+ * Draft - a wildlife meadow. On your turn a handful of creatures are
+ * out in the grass; pick one, or spend a forage token to call a fresh
+ * set. Picks are exclusive and alternate in snake order.
  * ================================================================= */
 
 function Draft({
@@ -223,19 +218,39 @@ function Draft({
   onStart: (t: [CreatureId[], CreatureId[]]) => void;
 }) {
   const order = useMemo(() => snakeOrder(SIZE), []);
+  const rng = useRef(makeRng((Date.now() >>> 0) || 1));
   const [picks, setPicks] = useState<[CreatureId[], CreatureId[]]>([[], []]);
+  const [forage, setForage] = useState<[number, number]>([
+    FORAGE_TOKENS,
+    FORAGE_TOKENS,
+  ]);
+  const [meadow, setMeadow] = useState<CreatureId[]>([]);
   const [stage, setStage] = useState<"pick" | "assign">("pick");
   const [assigned, setAssigned] = useState<[CreatureId[], CreatureId[]]>([
     [],
     [],
   ]);
-  const [filter, setFilter] = useState<Category | "all">("all");
 
   const step = picks[0].length + picks[1].length;
   const done = step >= order.length;
   const current = order[step] ?? 0;
-  const takenBy = (id: CreatureId): 0 | 1 | null =>
-    picks[0].includes(id) ? 0 : picks[1].includes(id) ? 1 : null;
+
+  const pool = useMemo(() => {
+    const taken = new Set<CreatureId>([...picks[0], ...picks[1]]);
+    return ALL_CREATURES.filter((id) => !taken.has(id));
+  }, [picks]);
+
+  const drawMeadow = useCallback(
+    (from: CreatureId[]) =>
+      rng.current.shuffle(from.slice()).slice(0, Math.min(MEADOW_SIZE, from.length)),
+    [],
+  );
+
+  // a fresh meadow whenever it becomes a new drafter's turn
+  useEffect(() => {
+    if (stage !== "pick" || done) return;
+    setMeadow(drawMeadow(pool));
+  }, [step, stage, done, pool, drawMeadow]);
 
   const toAssign = (p: [CreatureId[], CreatureId[]]) => {
     setAssigned([p[0].slice(), p[1].slice()]);
@@ -243,20 +258,27 @@ function Draft({
   };
 
   const pick = (id: CreatureId) => {
-    if (stage !== "pick" || takenBy(id) !== null || done) return;
+    if (stage !== "pick" || done || !meadow.includes(id)) return;
     const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
     next[current].push(id);
     setPicks(next);
     if (next[0].length + next[1].length === order.length) toAssign(next);
   };
 
+  const reroll = () => {
+    if (done || forage[current] <= 0) return;
+    const f: [number, number] = [forage[0], forage[1]];
+    f[current] -= 1;
+    setForage(f);
+    setMeadow(drawMeadow(pool));
+  };
+
   const autoRest = () => {
-    const rng = makeRng((Date.now() ^ step) >>> 0);
     const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
-    const taken = new Set([...next[0], ...next[1]]);
+    const taken = new Set<CreatureId>([...next[0], ...next[1]]);
     let s = taken.size;
     while (s < order.length) {
-      const choice = rng.pick(ALL_CREATURES.filter((c) => !taken.has(c)));
+      const choice = rng.current.pick(ALL_CREATURES.filter((c) => !taken.has(c)));
       taken.add(choice);
       next[order[s]].push(choice);
       s++;
@@ -349,9 +371,6 @@ function Draft({
     );
   }
 
-  const shown =
-    filter === "all" ? ALL_CREATURES.map((id) => ROSTER[id]) : creaturesByCategory(filter);
-
   return (
     <div className="app">
       <div className="appbar">
@@ -380,71 +399,50 @@ function Draft({
                 <div
                   key={i}
                   className={`tray-slot ${picks[p][i] ? "filled" : ""}`}
+                  title={picks[p][i] ? ROSTER[picks[p][i]].name : ""}
                 >
                   {picks[p][i] && <Critter id={picks[p][i]} size={22} />}
                 </div>
               ))}
             </div>
+            <span className="forage-count" title="forage tokens left">
+              {"◆".repeat(forage[p])}
+              {"◇".repeat(FORAGE_TOKENS - forage[p])}
+            </span>
           </div>
         ))}
-        <div className="filters">
+        <div className="forage">
           <button
-            className={filter === "all" ? "primary" : ""}
-            onClick={() => setFilter("all")}
+            className="forage-btn"
+            onClick={reroll}
+            disabled={done || forage[current] <= 0}
           >
-            all
+            {"↻"} new meadow
           </button>
-          {CAT_ORDER.map((cat) => (
-            <button
-              key={cat}
-              className={filter === cat ? "primary" : ""}
-              onClick={() => setFilter(cat)}
-              style={
-                filter === cat
-                  ? { background: CATEGORIES[cat].hue, borderColor: "transparent" }
-                  : { color: CATEGORIES[cat].hue }
-              }
-            >
-              {CATEGORIES[cat].element}
-            </button>
-          ))}
+          <span className="hint" style={{ margin: 0 }}>
+            {forage[current] > 0
+              ? `costs 1 forage token · ${forage[current]} left`
+              : "no forage tokens left"}
+          </span>
         </div>
       </div>
 
-      <main className="stage roster">
-        {shown.map((c) => {
-          const t = takenBy(c.id);
-          return (
-            <button
-              key={c.id}
-              className={`rcard ${
-                t === 0 ? "taken0" : t === 1 ? "taken1" : t !== null ? "taken" : ""
-              }`}
-              disabled={t !== null || done}
-              onClick={() => pick(c.id)}
-              style={{ "--tint": CATEGORIES[c.category].hue } as CSSProperties}
-            >
-              {t !== null && (
-                <span
-                  className="rc-owner"
-                  style={{ background: t === 0 ? "var(--p0)" : "var(--p1)" }}
-                >
-                  {NAMES[t]}
-                </span>
-              )}
-              <Critter id={c.id} size={54} />
-              <div className="rc-name">{c.name}</div>
-              <div className="rc-ep">{c.epithet}</div>
-              <span
-                className="type-chip"
-                style={{ background: CATEGORIES[c.category].hue }}
-              >
-                {CATEGORIES[c.category].element}
-              </span>
-              <div className="rc-blurb">{c.blurb}</div>
-            </button>
-          );
-        })}
+      <main className="stage meadow-stage">
+        {done ? (
+          <div className="meadow">
+            <div className="meadow-tag" style={{ background: "var(--ink)" }}>
+              teams are set
+            </div>
+          </div>
+        ) : (
+          <MeadowScene
+            options={meadow}
+            onPick={pick}
+            disabled={done}
+            ownerName={NAMES[current]}
+            tint={current === 0 ? "var(--p0)" : "var(--p1)"}
+          />
+        )}
       </main>
     </div>
   );
