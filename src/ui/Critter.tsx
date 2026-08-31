@@ -268,7 +268,7 @@ type Feat =
   | "spark";
 
 function feature(f: Feat, hx: number, hy: number, r: number, t: Tone): ReactNode {
-  const top = Math.max(6, hy - r);
+  const top = Math.max(-10, hy - r);
   const S = (d: string, fill = t.hue, w = OW) => (
     <path
       d={d}
@@ -325,7 +325,7 @@ function feature(f: Feat, hx: number, hy: number, r: number, t: Tone): ReactNode
       );
     case "horn":
       return S(
-        `M${hx} ${top + 4} L${hx - 6} ${Math.max(6, top - 15)} L${hx + 6} ${Math.max(6, top - 15)} Z`,
+        `M${hx} ${top + 4} L${hx - 6} ${Math.max(-12, top - 15)} L${hx + 6} ${Math.max(-12, top - 15)} Z`,
         t.light,
       );
     case "fin":
@@ -335,14 +335,14 @@ function feature(f: Feat, hx: number, hy: number, r: number, t: Tone): ReactNode
     case "bud":
       return (
         <g>
-          <path d={`M${hx} ${top + 8} V${Math.max(8, top - 6)}`} stroke={t.line} strokeWidth={OW} strokeLinecap="round" />
-          <circle cx={hx} cy={Math.max(6, top - 10)} r={r * 0.28} fill={t.light} stroke={t.line} strokeWidth={OW} />
+          <path d={`M${hx} ${top + 8} V${Math.max(-8, top - 6)}`} stroke={t.line} strokeWidth={OW} strokeLinecap="round" />
+          <circle cx={hx} cy={Math.max(-12, top - 10)} r={r * 0.28} fill={t.light} stroke={t.line} strokeWidth={OW} />
         </g>
       );
     case "spark":
       return (
         <path
-          d={`M${hx - 3} ${top + 8} L${hx + 5} ${Math.max(6, top - 14)} L${hx} ${top - 4} L${hx + 8} ${top - 4} L${hx - 4} ${top + 16} L${hx + 1} ${top} L${hx - 6} ${top} Z`}
+          d={`M${hx - 3} ${top + 8} L${hx + 5} ${Math.max(-12, top - 14)} L${hx} ${top - 4} L${hx + 8} ${top - 4} L${hx - 4} ${top + 16} L${hx + 1} ${top} L${hx - 6} ${top} Z`}
           fill="#ffd23f"
           stroke={t.line}
           strokeWidth={IW * 1.5}
@@ -562,7 +562,7 @@ export function Critter({ id, size = 44 }: { id: CreatureId; size?: number }) {
     <svg
       width={size}
       height={size}
-      viewBox="0 0 120 128"
+      viewBox="0 -16 120 148"
       role="img"
       aria-label={ROSTER[id].name}
     >

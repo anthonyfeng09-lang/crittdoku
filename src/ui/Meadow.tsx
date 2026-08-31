@@ -156,16 +156,33 @@ export function MeadowScene({
             >
               <LilyPad />
               <Critter id={id} size={104} />
-              <span
-                className="mp-name"
-                style={{ background: CATEGORIES[ROSTER[id].category].hue }}
-              >
-                {ROSTER[id].name}
-              </span>
             </button>
           </div>
         );
       })}
+
+      {/* names in their own layer so no lily pad can cover them */}
+      <div className="meadow-labels">
+        {options.map((id, i) => {
+          const sp = SPOTS[i] ?? SPOTS[SPOTS.length - 1];
+          return (
+            <span
+              key={id}
+              className="mp-name"
+              style={
+                {
+                  left: `${sp.x}%`,
+                  top: `${sp.y}%`,
+                  "--s": sp.s,
+                  background: CATEGORIES[ROSTER[id].category].hue,
+                } as CSSProperties
+              }
+            >
+              {ROSTER[id].name}
+            </span>
+          );
+        })}
+      </div>
 
       <button
         className="pool-reroll"

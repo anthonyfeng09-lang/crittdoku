@@ -630,17 +630,22 @@ h1 {
 .meadow-pick:nth-child(9) .mp-pad {
   animation-delay: -3.1s;
 }
+.meadow-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
 .mp-name {
-  position: relative;
-  z-index: 2;
-  margin-top: -10px;
+  position: absolute;
+  transform: translate(-50%, calc(38px * var(--s, 1)));
   color: #fff;
   font-weight: 800;
   font-size: 12px;
   padding: 2px 10px;
   border-radius: 999px;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
 }
 
 .pool-reroll {
