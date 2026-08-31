@@ -1,5 +1,5 @@
 import { useId, type ReactNode } from "react";
-import { CATEGORIES, ROSTER, CreatureId } from "../engine";
+import { CATEGORIES, ROSTER, CreatureId, creaturesByCategory } from "../engine";
 
 /* A stylised vector take on the collector-monster look: 3/4-angled bodies with
  * real limbs and features, anime almond eyes with irises and lids, hard cel
@@ -28,6 +28,19 @@ interface Tone {
   light: string;
   line: string;
 }
+// nudge each critter's shade so same-type siblings don't read identical
+const SIB_SHIFT: Array<[number[], number]> = [
+  [[255, 255, 255], 0],
+  [[255, 255, 255], 0.24],
+  [[26, 18, 34], 0.26],
+  [[255, 250, 235], 0.42],
+  [[26, 18, 34], 0.14],
+];
+function siblingHue(hex: string, idx: number): string {
+  const [target, amt] = SIB_SHIFT[idx % SIB_SHIFT.length];
+  return amt === 0 ? hex : mix(rgb(hex), target, amt);
+}
+
 function toneOf(hex: string): Tone {
   const c = rgb(hex);
   return {
@@ -499,6 +512,55 @@ const sprite = (): Arch => ({
   head: { x: 51, y: 46, r: 29 },
 });
 
+// mole: a squat digger with big front claws and a blunt snout
+const mole = (): Arch => ({
+  back: [],
+  main: [
+    {
+      p: "M24 98 C 14 88 14 60 28 50 C 44 38 76 38 92 50 C 106 60 106 88 96 98 C 84 108 36 108 24 98 Z",
+    },
+    {
+      p: "M22 60 C 8 58 2 74 8 92 C 12 100 22 98 24 88 L 28 96 L 30 82 L 34 92 L 36 78 C 34 70 28 64 22 60 Z",
+    }, // far claw
+    {
+      p: "M96 58 C 110 56 116 72 110 90 C 106 98 96 96 94 86 L 90 94 L 88 80 L 84 90 L 82 76 C 84 68 90 60 96 58 Z",
+    }, // near claw
+    { c: [60, 66, 13, 9] }, // snout
+  ],
+  head: { x: 58, y: 56, r: 18 },
+});
+
+// squirrel: upright, small, with a huge curled bushy tail sweeping up behind
+const squirrel = (): Arch => ({
+  back: [
+    {
+      p: "M34 106 C 2 100 -6 50 16 24 C 28 8 54 8 60 28 C 42 34 28 60 34 82 C 37 96 46 102 54 102 C 46 110 40 108 34 106 Z",
+    }, // tail
+  ],
+  main: [
+    {
+      p: "M58 12 C 40 12 30 28 30 46 C 30 56 36 62 44 64 C 33 70 27 86 31 102 C 35 114 49 118 62 116 C 80 114 88 102 86 88 C 84 76 78 68 70 64 C 80 60 84 48 84 36 C 84 20 74 12 58 12 Z",
+    },
+    { p: "M66 62 C 76 64 82 80 78 96 C 74 102 66 100 64 90 C 66 80 64 70 60 64 Z" }, // arm to chest
+    { p: "M42 114 q-2 8 6 10 q9 -1 8 -10 z" },
+    { p: "M62 116 q0 9 9 9 q8 -2 6 -11 z" },
+  ],
+  head: { x: 57, y: 32, r: 20 },
+});
+
+// orb: a near-spherical, head-dominant critter with a tiny body
+const orb = (): Arch => ({
+  back: [],
+  main: [
+    {
+      p: "M60 8 C 30 8 12 34 12 64 C 12 94 34 112 60 112 C 86 112 108 94 108 64 C 108 34 90 8 60 8 Z",
+    },
+    { p: "M44 110 q-2 7 5 9 q8 -1 7 -9 z" },
+    { p: "M70 110 q0 8 8 8 q7 -2 5 -9 z" },
+  ],
+  head: { x: 60, y: 56, r: 42 },
+});
+
 const ARCH: Record<string, () => Arch> = {
   cub,
   kit,
@@ -508,6 +570,9 @@ const ARCH: Record<string, () => Arch> = {
   spike,
   reptile,
   sprite,
+  mole,
+  squirrel,
+  orb,
 };
 
 /* ---- roster --------------------------------------------------- */
@@ -533,10 +598,10 @@ const SPEC: Record<CreatureId, Spec> = {
   fogkit: { arch: "sprite", feat: "ears", eye: "sleepy", mouth: "smile", belly: false },
   dozderling: { arch: "kit", feat: "antler", eye: "sleepy", mouth: "smile", belly: false },
 
-  nutsquirrel: { arch: "kit", feat: "tuft", eye: "open", mouth: "open", belly: true },
+  nutsquirrel: { arch: "squirrel", feat: "tuft", eye: "open", mouth: "open", belly: true },
   acorncache: { arch: "cub", feat: "leaf", eye: "happy", mouth: "smile", belly: true },
   sunbeetle: { arch: "bug", feat: "horn", eye: "open", mouth: "smile", belly: false },
-  tallykit: { arch: "kit", feat: "ears", eye: "sharp", mouth: "smile", belly: true },
+  tallykit: { arch: "kit", feat: "ears", eye: "sharp", mouth: "flat", belly: true },
 
   pricklehog: { arch: "spike", feat: "none", eye: "happy", mouth: "smile", belly: false },
   shellclam: { arch: "shell", feat: "none", eye: "open", mouth: "smile", belly: false },
@@ -545,16 +610,17 @@ const SPEC: Record<CreatureId, Spec> = {
   quillhog: { arch: "spike", feat: "none", eye: "open", mouth: "open", belly: false },
 
   swiftwren: { arch: "bird", feat: "plume", eye: "open", mouth: "beak", belly: true },
-  digmole: { arch: "kit", feat: "none", eye: "dot", mouth: "smile", belly: false },
+  digmole: { arch: "mole", feat: "none", eye: "dot", mouth: "smile", belly: false },
   wildlark: { arch: "bird", feat: "plume", eye: "happy", mouth: "beak", belly: false },
-  bombkit: { arch: "cub", feat: "spark", eye: "sharp", mouth: "cat", belly: false },
+  bombkit: { arch: "orb", feat: "spark", eye: "sharp", mouth: "cat", belly: false },
 };
 
 export function Critter({ id, size = 44 }: { id: CreatureId; size?: number }) {
   const uid = useId();
   const spec = SPEC[id];
   const cat = ROSTER[id].category;
-  const t = toneOf(CATEGORIES[cat].hue);
+  const sibIdx = creaturesByCategory(cat).findIndex((c) => c.id === id);
+  const t = toneOf(siblingHue(CATEGORIES[cat].hue, Math.max(0, sibIdx)));
   const a = ARCH[spec.arch]();
   const h = a.head;
 
