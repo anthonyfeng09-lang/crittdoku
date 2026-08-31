@@ -1112,3 +1112,242 @@ h1 {
     animation: none;
   }
 }
+
+/* =========== home / menu =========== */
+.app.home {
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
+  padding-top: clamp(16px, 5vh, 56px);
+  overflow-y: auto;
+}
+.home-top {
+  text-align: center;
+}
+.home-wordmark {
+  margin: 0;
+  font-size: clamp(34px, 8vw, 58px);
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #22c55e, #06b6d4, #a855f7, #fb923c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.home-tag {
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.home-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(520px, 100%);
+  background: var(--panel);
+  border: 2px solid var(--line-strong);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow-sm);
+}
+.hp-badge {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(140deg, #a855f7, #06b6d4);
+  color: #fff;
+  font-weight: 800;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hp-main {
+  flex: 1;
+  min-width: 0;
+}
+.hp-name {
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.hp-name-edit {
+  display: flex;
+  gap: 6px;
+}
+.hp-name-edit input {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 3px 8px;
+  border: 2px solid var(--line-strong);
+  border-radius: 8px;
+  width: 140px;
+}
+.linkish {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+.hp-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.hp-stats b {
+  color: var(--ink);
+}
+.hp-lang {
+  flex: none;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 2px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+}
+.home-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: min(520px, 100%);
+}
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 14px;
+  border: 2px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--panel);
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.1s ease;
+}
+.mode-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.mode-card.disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.mc-title {
+  font-weight: 800;
+  font-size: 16px;
+}
+.mc-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.mc-diff {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  align-self: flex-start;
+}
+.mc-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: var(--ink);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.home-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.home-parade {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+.home-parade span {
+  display: block;
+  animation: bob 3s ease-in-out infinite;
+}
+
+.thinking {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* =========== tutorial =========== */
+.stage.tutorial {
+  overflow: hidden;
+}
+.tut-scroll {
+  overflow-y: auto;
+  width: min(680px, 100%);
+  margin: 0 auto;
+  padding: 4px 4px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tut-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.tut-num {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tut-step svg {
+  flex: none;
+}
+.tut-text h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+.tut-text p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.tut-go {
+  align-self: center;
+  margin-top: 4px;
+}
+
+@media (max-width: 780px) {
+  .home-modes {
+    grid-template-columns: 1fr;
+  }
+}

@@ -31,10 +31,10 @@ interface Tone {
 // nudge each critter's shade so same-type siblings don't read identical
 const SIB_SHIFT: Array<[number[], number]> = [
   [[255, 255, 255], 0],
-  [[255, 255, 255], 0.24],
-  [[26, 18, 34], 0.26],
-  [[255, 250, 235], 0.42],
-  [[26, 18, 34], 0.14],
+  [[255, 255, 255], 0.16],
+  [[26, 18, 34], 0.18],
+  [[26, 18, 34], 0.32],
+  [[255, 255, 255], 0.12],
 ];
 function siblingHue(hex: string, idx: number): string {
   const [target, amt] = SIB_SHIFT[idx % SIB_SHIFT.length];

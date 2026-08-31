@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ABILITY_COST,
   ALL_CREATURES,
@@ -24,9 +31,17 @@ import {
   territoryHolder,
 } from "../engine";
 import { makeRng } from "../engine/rng";
-import { critterBot } from "../sim/bots";
+import { critterBot, randomActionBot, type Bot } from "../sim/bots";
 import { Critter } from "./Critter";
 import { MeadowScene } from "./Meadow";
+import { Home, type Mode, type BotLevel } from "./Home";
+import { Tutorial } from "./Tutorial";
+import {
+  loadProfile,
+  saveProfile,
+  recordResult,
+  type Profile,
+} from "./profile";
 
 const SIZE = 9;
 const NAMES = ["Sage", "Clay"] as const;
@@ -96,6 +111,9 @@ interface Match {
   draftTeams: [CreatureId[], CreatureId[]];
   seedCount: number;
   leg: 1 | 2;
+  /** 1 for a quick game (vs bot), 2 for the hot-seat best-of-two */
+  bestOf: 1 | 2;
+  mode: Mode;
   /** [legIndex] -> [seat0 regions, seat1 regions] once that leg has ended */
   legScores: Array<[number, number] | null>;
 }
@@ -107,13 +125,23 @@ function legLoadouts(m: Match): [CreatureId[], CreatureId[]] {
   return m.leg === 1 ? m.draftTeams : [m.draftTeams[1], m.draftTeams[0]];
 }
 
+type Route = "home" | "draft" | "play" | "tutorial";
+
 export function App() {
+  const [route, setRoute] = useState<Route>("home");
+  const [mode, setMode] = useState<Mode>("bot");
+  const [botLevel, setBotLevel] = useState<BotLevel>("chill");
+  const [profile, setProfile] = useState<Profile>(() => loadProfile());
+
   const [match, setMatch] = useState<Match | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
   const [seedCount, setSeedCount] = useState(6);
   const [sel, setSel] = useState<number | null>(null);
   const [auto, setAuto] = useState(false);
   const botRng = useRef(makeRng(98765));
+  const recorded = useRef<GameState | null>(null);
+
+  const oppBot: Bot = botLevel === "sharp" ? critterBot : randomActionBot;
 
   const beginLeg = useCallback((m: Match) => {
     const rng = makeRng((Date.now() ^ (m.seedCount * 40503) ^ m.leg) >>> 0);
@@ -134,6 +162,7 @@ export function App() {
     setMatch(m);
     setSel(null);
     setAuto(false);
+    setRoute("play");
   }, []);
 
   const startMatch = useCallback(
@@ -142,18 +171,34 @@ export function App() {
         draftTeams,
         seedCount,
         leg: 1,
+        bestOf: mode === "bot" ? 1 : 2,
+        mode,
         legScores: [null, null],
       }),
-    [beginLeg, seedCount],
+    [beginLeg, seedCount, mode],
   );
 
   const commit = useCallback(
     (g: GameState) => {
       setGame(cloneState(g));
-      if (g.status === "ended" && match && match.legScores[match.leg - 1] === null) {
+      if (
+        g.status === "ended" &&
+        match &&
+        match.legScores[match.leg - 1] === null
+      ) {
         const ls = match.legScores.slice() as Match["legScores"];
         ls[match.leg - 1] = [g.score[0], g.score[1]];
         setMatch({ ...match, legScores: ls });
+        // record a vs-bot result once, at the end of the match (you are seat 0)
+        const finished = match.bestOf === 1 || match.leg === 2;
+        if (match.mode === "bot" && finished && recorded.current !== g) {
+          recorded.current = g;
+          const a = g.score[0];
+          const b = g.score[1];
+          setProfile((p) =>
+            recordResult(p, a === b ? "draw" : a > b ? "win" : "loss"),
+          );
+        }
       }
     },
     [match],
@@ -171,33 +216,94 @@ export function App() {
 
   const botMove = useCallback(() => {
     if (!game || game.status !== "playing") return;
-    applyAction(game, critterBot.choose(game, botRng.current));
+    applyAction(game, oppBot.choose(game, botRng.current));
     commit(game);
     setSel(null);
-  }, [game, commit]);
+  }, [game, commit, oppBot]);
 
+  // "auto-play both" toggle (local mode convenience)
   useEffect(() => {
     if (!auto || !game || game.status !== "playing") return;
     const t = setTimeout(botMove, 280);
     return () => clearTimeout(t);
   }, [auto, game, botMove]);
 
+  // vs bot: the opponent (seat 1) moves itself
+  useEffect(() => {
+    if (
+      mode !== "bot" ||
+      route !== "play" ||
+      !game ||
+      game.status !== "playing" ||
+      game.current !== 1
+    )
+      return;
+    const t = setTimeout(botMove, 460);
+    return () => clearTimeout(t);
+  }, [mode, route, game, botMove]);
+
   const [dex, setDex] = useState(false);
   const openDex = useCallback(() => setDex(true), []);
 
-  const screen =
-    !game || !match ? (
+  const goHome = () => {
+    setGame(null);
+    setMatch(null);
+    recorded.current = null;
+    setRoute("home");
+  };
+
+  let screen: ReactNode;
+  if (route === "home") {
+    screen = (
+      <Home
+        profile={profile}
+        onName={(name) => setProfile((p) => saveProfile({ ...p, name }))}
+        onLang={(lang) => setProfile((p) => saveProfile({ ...p, lang }))}
+        onStart={(m, lvl) => {
+          setMode(m);
+          setBotLevel(lvl);
+          setGame(null);
+          setMatch(null);
+          recorded.current = null;
+          setRoute("draft");
+        }}
+        onTutorial={() => setRoute("tutorial")}
+        onDex={openDex}
+      />
+    );
+  } else if (route === "tutorial") {
+    screen = (
+      <Tutorial
+        onDone={() => {
+          setMode("bot");
+          setBotLevel("chill");
+          setGame(null);
+          setMatch(null);
+          recorded.current = null;
+          setRoute("draft");
+        }}
+        onHome={() => setRoute("home")}
+        onDex={openDex}
+      />
+    );
+  } else if (route === "draft" || !game || !match) {
+    screen = (
       <Draft
         seedCount={seedCount}
         setSeedCount={setSeedCount}
+        botSeat={mode === "bot" ? 1 : null}
         onStart={startMatch}
         onOpenDex={openDex}
+        onHome={goHome}
       />
-    ) : (
+    );
+  } else {
+    screen = (
       <Play
         game={game}
         teams={legLoadouts(match)}
         match={match}
+        mode={mode}
         sel={sel}
         setSel={setSel}
         doAction={doAction}
@@ -205,14 +311,18 @@ export function App() {
         auto={auto}
         setAuto={setAuto}
         onOpenDex={openDex}
+        onHome={goHome}
         onNextLeg={() => beginLeg({ ...match, leg: 2 })}
         onNewDraft={() => {
           setGame(null);
           setMatch(null);
+          recorded.current = null;
+          setRoute("draft");
         }}
         onRematch={() => startMatch(match.draftTeams)}
       />
     );
+  }
 
   return (
     <>
@@ -286,13 +396,17 @@ function Dex({ onClose }: { onClose: () => void }) {
 function Draft({
   seedCount,
   setSeedCount,
+  botSeat,
   onStart,
   onOpenDex,
+  onHome,
 }: {
   seedCount: number;
   setSeedCount: (n: number) => void;
+  botSeat: 0 | 1 | null;
   onStart: (t: [CreatureId[], CreatureId[]]) => void;
   onOpenDex: () => void;
+  onHome: () => void;
 }) {
   const order = useMemo(() => snakeOrder(SIZE), []);
   const rng = useRef(makeRng((Date.now() >>> 0) || 1));
@@ -376,7 +490,7 @@ function Draft({
   };
 
   const undo = () => {
-    if (step === 0) return;
+    if (step === 0 || botSeat != null) return;
     const last = order[step - 1];
     const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
     next[last].pop();
@@ -387,6 +501,18 @@ function Draft({
       setForage(snap.forage);
     }
   };
+
+  // vs bot: the opponent seat drafts itself
+  useEffect(() => {
+    if (botSeat == null || done || stage !== "pick" || current !== botSeat) {
+      return;
+    }
+    const tmr = setTimeout(() => {
+      if (meadow.length) pick(rng.current.pick(meadow));
+    }, 520);
+    return () => clearTimeout(tmr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botSeat, current, done, stage, meadow]);
 
   const setSlot = (p: 0 | 1, digit: number, id: CreatureId) => {
     const arr = assigned[p].slice();
@@ -422,6 +548,7 @@ function Draft({
                 ))}
               </select>
             </label>
+            <button onClick={onHome}>menu</button>
             <button onClick={onOpenDex}>Critterdex</button>
             <button onClick={() => setStage("pick")}>back</button>
             <button className="primary" onClick={() => onStart(assigned)}>
@@ -471,11 +598,17 @@ function Draft({
         <h1>DENDOKU</h1>
         <span className="status">
           <span className={`dot p${current}`} />
-          {NAMES[current]} drafts &middot; {step}/{order.length}
+          {botSeat != null
+            ? current === botSeat
+              ? "Bot drafts"
+              : "Your pick"
+            : `${NAMES[current]} drafts`}{" "}
+          &middot; {step}/{order.length}
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
+          <button onClick={onHome}>menu</button>
           <button onClick={onOpenDex}>Critterdex</button>
-          <button onClick={undo} disabled={step === 0}>
+          <button onClick={undo} disabled={step === 0 || botSeat != null}>
             undo
           </button>
           <button onClick={autoRest}>auto-fill</button>
@@ -523,8 +656,14 @@ function Draft({
             rerollCost={REROLL_COST}
             forageLeft={forage[current]}
             maxForage={FORAGE_TOKENS}
-            disabled={done}
-            ownerName={NAMES[current]}
+            disabled={done || (botSeat != null && current === botSeat)}
+            ownerName={
+              botSeat != null
+                ? current === botSeat
+                  ? "Bot"
+                  : "You"
+                : NAMES[current]
+            }
             tint={current === 0 ? "var(--p0)" : "var(--p1)"}
           />
         )}
@@ -541,6 +680,7 @@ function Play({
   game,
   teams,
   match,
+  mode,
   sel,
   setSel,
   doAction,
@@ -548,6 +688,7 @@ function Play({
   auto,
   setAuto,
   onOpenDex,
+  onHome,
   onNextLeg,
   onNewDraft,
   onRematch,
@@ -555,6 +696,7 @@ function Play({
   game: GameState;
   teams: [CreatureId[], CreatureId[]];
   match: Match;
+  mode: Mode;
   sel: number | null;
   setSel: (n: number | null) => void;
   doAction: (a: Action) => void;
@@ -562,10 +704,12 @@ function Play({
   auto: boolean;
   setAuto: (f: (a: boolean) => boolean) => void;
   onOpenDex: () => void;
+  onHome: () => void;
   onNextLeg: () => void;
   onNewDraft: () => void;
   onRematch: () => void;
 }) {
+  const vsBot = mode === "bot";
   const box = game.config.box;
   // aggregate match score (seat 0 / seat 1) across finished legs
   const agg: [number, number] = [0, 0];
@@ -575,7 +719,8 @@ function Play({
       agg[1] += ls[1];
     }
   }
-  const legOneOver = match.leg === 1 && game.status === "ended";
+  const legOneOver =
+    match.bestOf === 2 && match.leg === 1 && game.status === "ended";
   const live = projectedScore(game);
   const lastCell = lastTouchedCell(game);
   const playing = game.status === "playing";
@@ -619,14 +764,17 @@ function Play({
 
   const claimed = game.regions.filter((r) => r.claimedBy !== null);
 
+  const who = (seat: 0 | 1) => (vsBot ? (seat === 0 ? "You" : "Bot") : NAMES[seat]);
   const matchLine =
     game.status !== "playing"
       ? legOneOver
         ? `Leg 1 done ${game.score[0]}–${game.score[1]}`
-        : `${agg[0] === agg[1] ? "Level" : NAMES[agg[0] > agg[1] ? 0 : 1] + " wins"} ${Math.max(agg[0], agg[1])}–${Math.min(agg[0], agg[1])}`
-      : `Leg ${match.leg}/2 · ${NAMES[cur]} to move${
-          match.legScores[0] ? ` · match ${agg[0]}–${agg[1]}` : ""
-        }`;
+        : `${agg[0] === agg[1] ? "Level" : who((agg[0] > agg[1] ? 0 : 1) as 0 | 1) + " win"}${agg[0] === agg[1] ? "" : "s"} ${Math.max(agg[0], agg[1])}–${Math.min(agg[0], agg[1])}`
+      : vsBot
+        ? `${who(cur as 0 | 1)} to move`
+        : `Leg ${match.leg}/2 · ${NAMES[cur]} to move${
+            match.legScores[0] ? ` · match ${agg[0]}–${agg[1]}` : ""
+          }`;
 
   return (
     <div className="app">
@@ -635,14 +783,22 @@ function Play({
         <span className="status">
           <span className={`dot p${cur}`} />
           {matchLine}
+          {vsBot && playing && cur === 1 && (
+            <span className="thinking"> · thinking</span>
+          )}
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
-          <button onClick={botMove} disabled={!playing}>
-            Bot move
-          </button>
-          <button onClick={() => setAuto((x) => !x)} disabled={!playing}>
-            {auto ? "Stop" : "Auto-play"}
-          </button>
+          {!vsBot && (
+            <>
+              <button onClick={botMove} disabled={!playing}>
+                Bot move
+              </button>
+              <button onClick={() => setAuto((x) => !x)} disabled={!playing}>
+                {auto ? "Stop" : "Auto-play"}
+              </button>
+            </>
+          )}
+          <button onClick={onHome}>menu</button>
           <button onClick={onOpenDex}>Critterdex</button>
           <button onClick={onRematch}>Rematch</button>
           <button onClick={onNewDraft}>New draft</button>
@@ -713,26 +869,27 @@ function Play({
             {!playing && !legOneOver && (
               <div className="banner" style={{ marginBottom: 10 }}>
                 {agg[0] === agg[1]
-                  ? "The match is level."
-                  : `${NAMES[agg[0] > agg[1] ? 0 : 1]} takes the match, ${Math.max(
-                      agg[0],
-                      agg[1],
-                    )}–${Math.min(agg[0], agg[1])}.`}
+                  ? vsBot
+                    ? "Dead level."
+                    : "The match is level."
+                  : `${who((agg[0] > agg[1] ? 0 : 1) as 0 | 1)} ${
+                      vsBot && agg[0] < agg[1] ? "won" : "takes it"
+                    }, ${Math.max(agg[0], agg[1])}–${Math.min(agg[0], agg[1])}.`}
               </div>
             )}
             {playing && game.pendingExtra && (
               <div className="banner" style={{ marginBottom: 10 }}>
-                {NAMES[cur]}: place your burst digit.
+                {who(cur as 0 | 1)}: place your burst digit.
               </div>
             )}
 
             <div className="scores">
               <div className="s">
-                <span className="dot p0" /> Sage{" "}
+                <span className="dot p0" /> {who(0)}{" "}
                 <b>{playing ? live[0] : game.score[0]}</b>
               </div>
               <div className="s">
-                <span className="dot p1" /> Clay{" "}
+                <span className="dot p1" /> {who(1)}{" "}
                 <b>{playing ? live[1] : game.score[1]}</b>
               </div>
               <div className="s" style={{ alignSelf: "center" }}>
