@@ -649,7 +649,7 @@ function Draft({
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button onClick={onHome}>menu</button>
           <button onClick={onOpenDex}>Critterdex</button>
-          <button onClick={autoRest}>auto-fill</button>
+          <button onClick={autoRest}>random</button>
         </div>
       </div>
 

@@ -11,6 +11,8 @@ const OW = 2.3; // outer silhouette line
 const IW = 1.3; // interior detail line
 
 function rgb(h: string): [number, number, number] {
+  const m = h.match(/rgb\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+  if (m) return [+m[1], +m[2], +m[3]].map(Math.round) as [number, number, number];
   const s = h.replace("#", "");
   return [
     parseInt(s.slice(0, 2), 16),
@@ -18,8 +20,9 @@ function rgb(h: string): [number, number, number] {
     parseInt(s.slice(4, 6), 16),
   ];
 }
+const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 const mix = (a: number[], b: number[], t: number) =>
-  `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`;
+  `rgb(${a.map((v, i) => clamp(v + (b[i] - v) * t)).join(",")})`;
 
 interface Tone {
   hue: string;
@@ -113,7 +116,31 @@ function Cel({ cid, shapes, t }: { cid: string; shapes: Shape[]; t: Tone }) {
 
 /* ---- anime eyes ------------------------------------------------- */
 
-type EyeStyle = "open" | "sleepy" | "happy" | "dot" | "sharp";
+type EyeStyle =
+  | "open"
+  | "sleepy"
+  | "happy"
+  | "dot"
+  | "sharp"
+  | "wide"
+  | "wink"
+  | "derp";
+
+// per-style: size multiplier, how open (1 = full, <1 = drooping lid), and a
+// small vertical offset for the pupil to point the gaze
+const EYE_TUNE: Record<
+  EyeStyle,
+  { size: number; open: number; gaze: number; sharp?: boolean }
+> = {
+  open: { size: 1, open: 1, gaze: 0 },
+  wide: { size: 1.32, open: 1.05, gaze: 0.05 },
+  sharp: { size: 1, open: 1, gaze: -0.1, sharp: true },
+  sleepy: { size: 1, open: 0.42, gaze: 0.25 },
+  happy: { size: 1, open: 1, gaze: 0 },
+  dot: { size: 1, open: 1, gaze: 0 },
+  wink: { size: 1.08, open: 1, gaze: 0 },
+  derp: { size: 1.15, open: 1, gaze: 0.15 },
+};
 
 function eyePair(
   style: EyeStyle,
@@ -121,11 +148,29 @@ function eyePair(
   hy: number,
   r: number,
   line: string,
+  skin: string,
   eid: string,
 ) {
-  // 3/4 turn: near eye (right) a touch larger and lower, far eye smaller
-  const near = { x: hx + r * 0.42, y: hy + r * 0.04, w: r * 0.34, h: r * 0.4 };
-  const far = { x: hx - r * 0.44, y: hy - r * 0.04, w: r * 0.27, h: r * 0.33 };
+  const T = EYE_TUNE[style];
+  const bw = r * 0.34 * T.size;
+  const bh = r * 0.4 * T.size;
+  const near = { x: hx + r * 0.42, y: hy + r * 0.03, w: bw, h: bh, open: T.open };
+  const far = {
+    x: hx - r * 0.44,
+    y: hy - r * 0.05,
+    w: bw * 0.82,
+    h: bh * 0.82,
+    open: T.open,
+  };
+  // funny asymmetry
+  if (style === "wink") far.open = 0;
+  if (style === "derp") {
+    far.w *= 0.7;
+    far.h *= 0.7;
+    far.y -= r * 0.06;
+    far.x -= r * 0.03;
+  }
+
   return (
     <g>
       {one(far, "f")}
@@ -133,80 +178,75 @@ function eyePair(
     </g>
   );
 
+  function arc(x: number, y: number, w: number, h: number) {
+    return (
+      <path
+        d={`M${x - w} ${y + h * 0.5} Q ${x} ${y - h * 1.2} ${x + w} ${y + h * 0.5}`}
+        fill="none"
+        stroke={line}
+        strokeWidth={OW}
+        strokeLinecap="round"
+      />
+    );
+  }
+
   function one(
-    e: { x: number; y: number; w: number; h: number },
+    e: { x: number; y: number; w: number; h: number; open: number },
     tag: string,
   ): ReactNode {
-    const { x, y, w, h } = e;
+    const { x, y, w, h, open } = e;
     if (style === "dot")
       return (
         <g>
-          <circle cx={x} cy={y} r={Math.min(w, h) * 0.8} fill={line} />
-          <circle cx={x - w * 0.3} cy={y - h * 0.3} r={w * 0.28} fill="#fff" />
+          <circle cx={x} cy={y} r={Math.min(w, h) * 0.85} fill={line} />
+          <circle cx={x - w * 0.3} cy={y - h * 0.3} r={w * 0.3} fill="#fff" />
         </g>
       );
-    if (style === "sleepy")
-      return (
-        <path
-          d={`M${x - w} ${y - 1} Q ${x} ${y + h * 1.3} ${x + w} ${y - h * 0.3}`}
-          fill="none"
-          stroke={line}
-          strokeWidth={OW}
-          strokeLinecap="round"
-        />
-      );
-    if (style === "happy")
-      return (
-        <path
-          d={`M${x - w} ${y + h * 0.5} Q ${x} ${y - h * 1.2} ${x + w} ${y + h * 0.5}`}
-          fill="none"
-          stroke={line}
-          strokeWidth={OW}
-          strokeLinecap="round"
-        />
-      );
-    const sharp = style === "sharp";
-    const topLid = sharp
-      ? `M${x - w} ${y + h * 0.2} Q ${x - w * 0.1} ${y - h * 1.15} ${x + w + 1} ${y - h * 0.1}`
-      : `M${x - w} ${y + 1} Q ${x - w * 0.15} ${y - h * 1.35} ${x + w + 1} ${y - h * 0.35}`;
+    if (style === "happy") return arc(x, y, w, h);
+    if (open <= 0) return arc(x, y, w, h);
+
+    const eyePath = `M${x - w} ${y + 1} Q ${x - w * 0.15} ${y - h * 1.3} ${x + w} ${y - h * 0.3} Q ${x + w * 0.1} ${y + h * 1.15} ${x - w} ${y + 1} Z`;
     const cpid = `${eid}-${tag}`;
+    const pupY = y + h * (0.2 + T.gaze);
+    // lid: a skin-coloured cap over the top of the eye when not fully open
+    const lidY = y - h * 0.3 + (1 - open) * h * 1.9;
+    const topLid = T.sharp
+      ? `M${x - w} ${y + h * 0.2} Q ${x - w * 0.1} ${y - h * 1.1} ${x + w + 1} ${y - h * 0.05}`
+      : `M${x - w} ${y + 1} Q ${x - w * 0.15} ${y - h * 1.35} ${x + w + 1} ${y - h * 0.35}`;
     return (
       <g>
-        <path
-          d={`M${x - w} ${y + 1} Q ${x - w * 0.15} ${y - h * 1.3} ${x + w} ${y - h * 0.3} Q ${x + w * 0.1} ${y + h * 1.15} ${x - w} ${y + 1} Z`}
-          fill="#fbfcff"
-        />
+        <path d={eyePath} fill="#fbfcff" />
         <clipPath id={cpid}>
-          <path
-            d={`M${x - w} ${y + 1} Q ${x - w * 0.15} ${y - h * 1.3} ${x + w} ${y - h * 0.3} Q ${x + w * 0.1} ${y + h * 1.15} ${x - w} ${y + 1} Z`}
-          />
+          <path d={eyePath} />
         </clipPath>
         <g clipPath={`url(#${cpid})`}>
-          <circle cx={x} cy={y + h * 0.2} r={h * 1.25} fill={line} />
-          <circle cx={x} cy={y + h * 0.2} r={h * 0.7} fill="#160d1f" />
-          <circle cx={x - w * 0.34} cy={y - h * 0.5} r={h * 0.42} fill="#fff" />
+          <circle cx={x} cy={pupY} r={h * 1.25} fill={line} />
+          <circle cx={x} cy={pupY} r={h * 0.72} fill="#160d1f" />
+          <circle cx={x - w * 0.34} cy={pupY - h * 0.7} r={h * 0.44} fill="#fff" />
           <circle
-            cx={x + w * 0.3}
-            cy={y + h * 0.5}
-            r={h * 0.2}
+            cx={x + w * 0.32}
+            cy={pupY + h * 0.4}
+            r={h * 0.22}
             fill="#fff"
-            opacity="0.85"
+            opacity="0.9"
           />
+          {open < 0.95 && (
+            <path
+              d={`M${x - w - 2} ${y - h * 1.6} L${x + w + 2} ${y - h * 1.6} L${x + w + 2} ${lidY} Q ${x} ${lidY + h * 0.4} ${x - w - 2} ${lidY} Z`}
+              fill={skin}
+            />
+          )}
         </g>
         <path
-          d={topLid}
+          d={
+            open < 0.95
+              ? `M${x - w} ${lidY} Q ${x} ${lidY + h * 0.5} ${x + w} ${lidY - h * 0.15}`
+              : topLid
+          }
           fill="none"
           stroke={line}
           strokeWidth={OW * 1.05}
           strokeLinecap="round"
-        />
-        <path
-          d={`M${x - w * 0.55} ${y + h * 0.8} Q ${x} ${y + h * 1.15} ${x + w * 0.7} ${y + h * 0.4}`}
-          fill="none"
-          stroke={line}
-          strokeWidth={IW}
-          strokeLinecap="round"
-          opacity="0.6"
         />
       </g>
     );
@@ -253,6 +293,28 @@ function mouth(kind: string, hx: number, hy: number, r: number, line: string) {
         strokeWidth={IW * 1.4}
         strokeLinecap="round"
       />
+    );
+  if (kind === "sing")
+    return (
+      <g>
+        <ellipse
+          cx={hx}
+          cy={my + 1}
+          rx={w * 0.9}
+          ry={w * 1.4}
+          fill="#7a3247"
+          stroke={line}
+          strokeWidth={IW}
+        />
+        <path
+          d={`M${hx + w * 2.6} ${my - 6} l3 -12 l4 3`}
+          fill="none"
+          stroke={line}
+          strokeWidth={IW * 1.3}
+          strokeLinecap="round"
+        />
+        <circle cx={hx + w * 2.6} cy={my - 5} r="2.2" fill={line} />
+      </g>
     );
   return (
     <path
@@ -561,6 +623,157 @@ const orb = (): Arch => ({
   head: { x: 60, y: 56, r: 42 },
 });
 
+// swift: a sleek bird mid-dart, tilted forward, swept wings, forked tail
+const swift = (): Arch => ({
+  back: [
+    { p: "M54 84 L 40 120 L 55 104 L 66 120 L 62 86 Z" }, // forked tail
+    { p: "M46 48 C 12 40 -2 60 6 88 C 26 86 44 66 48 48 Z" }, // far swept wing
+  ],
+  main: [
+    {
+      p: "M64 20 C 46 20 36 34 34 54 C 32 72 36 88 48 96 C 60 102 76 94 80 76 C 84 56 82 32 74 24 C 71 21 67 20 64 20 Z",
+    },
+    { p: "M72 38 C 100 30 116 50 110 80 C 90 78 72 60 68 40 Z" }, // near swept wing
+    { c: [44, 98, 5, 4] },
+    { c: [56, 100, 5, 4] },
+  ],
+  head: { x: 56, y: 28, r: 15 },
+});
+
+// glide: membrane wings spread flat, a wide low body, calm
+const glide = (): Arch => ({
+  back: [
+    { p: "M40 54 C 0 42 -18 58 -8 76 C 18 80 42 66 46 54 Z" }, // far wing
+    { p: "M54 94 C 48 108 52 122 60 122 C 64 112 62 98 60 92 Z" }, // stub tail
+  ],
+  main: [
+    {
+      p: "M60 28 C 42 28 32 42 32 60 C 32 78 42 94 60 96 C 78 94 88 78 88 60 C 88 42 78 28 60 28 Z",
+    },
+    { p: "M80 52 C 120 40 138 56 128 74 C 102 78 82 64 78 52 Z" }, // near wing
+    { c: [50, 96, 5, 4] },
+    { c: [70, 96, 5, 4] },
+  ],
+  head: { x: 60, y: 34, r: 16 },
+});
+
+// lark: puffed chest, upright, head tipped back to sing
+const lark = (): Arch => ({
+  back: [
+    { p: "M46 44 C 22 42 12 62 20 86 C 38 84 50 66 52 46 Z" }, // wing swept up
+    { p: "M62 92 C 56 108 60 122 68 122 C 74 112 70 96 66 90 Z" },
+  ],
+  main: [
+    {
+      p: "M58 18 C 38 20 28 40 28 62 C 28 84 40 100 58 102 C 78 100 90 84 90 60 C 90 38 78 20 58 18 Z",
+    },
+    { p: "M76 42 C 100 42 108 62 104 84 C 88 82 76 64 74 44 Z" }, // near wing
+    { c: [50, 102, 5, 4] },
+    { c: [66, 102, 5, 4] },
+  ],
+  head: { x: 54, y: 26, r: 15 },
+});
+
+// tumble: a fuzzy ball with four stubby paws poked out, slightly askew
+const tumble = (): Arch => ({
+  back: [
+    {
+      p: "M30 34 L 14 20 M28 92 L 12 106 M92 36 L 108 22 M90 88 L 106 102",
+      in: true,
+    },
+  ],
+  main: [
+    { c: [60, 62, 41, 40] },
+    { c: [22, 30, 9, 7] },
+    { c: [24, 96, 9, 7] },
+    { c: [100, 32, 9, 7] },
+    { c: [96, 94, 9, 7] },
+    { p: "M32 44 Q 60 30 90 46 M30 66 Q 60 54 92 70 M46 30 Q 58 60 50 96", in: true },
+  ],
+  head: { x: 60, y: 56, r: 33 },
+});
+
+// pod: an upright seed-pod, pointed top and bottom, thorns out the sides
+const pod = (): Arch => ({
+  back: [
+    {
+      p: "M30 50 L 12 44 L 30 40 Z M32 72 L 14 78 L 32 82 Z M90 50 L 108 44 L 90 40 Z M88 72 L 106 78 L 88 82 Z",
+    },
+  ],
+  main: [
+    {
+      p: "M60 4 C 42 20 32 46 32 68 C 32 94 44 114 60 120 C 76 114 88 94 88 68 C 88 46 78 20 60 4 Z",
+    },
+    { p: "M40 74 C 50 80 70 80 80 74", in: true }, // crossed-arm seam
+  ],
+  head: { x: 60, y: 50, r: 19 },
+});
+
+// clam: a coiled shell disc with a soft body and face poking out the base
+const clam = (): Arch => ({
+  back: [],
+  main: [
+    { c: [66, 54, 34, 34] }, // shell disc
+    {
+      p: "M42 76 C 26 82 20 100 32 110 C 46 116 58 104 54 90 C 50 94 46 84 42 76 Z",
+    }, // body poking out
+  ],
+  over: [
+    {
+      p: "M64 26 C 46 24 34 38 36 56 C 38 72 54 78 66 72 M64 38 C 54 38 50 48 55 56 C 60 62 68 58 68 52",
+      in: true,
+    },
+  ],
+  head: { x: 40, y: 92, r: 12 },
+});
+
+// chub: an over-fed hoarder, huge and round with stuffed cheeks
+const chub = (): Arch => ({
+  back: [],
+  main: [
+    {
+      p: "M60 22 C 32 22 18 46 18 76 C 18 102 38 118 60 118 C 82 118 102 102 102 76 C 102 46 88 22 60 22 Z",
+    },
+    { c: [38, 44, 13, 12] },
+    { c: [82, 44, 13, 12] },
+    { p: "M42 116 q-2 7 6 8 q8 -1 7 -8 z" },
+    { p: "M64 116 q0 8 8 8 q7 -2 5 -8 z" },
+  ],
+  head: { x: 60, y: 50, r: 26 },
+});
+
+// mist: a fox-wisp, ears up top, body scalloping into fog at the base
+const mist = (): Arch => ({
+  back: [
+    { c: [22, 66, 8, 10] },
+    { p: "M40 40 L 32 20 L 50 34 Z" }, // far ear
+    { p: "M62 40 L 72 20 L 54 34 Z" }, // near ear
+  ],
+  main: [
+    {
+      p: "M52 14 C 34 14 24 32 22 52 C 20 68 20 84 24 92 C 26 98 32 98 36 90 C 38 98 46 100 50 90 C 54 100 62 100 66 90 C 70 98 78 98 80 90 C 84 78 84 60 82 48 C 80 28 70 14 52 14 Z",
+    },
+    { c: [82, 62, 8, 10] },
+  ],
+  head: { x: 51, y: 48, r: 28 },
+});
+
+// quill: standing tall, long dramatic quills swept back off the body
+const quill = (): Arch => ({
+  back: [
+    { p: "M40 44 L 6 8 L 24 44 L 2 30 L 22 56 L 0 56 L 26 66 Z" },
+    { p: "M60 30 L 66 -2 L 74 26 L 90 2 L 84 36 L 104 24 L 88 48 Z" },
+  ],
+  main: [
+    {
+      p: "M60 32 C 42 32 32 50 32 74 C 32 98 44 116 60 116 C 76 116 88 98 88 74 C 88 50 78 32 60 32 Z",
+    },
+    { p: "M44 114 q-2 8 6 9 q8 -1 7 -9 z" },
+    { p: "M64 114 q0 9 8 9 q7 -2 5 -9 z" },
+  ],
+  head: { x: 60, y: 56, r: 22 },
+});
+
 const ARCH: Record<string, () => Arch> = {
   cub,
   kit,
@@ -573,6 +786,15 @@ const ARCH: Record<string, () => Arch> = {
   mole,
   squirrel,
   orb,
+  swift,
+  glide,
+  lark,
+  tumble,
+  pod,
+  clam,
+  chub,
+  mist,
+  quill,
 };
 
 /* ---- roster --------------------------------------------------- */
@@ -586,33 +808,33 @@ interface Spec {
 }
 
 const SPEC: Record<CreatureId, Spec> = {
-  boulderpup: { arch: "cub", feat: "ears", eye: "open", mouth: "open", belly: true },
+  boulderpup: { arch: "cub", feat: "ears", eye: "wide", mouth: "open", belly: true },
   mossback: { arch: "shell", feat: "leaf", eye: "sleepy", mouth: "smile", belly: false },
   slumberstone: { arch: "sprite", feat: "tuft", eye: "sleepy", mouth: "smile", belly: false },
 
   breezefinch: { arch: "bird", feat: "plume", eye: "open", mouth: "beak", belly: true },
-  tumbleweed: { arch: "cub", feat: "tuft", eye: "open", mouth: "smile", belly: false },
-  glidewing: { arch: "bird", feat: "none", eye: "sharp", mouth: "beak", belly: true },
+  tumbleweed: { arch: "tumble", feat: "tuft", eye: "derp", mouth: "smile", belly: false },
+  glidewing: { arch: "glide", feat: "none", eye: "sharp", mouth: "beak", belly: true },
 
   snoozemouse: { arch: "cub", feat: "roundears", eye: "sleepy", mouth: "smile", belly: true },
-  fogkit: { arch: "sprite", feat: "ears", eye: "sleepy", mouth: "smile", belly: false },
-  dozderling: { arch: "kit", feat: "antler", eye: "sleepy", mouth: "smile", belly: false },
+  fogkit: { arch: "mist", feat: "none", eye: "sleepy", mouth: "smile", belly: false },
+  dozderling: { arch: "kit", feat: "antler", eye: "sleepy", mouth: "flat", belly: false },
 
-  nutsquirrel: { arch: "squirrel", feat: "tuft", eye: "open", mouth: "open", belly: true },
-  acorncache: { arch: "cub", feat: "leaf", eye: "happy", mouth: "smile", belly: true },
+  nutsquirrel: { arch: "squirrel", feat: "tuft", eye: "wide", mouth: "open", belly: true },
+  acorncache: { arch: "chub", feat: "leaf", eye: "happy", mouth: "smile", belly: true },
   sunbeetle: { arch: "bug", feat: "horn", eye: "open", mouth: "smile", belly: false },
   tallykit: { arch: "kit", feat: "ears", eye: "sharp", mouth: "flat", belly: true },
 
   pricklehog: { arch: "spike", feat: "none", eye: "happy", mouth: "smile", belly: false },
-  shellclam: { arch: "shell", feat: "none", eye: "open", mouth: "smile", belly: false },
+  shellclam: { arch: "clam", feat: "none", eye: "wide", mouth: "smile", belly: false },
   barknewt: { arch: "reptile", feat: "fin", eye: "sharp", mouth: "smile", belly: false },
-  thornpod: { arch: "spike", feat: "bud", eye: "sharp", mouth: "flat", belly: false },
-  quillhog: { arch: "spike", feat: "none", eye: "open", mouth: "open", belly: false },
+  thornpod: { arch: "pod", feat: "bud", eye: "sharp", mouth: "flat", belly: false },
+  quillhog: { arch: "quill", feat: "none", eye: "open", mouth: "open", belly: false },
 
-  swiftwren: { arch: "bird", feat: "plume", eye: "open", mouth: "beak", belly: true },
+  swiftwren: { arch: "swift", feat: "plume", eye: "wide", mouth: "beak", belly: true },
   digmole: { arch: "mole", feat: "none", eye: "dot", mouth: "smile", belly: false },
-  wildlark: { arch: "bird", feat: "plume", eye: "happy", mouth: "beak", belly: false },
-  bombkit: { arch: "orb", feat: "spark", eye: "sharp", mouth: "cat", belly: false },
+  wildlark: { arch: "lark", feat: "plume", eye: "happy", mouth: "sing", belly: false },
+  bombkit: { arch: "orb", feat: "spark", eye: "derp", mouth: "cat", belly: false },
 };
 
 export function Critter({ id, size = 44 }: { id: CreatureId; size?: number }) {
@@ -652,7 +874,7 @@ export function Critter({ id, size = 44 }: { id: CreatureId; size?: number }) {
         />
       )}
 
-      {eyePair(spec.eye, h.x, h.y, h.r, t.line, `${uid}-e`)}
+      {eyePair(spec.eye, h.x, h.y, h.r, t.line, t.hue, `${uid}-e`)}
       {mouth(spec.mouth, h.x, h.y, h.r, t.line)}
 
       <circle cx={h.x - h.r * 0.72} cy={h.y + h.r * 0.36} r={h.r * 0.15} fill="#ff90b0" opacity="0.5" />
