@@ -522,6 +522,7 @@ function Draft({
             onReroll={reroll}
             rerollCost={REROLL_COST}
             forageLeft={forage[current]}
+            maxForage={FORAGE_TOKENS}
             disabled={done}
             ownerName={NAMES[current]}
             tint={current === 0 ? "var(--p0)" : "var(--p1)"}

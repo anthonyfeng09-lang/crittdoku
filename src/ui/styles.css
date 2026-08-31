@@ -552,6 +552,90 @@ h1 {
   z-index: 3;
   white-space: nowrap;
 }
+.meadow-tokens {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  background: #fff;
+  border: 2px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 5px 12px 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+.mt-diamonds {
+  font-size: 15px;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+.mt-word {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.crit-detail {
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  z-index: 7;
+  width: min(240px, 46vw);
+  background: #fff;
+  border: 2px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+.cd-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cd-head svg {
+  flex: none;
+}
+.cd-name {
+  font-weight: 800;
+  font-size: 14px;
+}
+.cd-ep {
+  font-size: 10px;
+  color: var(--ink-soft);
+}
+.cd-blurb {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.cd-facts {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cd-fact {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.cd-fact i {
+  font-style: normal;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+@media (max-width: 780px) {
+  .crit-detail {
+    width: 44vw;
+    font-size: 11px;
+  }
+}
 .meadow-pick {
   position: absolute;
   transform: translate(-50%, -50%) scale(var(--s, 1));

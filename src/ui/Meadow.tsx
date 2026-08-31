@@ -1,6 +1,51 @@
-import { type CSSProperties } from "react";
-import { ROSTER, CreatureId, CATEGORIES } from "../engine";
+import { useState, type CSSProperties } from "react";
+import { ABILITY_COST, ROSTER, CreatureId, CATEGORIES } from "../engine";
 import { Critter } from "./Critter";
+
+/** the numbers a drafter cares about: ability cost, rest turns, stored energy */
+function critterFacts(id: CreatureId): Array<{ k: string; v: string }> {
+  const d = ROSTER[id];
+  const out: Array<{ k: string; v: string }> = [];
+  if (d.moveAdjacent) out.push({ k: "hop", v: `${ABILITY_COST.hop}⚡` });
+  if (d.canBurst) out.push({ k: "burst", v: `${ABILITY_COST.extra}⚡` });
+  if (d.canWild) out.push({ k: "wild", v: `${ABILITY_COST.wild}⚡` });
+  if (d.canMole) out.push({ k: "remove", v: `${ABILITY_COST.replace}⚡` });
+  if (d.canMine) out.push({ k: "mine", v: `${ABILITY_COST.mine}⚡` });
+  if (d.dormant) {
+    const n = d.dormantTurns ?? 1;
+    out.push({ k: "rests", v: `${n} turn${n > 1 ? "s" : ""}` });
+  }
+  if (d.energyBonus) out.push({ k: "stores", v: `${d.energyBonus}⚡` });
+  if (!out.length) out.push({ k: "passive", v: "always on" });
+  return out;
+}
+
+function CritDetail({ id }: { id: CreatureId }) {
+  const d = ROSTER[id];
+  const cat = CATEGORIES[d.category];
+  return (
+    <div className="crit-detail">
+      <div className="cd-head">
+        <Critter id={id} size={46} />
+        <div>
+          <div className="cd-name">{d.name}</div>
+          <div className="cd-ep">{d.epithet}</div>
+        </div>
+        <span className="type-chip" style={{ background: cat.hue, marginLeft: "auto" }}>
+          {cat.element}
+        </span>
+      </div>
+      <div className="cd-blurb">{d.blurb}</div>
+      <div className="cd-facts">
+        {critterFacts(id).map((f) => (
+          <span key={f.k} className="cd-fact">
+            <i>{f.k}</i> {f.v}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /* The draft pool: a quiet pond with the available critters afloat on lily
  * pads. Grab the one you want and it hops ashore; the water fills back in.
@@ -46,6 +91,7 @@ export function MeadowScene({
   onReroll,
   rerollCost,
   forageLeft,
+  maxForage,
   disabled,
   ownerName,
   tint,
@@ -55,11 +101,13 @@ export function MeadowScene({
   onReroll: () => void;
   rerollCost: number;
   forageLeft: number;
+  maxForage: number;
   disabled?: boolean;
   ownerName: string;
   tint: string;
 }) {
   const canReroll = !disabled && forageLeft >= rerollCost;
+  const [hover, setHover] = useState<CreatureId | null>(null);
   return (
     <div className="meadow">
       <svg
@@ -138,6 +186,15 @@ export function MeadowScene({
         {ownerName}, grab a friend
       </div>
 
+      {/* persistent forage-token badge */}
+      <div className="meadow-tokens" style={{ borderColor: tint }} title="forage tokens: spend one to reroll the pool">
+        <span className="mt-diamonds" style={{ color: tint }}>
+          {"◆".repeat(forageLeft)}
+          {"◇".repeat(Math.max(0, maxForage - forageLeft))}
+        </span>
+        <span className="mt-word">forage</span>
+      </div>
+
       {options.map((id, i) => {
         const sp = SPOTS[i] ?? SPOTS[SPOTS.length - 1];
         return (
@@ -152,7 +209,10 @@ export function MeadowScene({
               className="mp-draft"
               disabled={disabled}
               onClick={() => onPick(id)}
-              title={ROSTER[id].blurb}
+              onMouseEnter={() => setHover(id)}
+              onMouseLeave={() => setHover((h) => (h === id ? null : h))}
+              onFocus={() => setHover(id)}
+              onBlur={() => setHover((h) => (h === id ? null : h))}
             >
               <LilyPad />
               <Critter id={id} size={104} />
@@ -160,6 +220,8 @@ export function MeadowScene({
           </div>
         );
       })}
+
+      {hover && <CritDetail id={hover} />}
 
       {/* names in their own layer so no lily pad can cover them */}
       <div className="meadow-labels">
