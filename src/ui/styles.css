@@ -1351,3 +1351,249 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========== account / profile page =========== */
+.as-btn {
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+.hp-badge.as-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage.profile {
+  overflow: hidden;
+}
+.prof-scroll {
+  overflow-y: auto;
+  width: min(640px, 100%);
+  margin: 0 auto;
+  padding: 2px 4px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.prof-card {
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.prof-id {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.prof-avatar {
+  flex: none;
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: 16px;
+  border: 2px solid var(--line-strong);
+  background: linear-gradient(140deg, #ede9fe, #cffafe);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pa-edit {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.prof-id-main {
+  flex: 1;
+  min-width: 0;
+}
+.prof-name-row input {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 18px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 2px 6px;
+  width: 100%;
+  background: var(--line);
+}
+.prof-name-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: #fff;
+}
+.prof-rank {
+  margin-top: 8px;
+}
+.prof-rank b {
+  font-size: 14px;
+}
+.prof-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  margin: 4px 0;
+}
+.prof-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #06b6d4);
+  border-radius: 999px;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.avatar-opt {
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatar-opt.on {
+  border-color: var(--accent);
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.stat {
+  text-align: center;
+}
+.stat b {
+  display: block;
+  font-size: 22px;
+}
+.stat span {
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fav-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+.fav {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.type-chip.sm {
+  font-size: 9px;
+  padding: 1px 6px;
+}
+
+.hist {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.hist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: var(--line);
+}
+.hist-badge {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hist-badge.win {
+  background: #16a34a;
+}
+.hist-badge.loss {
+  background: #f43f5e;
+}
+.hist-badge.draw {
+  background: #94a3b8;
+}
+.hist-score {
+  font-weight: 800;
+  width: 40px;
+}
+.hist-opp {
+  color: var(--ink-soft);
+  width: 68px;
+}
+.hist-team {
+  display: flex;
+  flex: 1;
+}
+.hist-when {
+  color: var(--ink-soft);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.prof-io textarea {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  border: 2px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 6px;
+  resize: vertical;
+  margin: 6px 0;
+}
+.prof-io-btns {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.prof-io-btns button.danger {
+  color: #f43f5e;
+  border-color: #f7b9c3;
+}
+
+@media (max-width: 780px) {
+  .hist-team {
+    display: none;
+  }
+}

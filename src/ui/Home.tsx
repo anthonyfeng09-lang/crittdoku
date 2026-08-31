@@ -21,31 +21,22 @@ const PARADE = [
 
 export function Home({
   profile,
-  onName,
   onLang,
+  onProfile,
   onStart,
   onTutorial,
   onDex,
 }: {
   profile: Profile;
-  onName: (name: string) => void;
   onLang: (lang: string) => void;
+  onProfile: () => void;
   onStart: (mode: Mode, level: BotLevel) => void;
   onTutorial: () => void;
   onDex: () => void;
 }) {
   const t = translator(profile.lang);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(profile.name);
   const [level, setLevel] = useState<BotLevel>("chill");
   const rank = rankFor(profile.wins);
-
-  const commitName = () => {
-    const n = draft.trim().slice(0, 16) || "Player";
-    onName(n);
-    setDraft(n);
-    setEditing(false);
-  };
 
   return (
     <div className="app home">
@@ -55,29 +46,18 @@ export function Home({
       </div>
 
       <div className="home-profile">
-        <div className="hp-badge">{rank.name.charAt(0)}</div>
-        <div className="hp-main">
-          {editing ? (
-            <div className="hp-name-edit">
-              <input
-                autoFocus
-                value={draft}
-                maxLength={16}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && commitName()}
-              />
-              <button className="primary" onClick={commitName}>
-                ok
-              </button>
-            </div>
+        <button className="hp-badge as-btn" onClick={onProfile} title="your account">
+          {profile.avatar ? (
+            <Critter id={profile.avatar} size={40} />
           ) : (
-            <div className="hp-name">
-              {profile.name}
-              <button className="linkish" onClick={() => setEditing(true)}>
-                {t("editName")}
-              </button>
-            </div>
+            rank.name.charAt(0)
           )}
+        </button>
+        <button className="hp-main as-btn" onClick={onProfile}>
+          <div className="hp-name">
+            {profile.name}
+            <span className="linkish">{t("editName")}</span>
+          </div>
           <div className="hp-stats">
             <span>
               {t("rank")}: <b>{rank.name}</b>
@@ -100,7 +80,7 @@ export function Home({
               </b>
             </span>
           </div>
-        </div>
+        </button>
         <select
           className="hp-lang"
           value={profile.lang}

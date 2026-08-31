@@ -36,12 +36,8 @@ import { Critter } from "./Critter";
 import { MeadowScene } from "./Meadow";
 import { Home, type Mode, type BotLevel } from "./Home";
 import { Tutorial } from "./Tutorial";
-import {
-  loadProfile,
-  saveProfile,
-  recordResult,
-  type Profile,
-} from "./profile";
+import { ProfilePage } from "./ProfilePage";
+import { loadProfile, saveProfile, recordMatch, type Profile } from "./profile";
 
 const SIZE = 9;
 const NAMES = ["Sage", "Clay"] as const;
@@ -114,6 +110,7 @@ interface Match {
   /** 1 for a quick game (vs bot), 2 for the hot-seat best-of-two */
   bestOf: 1 | 2;
   mode: Mode;
+  botLevel: BotLevel;
   /** [legIndex] -> [seat0 regions, seat1 regions] once that leg has ended */
   legScores: Array<[number, number] | null>;
 }
@@ -125,7 +122,7 @@ function legLoadouts(m: Match): [CreatureId[], CreatureId[]] {
   return m.leg === 1 ? m.draftTeams : [m.draftTeams[1], m.draftTeams[0]];
 }
 
-type Route = "home" | "draft" | "play" | "tutorial";
+type Route = "home" | "draft" | "play" | "tutorial" | "profile";
 
 export function App() {
   const [route, setRoute] = useState<Route>("home");
@@ -173,9 +170,10 @@ export function App() {
         leg: 1,
         bestOf: mode === "bot" ? 1 : 2,
         mode,
+        botLevel,
         legScores: [null, null],
       }),
-    [beginLeg, seedCount, mode],
+    [beginLeg, seedCount, mode, botLevel],
   );
 
   const commit = useCallback(
@@ -189,14 +187,27 @@ export function App() {
         const ls = match.legScores.slice() as Match["legScores"];
         ls[match.leg - 1] = [g.score[0], g.score[1]];
         setMatch({ ...match, legScores: ls });
-        // record a vs-bot result once, at the end of the match (you are seat 0)
+        // log the match once, at the end (you are seat 0)
         const finished = match.bestOf === 1 || match.leg === 2;
-        if (match.mode === "bot" && finished && recorded.current !== g) {
+        if (finished && recorded.current !== g) {
           recorded.current = g;
-          const a = g.score[0];
-          const b = g.score[1];
+          const a = g.score[0] + (match.leg === 2 ? (match.legScores[0]?.[0] ?? 0) : 0);
+          const b = g.score[1] + (match.leg === 2 ? (match.legScores[0]?.[1] ?? 0) : 0);
+          const opp =
+            match.mode === "local"
+              ? "Local"
+              : match.botLevel === "sharp"
+                ? "Sharp bot"
+                : "Chill bot";
           setProfile((p) =>
-            recordResult(p, a === b ? "draw" : a > b ? "win" : "loss"),
+            recordMatch(p, {
+              mode: match.mode,
+              opp,
+              result: a === b ? "draw" : a > b ? "win" : "loss",
+              you: a,
+              them: b,
+              team: legLoadouts(match)[0].slice(),
+            }),
           );
         }
       }
@@ -257,8 +268,8 @@ export function App() {
     screen = (
       <Home
         profile={profile}
-        onName={(name) => setProfile((p) => saveProfile({ ...p, name }))}
         onLang={(lang) => setProfile((p) => saveProfile({ ...p, lang }))}
+        onProfile={() => setRoute("profile")}
         onStart={(m, lvl) => {
           setMode(m);
           setBotLevel(lvl);
@@ -269,6 +280,14 @@ export function App() {
         }}
         onTutorial={() => setRoute("tutorial")}
         onDex={openDex}
+      />
+    );
+  } else if (route === "profile") {
+    screen = (
+      <ProfilePage
+        profile={profile}
+        onChange={(p) => setProfile(saveProfile(p))}
+        onHome={() => setRoute("home")}
       />
     );
   } else if (route === "tutorial") {
