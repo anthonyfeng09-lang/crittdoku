@@ -202,7 +202,7 @@ export const ROSTER: Record<CreatureId, CreatureDef> = {
     name: "Tallykit",
     epithet: "Counter",
     category: "thrift",
-    blurb: "Stores 2 energy for every mine you currently hold. Pairs with Thornpod.",
+    blurb: "Stores 2 energy for every mine you currently hold.",
     minesScaleEnergy: true,
   },
 
@@ -244,7 +244,7 @@ export const ROSTER: Record<CreatureId, CreatureDef> = {
     name: "Quillhog",
     epithet: "Bristling",
     category: "ward",
-    blurb: "Each of your mines counts double toward holding a region. Pairs with Thornpod.",
+    blurb: "Each of your mines counts double toward holding a region.",
     mineWeight: 2,
   },
 
@@ -278,7 +278,7 @@ export const ROSTER: Record<CreatureId, CreatureDef> = {
     name: "Bombkit",
     epithet: "Fizzing",
     category: "snap",
-    blurb: "Your mines cost 2 less to lay. Pairs with Thornpod.",
+    blurb: "Your mines cost 2 less to lay.",
     cheapMines: true,
   },
 };

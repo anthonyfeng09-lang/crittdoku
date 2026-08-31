@@ -466,17 +466,44 @@ h1 {
   gap: 3px;
 }
 .tray-slot {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   background: var(--line);
+  border: 2px solid transparent;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: default;
+  position: relative;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 .tray-slot.filled {
   background: #fff;
-  border: 2px solid var(--line-strong);
+  border-color: var(--line-strong);
+}
+.tray-slot.removable {
+  cursor: pointer;
+}
+.tray-slot.removable:hover {
+  transform: translateY(-2px);
+  border-color: var(--p1);
+  box-shadow: 0 4px 10px rgba(244, 63, 94, 0.25);
+}
+.tray-slot.removable:hover::after {
+  content: "×";
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--p1);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 15px;
 }
 .filters {
   display: flex;

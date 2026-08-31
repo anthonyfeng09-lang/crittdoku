@@ -508,17 +508,39 @@ function Draft({
     toAssign(next);
   };
 
-  const undo = () => {
-    if (step === 0 || botSeat != null) return;
-    const last = order[step - 1];
-    const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
-    next[last].pop();
-    setPicks(next);
-    const snap = undoStack.current.pop();
-    if (snap) {
-      setMeadow(snap.meadow);
-      setForage(snap.forage);
+  /** global draft step at which seat p made its i-th pick */
+  const stepOfPick = (p: 0 | 1, i: number): number | null => {
+    let seen = 0;
+    for (let s = 0; s < order.length; s++) {
+      if (order[s] === p) {
+        if (seen === i) return s;
+        seen++;
+      }
     }
+    return null;
+  };
+
+  /** click a critter in your line-up to send it (and anything picked after
+   *  it) back to the pool */
+  const returnPick = (p: 0 | 1, i: number) => {
+    if (stage !== "pick" || done || !picks[p][i]) return;
+    const target = stepOfPick(p, i);
+    if (target == null || target >= step) return;
+    const np: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
+    let m = meadow;
+    let f: [number, number] = [forage[0], forage[1]];
+    while (np[0].length + np[1].length > target) {
+      const s = np[0].length + np[1].length - 1;
+      np[order[s]].pop();
+      const snap = undoStack.current.pop();
+      if (snap) {
+        m = snap.meadow;
+        f = snap.forage;
+      }
+    }
+    setPicks(np);
+    setMeadow(m);
+    setForage(f);
   };
 
   // vs bot: the opponent seat drafts itself
@@ -627,37 +649,51 @@ function Draft({
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button onClick={onHome}>menu</button>
           <button onClick={onOpenDex}>Critterdex</button>
-          <button onClick={undo} disabled={step === 0 || botSeat != null}>
-            undo
-          </button>
           <button onClick={autoRest}>auto-fill</button>
         </div>
       </div>
 
       <div className="draftstrip">
-        {([0, 1] as const).map((p) => (
-          <div
-            key={p}
-            className={`tray-side ${current === p && !done ? "now" : ""}`}
-          >
-            <span className={`dot p${p}`} />
-            <div className="tray-slots">
-              {Array.from({ length: SIZE }, (_, i) => (
-                <div
-                  key={i}
-                  className={`tray-slot ${picks[p][i] ? "filled" : ""}`}
-                  title={picks[p][i] ? ROSTER[picks[p][i]].name : ""}
-                >
-                  {picks[p][i] && <Critter id={picks[p][i]} size={22} />}
-                </div>
-              ))}
+        {([0, 1] as const).map((p) => {
+          const mine = botSeat == null || p !== botSeat;
+          return (
+            <div
+              key={p}
+              className={`tray-side ${current === p && !done ? "now" : ""}`}
+            >
+              <span className={`dot p${p}`} />
+              <div className="tray-slots">
+                {Array.from({ length: SIZE }, (_, i) => {
+                  const id = picks[p][i];
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      className={`tray-slot ${id ? "filled" : ""} ${
+                        id && mine ? "removable" : ""
+                      }`}
+                      title={
+                        id
+                          ? mine
+                            ? `${ROSTER[id].name} — tap to send back`
+                            : ROSTER[id].name
+                          : ""
+                      }
+                      disabled={!id || !mine}
+                      onClick={() => returnPick(p, i)}
+                    >
+                      {id && <Critter id={id} size={22} />}
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="forage-count" title="forage tokens left">
+                {"◆".repeat(forage[p])}
+                {"◇".repeat(FORAGE_TOKENS - forage[p])}
+              </span>
             </div>
-            <span className="forage-count" title="forage tokens left">
-              {"◆".repeat(forage[p])}
-              {"◇".repeat(FORAGE_TOKENS - forage[p])}
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <main className="stage meadow-stage">
