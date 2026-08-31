@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import {
@@ -25,7 +26,6 @@ import {
   legalActions,
   loadoutFromIds,
   projectedScore,
-  regionLabel,
   snakeOrder,
   teamHas,
   territoryHolder,
@@ -781,7 +781,48 @@ function Play({
     return `${ROSTER[teams[p][d - 1]].name} · ${d}`;
   };
 
-  const claimed = game.regions.filter((r) => r.claimedBy !== null);
+  const lockedCounts: [number, number] = [0, 0];
+  for (const rg of game.regions)
+    if (rg.claimedBy === 0 || rg.claimedBy === 1) lockedCounts[rg.claimedBy]++;
+
+  // a bold frame in the owner's colour around every locked region
+  const lockFrame = useMemo(() => {
+    const col = (o: number) => (o === 0 ? "#15803d" : "#e11d48");
+    const out: (CSSProperties | undefined)[] = [];
+    for (let cell = 0; cell < SIZE * SIZE; cell++) {
+      const r = Math.floor(cell / SIZE);
+      const c = cell % SIZE;
+      const side: { t?: number; b?: number; l?: number; r?: number } = {};
+      for (let k = 0; k < 3; k++) {
+        const rg = game.regions[game.cellRegions[cell * 3 + k]];
+        if (rg.claimedBy !== 0 && rg.claimedBy !== 1) continue;
+        const o = rg.claimedBy;
+        if (rg.kind === "row") {
+          side.t = o;
+          side.b = o;
+          if (c === 0) side.l = o;
+          if (c === SIZE - 1) side.r = o;
+        } else if (rg.kind === "col") {
+          side.l = o;
+          side.r = o;
+          if (r === 0) side.t = o;
+          if (r === SIZE - 1) side.b = o;
+        } else {
+          if (r % box.rows === 0) side.t = o;
+          if (r % box.rows === box.rows - 1) side.b = o;
+          if (c % box.cols === 0) side.l = o;
+          if (c % box.cols === box.cols - 1) side.r = o;
+        }
+      }
+      const sh: string[] = [];
+      if (side.t != null) sh.push(`inset 0 4px 0 0 ${col(side.t)}`);
+      if (side.b != null) sh.push(`inset 0 -4px 0 0 ${col(side.b)}`);
+      if (side.l != null) sh.push(`inset 4px 0 0 0 ${col(side.l)}`);
+      if (side.r != null) sh.push(`inset -4px 0 0 0 ${col(side.r)}`);
+      out.push(sh.length ? { boxShadow: sh.join(",") } : undefined);
+    }
+    return out;
+  }, [game, box.rows, box.cols]);
 
   const who = (seat: 0 | 1) => (vsBot ? (seat === 0 ? "You" : "Bot") : NAMES[seat]);
   const matchLine =
@@ -858,6 +899,7 @@ function Play({
               <button
                 key={cell}
                 className={cls}
+                style={lockFrame[cell]}
                 title={creatureLabel(cell)}
                 disabled={!selectable}
                 onClick={() => setSel(sel === cell ? null : cell)}
@@ -974,50 +1016,38 @@ function Play({
             )}
           </div>
 
-          <div className="panel">
-            <div className="teams">
-              {([0, 1] as const).map((p) => (
-                <div key={p}>
-                  <div className="hint" style={{ marginTop: 0 }}>
-                    <span className={`dot p${p}`} /> {NAMES[p]}
-                  </div>
-                  {teams[p].map((id, i) => (
-                    <div key={i} className="team-row" title={ROSTER[id].blurb}>
-                      <b>{i + 1}</b>
-                      <Critter id={id} size={22} />
-                      <span style={{ flex: 1 }}>{ROSTER[id].name}</span>
-                      <span
-                        className="type-chip sm"
-                        style={{
-                          background: CATEGORIES[ROSTER[id].category].hue,
-                        }}
-                      >
-                        {CATEGORIES[ROSTER[id].category].element}
+          {([0, 1] as const).map((p) => (
+            <div key={p} className="panel team">
+              <div className="team-head">
+                <span className={`dot p${p}`} /> {who(p)}
+                <span className="team-locked">
+                  locked <b>{lockedCounts[p]}</b>
+                </span>
+              </div>
+              <div className="team-cards">
+                {teams[p].map((id, i) => {
+                  const def = ROSTER[id];
+                  return (
+                    <div key={i} className="tcard" title={def.blurb}>
+                      <span className="tc-d">{i + 1}</span>
+                      <Critter id={id} size={40} />
+                      <span className="tc-body">
+                        <span className="tc-name">{def.name}</span>
+                        <span
+                          className="type-chip sm"
+                          style={{
+                            background: CATEGORIES[def.category].hue,
+                          }}
+                        >
+                          {CATEGORIES[def.category].element}
+                        </span>
                       </span>
                     </div>
-                  ))}
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-
-          <div className="panel">
-            <div className="hint" style={{ marginTop: 0, marginBottom: 6 }}>
-              Locked regions
-            </div>
-            <div className="log">
-              {claimed.length === 0 && <div>none yet</div>}
-              {claimed
-                .slice()
-                .sort((a, b) => (a.claimedOnTurn ?? 0) - (b.claimedOnTurn ?? 0))
-                .map((rg) => (
-                  <div key={rg.id}>
-                    turn {rg.claimedOnTurn}: {regionLabel(rg)} →{" "}
-                    {NAMES[rg.claimedBy as 0 | 1]}
-                  </div>
-                ))}
-            </div>
-          </div>
+          ))}
         </div>
       </main>
     </div>

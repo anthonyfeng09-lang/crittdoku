@@ -218,17 +218,22 @@ h1 {
   );
 }
 .cell.t0.tstrong {
-  background: rgba(22, 163, 74, 0.36);
+  background: rgba(22, 163, 74, 0.5);
 }
 .cell.t1.tstrong {
-  background: rgba(244, 63, 94, 0.36);
+  background: rgba(244, 63, 94, 0.5);
 }
 .cell.t01.tstrong {
   background: linear-gradient(
     135deg,
-    rgba(22, 163, 74, 0.36) 50%,
-    rgba(244, 63, 94, 0.36) 50%
+    rgba(22, 163, 74, 0.5) 50%,
+    rgba(244, 63, 94, 0.5) 50%
   );
+}
+/* locked-region cells: the digit stays crisp on the stronger wash */
+.cell.tstrong {
+  color: #14231a;
+  font-weight: 900;
 }
 .cell.box-r {
   border-right: 3px solid var(--accent);
@@ -1055,36 +1060,74 @@ h1 {
   font-weight: 500;
 }
 
-.teams {
-  display: flex;
-  gap: 16px;
-  font-size: 12px;
-  flex-wrap: wrap;
+.panel.team {
+  padding: 12px 14px;
 }
-.teams > div {
-  flex: 1;
-  min-width: 150px;
-}
-.team-row {
+.team-head {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 0;
-  color: var(--ink-soft);
+  gap: 7px;
+  font-weight: 800;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.team-locked {
+  margin-left: auto;
+  font-size: 11px;
   font-weight: 600;
-}
-.team-row b {
-  color: var(--ink);
-  width: 14px;
-}
-
-.log {
-  font-size: 12px;
   color: var(--ink-soft);
-  max-height: 170px;
-  overflow-y: auto;
-  line-height: 1.7;
-  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.team-locked b {
+  color: var(--ink);
+  font-size: 13px;
+}
+.team-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.tcard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(120, 60, 160, 0.06);
+}
+.tc-d {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--line);
+  font-weight: 800;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tcard svg {
+  flex: none;
+}
+.tc-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tc-name {
+  font-weight: 700;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tc-body .type-chip {
+  align-self: flex-start;
 }
 
 @keyframes bob {
