@@ -1108,6 +1108,17 @@ function Play({
   const playing = game.status === "playing";
   const cur = game.current;
 
+  const legalNow = useMemo(
+    () => (playing && myTurn ? legalActions(game) : []),
+    [game, playing, myTurn],
+  );
+  const actionCells = useMemo(() => {
+    const s = new Set<number>();
+    for (const a of legalNow)
+      if (a.type === "place" || a.type === "mine") s.add(a.cell);
+    return s;
+  }, [legalNow]);
+
   const selActions = useMemo(() => {
     if (sel === null || !playing) return [] as Action[];
     return legalActions(game).filter((a) =>
@@ -1265,22 +1276,19 @@ function Play({
             const v = game.grid[cell];
             const owner = game.placedBy[cell];
             const mineOwner = game.mines[cell];
+            const actionable = actionCells.has(cell);
             const selectable =
               playing &&
               myTurn &&
-              (mineOwner !== -1 ||
-                v === 0 ||
-                owner === cur ||
-                legalActions(game).some(
-                  (a) =>
-                    (a.type === "place" || a.type === "mine") && a.cell === cell,
-                ));
+              (mineOwner !== -1 || v === 0 || owner === cur || actionable);
+            const legalHere = playing && myTurn && v === 0 && actionable;
             const cls = [
               "cell",
               game.seeded[cell] ? "seeded" : "",
               game.dormant[cell] ? "dormant" : "",
               mineOwner !== -1 ? `mine mine${mineOwner}` : "",
               sel === cell ? "sel" : "",
+              legalHere && sel === null ? "legal" : "",
               cellTint[cell],
               (c + 1) % box.cols === 0 && c < SIZE - 1 ? "box-r" : "",
               (r + 1) % box.rows === 0 && r < SIZE - 1 ? "box-b" : "",
@@ -1393,9 +1401,9 @@ function Play({
               <div className="picker-wrap">
                 <div className="hint" style={{ marginTop: 0 }}>
                   {game.mines[sel] !== -1
-                    ? `mine (${NAMES[game.mines[sel] as 0 | 1]})`
+                    ? `A mine (${who(game.mines[sel] as 0 | 1)})`
                     : game.grid[sel] === 0
-                      ? `cell r${Math.floor(sel / SIZE) + 1} c${(sel % SIZE) + 1}`
+                      ? "Pick a digit for this cell"
                       : creatureLabel(sel)}
                 </div>
                 <div className="picker">

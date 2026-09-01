@@ -224,49 +224,75 @@ export function joinQueue(
   let done = false;
   let current: Net | null = null;
   let offStatus: (() => void) | null = null;
+  let offMsg: (() => void) | null = null;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let handshake: ReturnType<typeof setTimeout> | undefined;
 
-  const finishMatch = (net: Net, host: boolean) => {
+  // A data channel "connected" on a shared public rendezvous can be a ghost -
+  // the free broker keeps a dead id routable for minutes after a peer drops.
+  // Only commit once we've actually heard a "hello" back from a live partner.
+  const confirmMatch = (net: Net, host: boolean) => {
     if (done) {
       net.close();
       return;
     }
-    done = true;
-    clearTimeout(timer);
-    offStatus?.();
     net.send({ t: "hello", name: playerName });
-    onMatch(net, host);
+    offMsg = net.onMessage((m) => {
+      if (done || m.t !== "hello") return;
+      done = true;
+      clearTimeout(timer);
+      clearTimeout(retry);
+      clearTimeout(handshake);
+      offStatus?.();
+      offMsg?.();
+      onMatch(net, host);
+    });
+    clearTimeout(handshake);
+    handshake = setTimeout(() => {
+      if (done) return;
+      offMsg?.();
+      retry = setTimeout(() => cycle(true), 300);
+    }, 4000);
   };
+  // Only the timeout (or an explicit cancel) ends the wait. Broker hiccups and
+  // a peer that grabbed-then-left the rendezvous just bounce us back to trying;
+  // the queue is meant to sit for the full 20-30s before falling to a bot.
   const giveUp = () => {
     if (done) return;
     done = true;
     clearTimeout(timer);
+    clearTimeout(retry);
+    clearTimeout(handshake);
     offStatus?.();
+    offMsg?.();
     current?.close();
     onGiveUp();
   };
 
-  const tryGuest = () => {
-    current = makeNet(qid, false, { rawId: true });
+  const cycle = (asHost: boolean) => {
+    if (done) return;
     offStatus?.();
-    offStatus = current.onStatus((s) => {
+    offMsg?.();
+    clearTimeout(handshake);
+    current?.close();
+    current = makeNet(qid, asHost, { rawId: true, noRetry: true });
+    offStatus = current.onStatus((s, d) => {
       if (done) return;
-      if (s === "connected") finishMatch(current as Net, false);
-      else if (s === "error" || s === "closed") giveUp();
+      if (s === "connected") {
+        confirmMatch(current as Net, asHost);
+      } else if (s === "error" && d === "id-taken") {
+        // someone is already hosting - go be their guest
+        clearTimeout(retry);
+        retry = setTimeout(() => cycle(false), 200);
+      } else if (s === "error" || s === "closed") {
+        // broker/guest hiccup - wait a beat and try hosting again
+        clearTimeout(retry);
+        retry = setTimeout(() => cycle(true), 1500);
+      }
     });
   };
 
-  // first, try to become the host of this queue
-  current = makeNet(qid, true, { rawId: true, noRetry: true });
-  offStatus = current.onStatus((s, d) => {
-    if (done) return;
-    if (s === "connected") finishMatch(current as Net, true);
-    else if (s === "error" && d === "id-taken") {
-      current?.close();
-      tryGuest();
-    } else if (s === "error" || s === "closed") {
-      giveUp();
-    }
-  });
+  cycle(true);
 
   const timer = setTimeout(giveUp, timeoutMs);
   return {
@@ -274,7 +300,10 @@ export function joinQueue(
       if (done) return;
       done = true;
       clearTimeout(timer);
+      clearTimeout(retry);
+      clearTimeout(handshake);
       offStatus?.();
+      offMsg?.();
       current?.close();
     },
   };

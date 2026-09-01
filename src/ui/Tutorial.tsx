@@ -6,7 +6,7 @@ const STEPS: Array<{ n: string; title: string; body: string; art?: string }> = [
   {
     n: "1",
     title: "Draft from the pool",
-    body: "Take turns pulling one critter out of the pond. There is no cost, but the pool is small, so grab what fits your plan. Spend a forage token to send the whole pool under and call up a fresh one. Then bind your nine critters to the digits 1 to 9.",
+    body: "Take turns pulling one critter out of the pond. Picking is free, but the pool is small, so grab what fits your plan. Spend energy to send the whole pool under and call up a fresh one. Energy you keep here carries into the match for abilities. Then bind your nine critters to the digits 1 to 9.",
     art: "shellclam",
   },
   {

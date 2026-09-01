@@ -3,8 +3,9 @@ import { joinQueue, type Net } from "../net/peer";
 
 /* "Finding an opponent" for the ranked / casual queues. Tries a public
  * rendezvous for a random 20-30s; if nobody's around it hands back so App can
- * start a bot match instead. Ranked entry buries the screen in a storm of
- * cartoon prizes that then clears to reveal the queue. */
+ * start a bot match instead. Ranked entry gets a dense shower of cartoon
+ * prizes that fills the whole screen; partway through, while prizes are still
+ * pouring past, the queue card bounces in and stays. */
 
 const INK = "#2b2233";
 
@@ -66,7 +67,7 @@ function Crown() {
   );
 }
 
-const ICONS = [Trophy, Star, Medal, Badge, Gem, Crown, Trophy, Star];
+const ICONS = [Trophy, Star, Medal, Badge, Gem, Crown];
 
 export function Queue({
   kind,
@@ -82,43 +83,50 @@ export function Queue({
   onHome: () => void;
 }) {
   const ranked = kind === "ranked";
-  const [phase, setPhase] = useState<"storm" | "clear" | "search">(
-    ranked ? "storm" : "search",
-  );
+  const [showShower, setShowShower] = useState(ranked);
+  const [clearing, setClearing] = useState(false);
+  const [showCard, setShowCard] = useState(!ranked);
   const [dots, setDots] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const cancelRef = useRef<() => void>(() => {});
 
-  const storm = useRef(
-    Array.from({ length: 44 }, (_, i) => {
-      const col = i % 11;
-      const row = Math.floor(i / 11);
+  // A wall of prizes, dense enough to blot out the whole screen for a beat:
+  // many icons, big, almost no stagger, slow-ish fall so a huge number are on
+  // screen at once - then the whole curtain wipes as the card lands its first
+  // bounce.
+  const COLS = 22;
+  const shower = useRef(
+    Array.from({ length: 1350 }, (_, i) => {
+      const col = i % COLS;
       return {
-        Icon: ICONS[Math.floor(Math.random() * ICONS.length)],
-        x: 8 + col * 8.4 + (Math.random() - 0.5) * 4,
-        y: 32 + row * 9 + (Math.random() - 0.5) * 4,
-        size: 34 + Math.random() * 24,
-        delay: row * 0.09 + col * 0.015 + Math.random() * 0.12,
-        rot: (Math.random() - 0.5) * 60,
-        fall: 0.6 + Math.random() * 0.2,
-        out: Math.random() * 0.18,
+        Icon: ICONS[i % ICONS.length],
+        x: (col / COLS) * 100 + Math.random() * 6,
+        size: 44 + Math.random() * 56,
+        // spread the start positions across a tall band above + into the
+        // viewport so the column is packed top-to-bottom from the first frame
+        y0: -105 + Math.random() * 118,
+        delay: Math.random() * 0.1,
+        dur: 0.95 + Math.random() * 0.25,
+        spin: (Math.random() - 0.5) * 620,
       };
     }),
   );
 
   useEffect(() => {
-    if (phase !== "storm") return;
-    const a = setTimeout(() => setPhase("clear"), 2000);
-    return () => clearTimeout(a);
-  }, [phase]);
-  useEffect(() => {
-    if (phase !== "clear") return;
-    const a = setTimeout(() => setPhase("search"), 900);
-    return () => clearTimeout(a);
-  }, [phase]);
+    if (!showShower) return;
+    // card starts bouncing at once, hidden behind the curtain...
+    const b = setTimeout(() => setShowCard(true), 240);
+    // ...then the curtain wipes right as that first bounce lands.
+    const c = setTimeout(() => setClearing(true), 720);
+    const a = setTimeout(() => setShowShower(false), 1080);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+      clearTimeout(c);
+    };
+  }, [showShower]);
 
   useEffect(() => {
-    if (phase !== "search") return;
     const timeoutMs = 20000 + Math.floor(Math.random() * 10000); // 20-30s
     const q = joinQueue(kind, playerName, onMatch, onBot, timeoutMs);
     cancelRef.current = q.cancel;
@@ -127,21 +135,23 @@ export function Queue({
       setDots((d) => (d + 1) % 4);
       setElapsed(Math.floor((Date.now() - start) / 1000));
     }, 450);
-    return () => clearInterval(iv);
+    return () => {
+      clearInterval(iv);
+      q.cancel();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, []);
 
   const mmss = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
 
-  const storming = phase === "storm" || phase === "clear";
-
   return (
-    <div
-      className={`app queue-app ${phase === "storm" ? "quake" : ""}`}
-    >
-      {ranked && storming && (
-        <div className={`prize-storm ${phase === "clear" ? "cleared" : ""}`} aria-hidden="true">
-          {storm.current.map((p, i) => {
+    <div className="app queue-app">
+      {showShower && (
+        <div
+          className={`prize-storm${clearing ? " clearing" : ""}`}
+          aria-hidden="true"
+        >
+          {shower.current.map((p, i) => {
             const P = p.Icon;
             return (
               <span
@@ -150,12 +160,11 @@ export function Queue({
                 style={
                   {
                     left: `${p.x}%`,
-                    top: `${p.y}%`,
+                    top: `${p.y0}vh`,
                     fontSize: `${p.size}px`,
-                    "--rot": `${p.rot}deg`,
+                    "--spin": `${p.spin}deg`,
                     "--d": `${p.delay}s`,
-                    "--fd": `${p.fall}s`,
-                    "--od": `${p.out}s`,
+                    "--fd": `${p.dur}s`,
                   } as CSSProperties
                 }
               >
@@ -168,9 +177,7 @@ export function Queue({
 
       <div className="appbar">
         <h1>CRITTDOKU</h1>
-        <span className="status">
-          {ranked ? "Ranked queue" : "Quick match"}
-        </span>
+        <span className="status">{ranked ? "Ranked queue" : "Quick match"}</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button
             onClick={() => {
@@ -184,13 +191,13 @@ export function Queue({
       </div>
 
       <main className="stage online">
-        {phase === "search" && (
+        {showCard && (
           <div className="online-card q-card-bounce">
             <h2>Finding an opponent{".".repeat(dots)}</h2>
             <div className="q-timer">{mmss}</div>
             <p className="sub">
-              Matching you with a{ranked ? " ranked" : ""} player near your
-              rank. This usually takes a few seconds.
+              Matching you with a{ranked ? " ranked" : ""} player near your rank.
+              This usually takes a few seconds.
             </p>
             <div className="pulse-dot" />
             <button

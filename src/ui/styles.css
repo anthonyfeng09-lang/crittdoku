@@ -2182,16 +2182,6 @@ button {
   position: relative;
   overflow: hidden;
 }
-.queue-app.quake {
-  animation: quake 0.42s linear 5;
-}
-@keyframes quake {
-  0%, 100% { transform: translate(0, 0); }
-  20% { transform: translate(-6px, 4px); }
-  40% { transform: translate(7px, -5px); }
-  60% { transform: translate(-5px, 6px); }
-  80% { transform: translate(6px, -4px); }
-}
 
 .prize-storm {
   position: fixed;
@@ -2199,64 +2189,46 @@ button {
   z-index: 60;
   pointer-events: none;
   overflow: hidden;
-  background: radial-gradient(
-    ellipse at 50% 45%,
-    rgba(124, 58, 237, 0.18),
-    rgba(124, 58, 237, 0) 60%
-  );
 }
+/* a prize falls straight from above the screen to below it, spinning */
+.prize-storm.clearing {
+  animation: storm-out 0.32s ease-in forwards;
+}
+@keyframes storm-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8vh) scale(1.08);
+  }
+}
+
 .prize {
   position: absolute;
-  will-change: transform, opacity;
-  transform: translate(-50%, -50%) translateY(-140vh) rotate(var(--rot, 0deg));
-  opacity: 0;
+  top: -24vh;
+  transform: translate(-50%, 0) rotate(0);
   color: #ffd23f;
-  filter: drop-shadow(0 3px 2px rgba(20, 12, 30, 0.22));
-  animation: prize-in var(--fd, 0.7s) cubic-bezier(0.3, 1.25, 0.5, 1)
-    var(--d, 0s) forwards;
+  filter: drop-shadow(0 3px 3px rgba(20, 12, 30, 0.28));
+  animation: prize-fall var(--fd, 0.9s) linear var(--d, 0s) forwards;
 }
-@keyframes prize-in {
+@keyframes prize-fall {
   0% {
-    transform: translate(-50%, -50%) translateY(-140vh) rotate(var(--rot, 0deg));
+    transform: translate(-50%, 0) rotate(0);
     opacity: 0;
   }
-  30% { opacity: 1; }
-  80% {
-    transform: translate(-50%, -50%) translateY(10px) rotate(var(--rot, 0deg));
-  }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
   100% {
-    transform: translate(-50%, -50%) translateY(0) rotate(var(--rot, 0deg));
-    opacity: 1;
-  }
-}
-.prize-storm.cleared {
-  background: rgba(124, 58, 237, 0);
-  transition: background 0.5s;
-}
-.prize-storm.cleared .prize {
-  animation: prize-out 0.75s cubic-bezier(0.5, 0, 0.85, 0.35) var(--od, 0s)
-    forwards;
-}
-@keyframes prize-out {
-  0% {
-    transform: translate(-50%, -50%) translateY(0) rotate(var(--rot, 0deg));
-    opacity: 1;
-  }
-  100% {
-    transform: translate(-50%, -50%) translateY(140vh) rotate(var(--rot, 0deg));
+    transform: translate(-50%, 128vh) rotate(var(--spin, 180deg));
     opacity: 0;
   }
 }
 
 /* the queue card thumps in big, then settles */
 .online-card.q-card-bounce {
-  animation: q-card-bounce 0.7s cubic-bezier(0.2, 1.5, 0.35, 1) both;
+  animation: q-card-bounce 0.5s cubic-bezier(0.25, 1.6, 0.4, 1) both;
 }
 @keyframes q-card-bounce {
-  0% { transform: scale(0.2); opacity: 0; }
-  45% { transform: scale(1.18); opacity: 1; }
-  70% { transform: scale(0.94); }
-  85% { transform: scale(1.05); }
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
   100% { transform: scale(1); }
 }
 
@@ -2266,4 +2238,13 @@ button {
   color: var(--accent);
   font-variant-numeric: tabular-nums;
   margin: 4px 0 8px;
+}
+
+/* cells you could legally place in this turn - a quiet nudge, no animation */
+.cell.legal {
+  background: rgba(6, 182, 212, 0.09);
+  box-shadow: inset 0 0 0 2px rgba(6, 182, 212, 0.28);
+}
+.cell.legal:hover:not(:disabled) {
+  background: rgba(6, 182, 212, 0.2);
 }
