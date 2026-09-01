@@ -90,13 +90,12 @@ export function Queue({
   const [elapsed, setElapsed] = useState(0);
   const cancelRef = useRef<() => void>(() => {});
 
-  // A wall of prizes that blots out the whole screen, then pours straight down
-  // and off the bottom. Start positions span a tall band above + into the
-  // viewport so the column is packed top-to-bottom from the first frame; they
-  // all fall at a near-uniform speed and exit past the bottom edge. The fall is
-  // held ~0.5s after mount so the 1300+ nodes are painted before they animate
+  // A wall of prizes stacked in a tall band entirely above the viewport, then
+  // poured straight down through the screen and off the bottom. The band is
+  // ~1.8 screens tall so it blankets the viewport the whole way down. The fall
+  // is held a beat after mount so the 1300+ nodes paint before they animate
   // (no first-frame stutter).
-  const HOLD = 0.5;
+  const HOLD = 0.1;
   const COLS = 22;
   const shower = useRef(
     Array.from({ length: 1350 }, (_, i) => {
@@ -105,8 +104,9 @@ export function Queue({
         Icon: ICONS[i % ICONS.length],
         x: (col / COLS) * 100 + Math.random() * 6,
         size: 44 + Math.random() * 56,
-        y0: -175 + Math.random() * 185,
-        delay: HOLD + Math.random() * 0.14,
+        // all start above the top edge so nothing shows during the hold
+        y0: -197 + Math.random() * 185,
+        delay: HOLD + Math.random() * 0.12,
         dur: 1.5 + Math.random() * 0.3,
         spin: (Math.random() - 0.5) * 620,
       };
@@ -116,11 +116,11 @@ export function Queue({
   useEffect(() => {
     if (!showShower) return;
     // shaking eases off as the last prizes leave the bottom of the screen...
-    const r = setTimeout(() => setRumble(false), 2150);
+    const r = setTimeout(() => setRumble(false), 1550);
     // ...the storm unmounts once everything is out of view...
-    const a = setTimeout(() => setShowShower(false), 2350);
+    const a = setTimeout(() => setShowShower(false), 1750);
     // ...and only then does the card drop in and bounce.
-    const b = setTimeout(() => setShowCard(true), 2370);
+    const b = setTimeout(() => setShowCard(true), 1770);
     return () => {
       clearTimeout(a);
       clearTimeout(b);
