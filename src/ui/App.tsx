@@ -46,6 +46,7 @@ import { Tutorial } from "./Tutorial";
 import { ProfilePage } from "./ProfilePage";
 import { Online } from "./Online";
 import { Queue } from "./Queue";
+import { randomHandle } from "./names";
 import { loadProfile, saveProfile, recordMatch, type Profile } from "./profile";
 import type { Net } from "../net/peer";
 
@@ -124,6 +125,8 @@ interface Match {
   /** leftover draft energy [seat0, seat1] for leg 1 */
   startEnergy?: [number, number];
   ranked?: boolean;
+  /** a bot match dressed up as a queue opponent; the display name */
+  disguise?: string | null;
   /** [legIndex] -> [seat0 regions, seat1 regions] once that leg has ended */
   legScores: Array<[number, number] | null>;
 }
@@ -150,6 +153,8 @@ export function App() {
   const [botLevel, setBotLevel] = useState<BotLevel>("chill");
   const [ranked, setRanked] = useState(false);
   const [queueKind, setQueueKind] = useState<"ranked" | "casual">("casual");
+  // when a queue quietly falls back to a bot, wear a normal-looking handle
+  const [disguise, setDisguise] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
 
   const [match, setMatch] = useState<Match | null>(null);
@@ -222,12 +227,13 @@ export function App() {
           botLevel,
           startEnergy,
           ranked,
+          disguise,
           legScores: [null, null],
         },
         presetSeeds,
         startEnergy,
       ),
-    [beginLeg, seedCount, mode, botLevel, ranked],
+    [beginLeg, seedCount, mode, botLevel, ranked, disguise],
   );
 
   const leaveOnline = useCallback(() => {
@@ -258,16 +264,17 @@ export function App() {
           const theirs =
             g.score[1 - seat] +
             (match.leg === 2 ? (match.legScores[0]?.[1 - seat] ?? 0) : 0);
-          const opp =
-            match.mode === "local"
+          const opp = match.disguise
+            ? match.disguise
+            : match.mode === "local"
               ? "Local"
               : match.mode === "online"
                 ? net?.peerName() ?? "Online"
                 : `${match.botLevel[0].toUpperCase()}${match.botLevel.slice(1)} bot`;
           setProfile((p) =>
             recordMatch(p, {
-              mode: match.mode === "online" ? "local" : match.mode,
-              opp: match.ranked ? "Ranked" : opp,
+              mode: match.mode === "online" || match.disguise ? "local" : match.mode,
+              opp,
               ranked: match.ranked,
               result: mine === theirs ? "draw" : mine > theirs ? "win" : "loss",
               you: mine,
@@ -352,9 +359,11 @@ export function App() {
       game.current !== 1
     )
       return;
-    const t = setTimeout(botMove, 460);
+    // a disguised opponent "thinks" for a human-ish, variable beat
+    const delay = disguise ? 650 + Math.random() * 1700 : 460;
+    const t = setTimeout(botMove, delay);
     return () => clearTimeout(t);
-  }, [mode, route, game, botMove]);
+  }, [mode, route, game, botMove, disguise]);
 
   const [dex, setDex] = useState(false);
   const openDex = useCallback(() => setDex(true), []);
@@ -371,6 +380,7 @@ export function App() {
     setNet(n);
     setMode("online");
     setRanked(rankedMatch);
+    setDisguise(null);
     setMySeat(isHost ? 0 : 1);
     setNetErr(null);
     setGame(null);
@@ -397,6 +407,7 @@ export function App() {
     setMode("bot");
     setBotLevel(queueKind === "ranked" ? "fierce" : "sharp");
     setRanked(queueKind === "ranked");
+    setDisguise(randomHandle());
     setGame(null);
     setMatch(null);
     recorded.current = null;
@@ -414,6 +425,7 @@ export function App() {
           setMode(m);
           setBotLevel(lvl);
           setRanked(false);
+          setDisguise(null);
           setGame(null);
           setMatch(null);
           recorded.current = null;
@@ -458,6 +470,7 @@ export function App() {
           setMode("bot");
           setBotLevel("chill");
           setRanked(false);
+          setDisguise(null);
           setGame(null);
           setMatch(null);
           recorded.current = null;
@@ -493,7 +506,8 @@ export function App() {
             : null
         }
         rp={profile.rp}
-        peerName={net?.peerName() ?? "Opponent"}
+        disguised={!!match.disguise}
+        peerName={match.disguise ?? net?.peerName() ?? "Opponent"}
         sel={sel}
         setSel={setSel}
         doAction={doAction}
@@ -1038,6 +1052,7 @@ function Play({
   mySeat,
   rpDelta,
   rp,
+  disguised,
   peerName,
   sel,
   setSel,
@@ -1058,6 +1073,7 @@ function Play({
   mySeat: 0 | 1;
   rpDelta: number | null;
   rp: number;
+  disguised: boolean;
   peerName: string;
   sel: number | null;
   setSel: (n: number | null) => void;
@@ -1071,7 +1087,9 @@ function Play({
   onNewDraft: () => void;
   onRematch: () => void;
 }) {
-  const vsBot = mode === "bot";
+  // a disguised bot presents exactly like an online opponent
+  const asOpponent = mode === "online" || disguised;
+  const vsBot = mode === "bot" && !disguised;
   const isOnline = mode === "online";
   const myTurn = !isOnline || game.current === mySeat;
   const box = game.config.box;
@@ -1170,7 +1188,7 @@ function Play({
   }, [game, box.rows, box.cols]);
 
   const who = (seat: 0 | 1) =>
-    isOnline
+    asOpponent
       ? seat === mySeat
         ? "You"
         : peerName
@@ -1184,7 +1202,7 @@ function Play({
       ? legOneOver
         ? `Leg 1 done ${game.score[0]}–${game.score[1]}`
         : `${agg[0] === agg[1] ? "Level" : who((agg[0] > agg[1] ? 0 : 1) as 0 | 1) + " win"}${agg[0] === agg[1] ? "" : "s"} ${Math.max(agg[0], agg[1])}–${Math.min(agg[0], agg[1])}`
-      : vsBot || isOnline
+      : vsBot || asOpponent
         ? `${who(cur as 0 | 1)} to move`
         : `Leg ${match.leg}/2 · ${NAMES[cur]} to move${
             match.legScores[0] ? ` · match ${agg[0]}–${agg[1]}` : ""
@@ -1201,7 +1219,7 @@ function Play({
           {vsBot && playing && cur === 1 && (
             <span className="thinking"> · thinking</span>
           )}
-          {isOnline && playing && !myTurn && (
+          {asOpponent && playing && game.current !== mySeat && (
             <span className="thinking"> · their turn</span>
           )}
           {!playing && rpDelta != null && (
@@ -1212,7 +1230,7 @@ function Play({
           )}
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
-          {!vsBot && !isOnline && (
+          {!vsBot && !asOpponent && (
             <>
               <button onClick={botMove} disabled={!playing}>
                 Bot move
@@ -1224,10 +1242,10 @@ function Play({
           )}
           <button onClick={onHome}>Menu</button>
           <button onClick={onOpenDex}>Critterdex</button>
-          {!isOnline && <button onClick={onNewDraft}>New draft</button>}
+          {!asOpponent && <button onClick={onNewDraft}>New draft</button>}
           {(!isOnline || mySeat === 0) && (
             <button onClick={onRematch} disabled={playing}>
-              {isOnline ? "Play again" : "Rematch"}
+              {asOpponent ? "Play again" : "Rematch"}
             </button>
           )}
           {isOnline && mySeat === 1 && !playing && (

@@ -48,7 +48,7 @@ export function Tutorial({
     <div className="app">
       <div className="appbar">
         <h1>CRITTDOKU</h1>
-        <span className="status">how to play</span>
+        <span className="status">How to play</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button onClick={onHome}>Menu</button>
           <button onClick={onDex}>Critterdex</button>

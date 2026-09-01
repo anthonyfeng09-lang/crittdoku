@@ -61,7 +61,7 @@ export function ProfilePage({
     <div className="app">
       <div className="appbar">
         <h1>CRITTDOKU</h1>
-        <span className="status">your account</span>
+        <span className="status">Your account</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button onClick={onHome}>Menu</button>
         </div>

@@ -60,7 +60,7 @@ export function Online({
     <div className="app">
       <div className="appbar">
         <h1>CRITTDOKU</h1>
-        <span className="status">play online</span>
+        <span className="status">Play online</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button
             onClick={() => {
@@ -68,7 +68,7 @@ export function Online({
               onHome();
             }}
           >
-            menu
+            Menu
           </button>
         </div>
       </div>
@@ -123,7 +123,7 @@ export function Online({
                   setTimeout(() => setCopied(false), 1500);
                 }}
               >
-                {copied ? "copied" : "copy code"}
+                {copied ? "Copied" : "Copy code"}
               </button>
               <p className="sub">
                 {status === "waiting"
