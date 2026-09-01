@@ -84,16 +84,19 @@ export function Queue({
 }) {
   const ranked = kind === "ranked";
   const [showShower, setShowShower] = useState(ranked);
-  const [clearing, setClearing] = useState(false);
+  const [rumble, setRumble] = useState(ranked);
   const [showCard, setShowCard] = useState(!ranked);
   const [dots, setDots] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const cancelRef = useRef<() => void>(() => {});
 
-  // A wall of prizes, dense enough to blot out the whole screen for a beat:
-  // many icons, big, almost no stagger, slow-ish fall so a huge number are on
-  // screen at once - then the whole curtain wipes as the card lands its first
-  // bounce.
+  // A wall of prizes that blots out the whole screen, then pours straight down
+  // and off the bottom. Start positions span a tall band above + into the
+  // viewport so the column is packed top-to-bottom from the first frame; they
+  // all fall at a near-uniform speed and exit past the bottom edge. The fall is
+  // held ~0.5s after mount so the 1300+ nodes are painted before they animate
+  // (no first-frame stutter).
+  const HOLD = 0.5;
   const COLS = 22;
   const shower = useRef(
     Array.from({ length: 1350 }, (_, i) => {
@@ -102,11 +105,9 @@ export function Queue({
         Icon: ICONS[i % ICONS.length],
         x: (col / COLS) * 100 + Math.random() * 6,
         size: 44 + Math.random() * 56,
-        // spread the start positions across a tall band above + into the
-        // viewport so the column is packed top-to-bottom from the first frame
-        y0: -105 + Math.random() * 118,
-        delay: Math.random() * 0.1,
-        dur: 0.95 + Math.random() * 0.25,
+        y0: -175 + Math.random() * 185,
+        delay: HOLD + Math.random() * 0.14,
+        dur: 1.5 + Math.random() * 0.3,
         spin: (Math.random() - 0.5) * 620,
       };
     }),
@@ -114,15 +115,16 @@ export function Queue({
 
   useEffect(() => {
     if (!showShower) return;
-    // card starts bouncing at once, hidden behind the curtain...
-    const b = setTimeout(() => setShowCard(true), 240);
-    // ...then the curtain wipes right as that first bounce lands.
-    const c = setTimeout(() => setClearing(true), 720);
-    const a = setTimeout(() => setShowShower(false), 1080);
+    // shaking eases off as the last prizes leave the bottom of the screen...
+    const r = setTimeout(() => setRumble(false), 2150);
+    // ...the storm unmounts once everything is out of view...
+    const a = setTimeout(() => setShowShower(false), 2350);
+    // ...and only then does the card drop in and bounce.
+    const b = setTimeout(() => setShowCard(true), 2370);
     return () => {
       clearTimeout(a);
       clearTimeout(b);
-      clearTimeout(c);
+      clearTimeout(r);
     };
   }, [showShower]);
 
@@ -148,7 +150,7 @@ export function Queue({
     <div className="app queue-app">
       {showShower && (
         <div
-          className={`prize-storm${clearing ? " clearing" : ""}`}
+          className={`prize-storm${rumble ? " rumble" : ""}`}
           aria-hidden="true"
         >
           {shower.current.map((p, i) => {

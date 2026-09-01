@@ -2190,35 +2190,42 @@ button {
   pointer-events: none;
   overflow: hidden;
 }
-/* a prize falls straight from above the screen to below it, spinning */
-.prize-storm.clearing {
-  animation: storm-out 0.32s ease-in forwards;
+/* the prize layer judders as the curtain crashes down - just the gems, the
+   title and card stay put */
+.prize-storm.rumble {
+  animation: queue-rumble 0.1s linear infinite;
 }
-@keyframes storm-out {
-  to {
-    opacity: 0;
-    transform: translateY(-8vh) scale(1.08);
+@keyframes queue-rumble {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 1px); }
+  50% { transform: translate(1.5px, -1.5px); }
+  75% { transform: translate(-1px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .prize-storm.rumble {
+    animation: none;
   }
 }
 
+/* a prize falls straight from above the screen, through it, and off the
+   bottom - no fade, it just leaves */
 .prize {
   position: absolute;
   top: -24vh;
   transform: translate(-50%, 0) rotate(0);
   color: #ffd23f;
   filter: drop-shadow(0 3px 3px rgba(20, 12, 30, 0.28));
-  animation: prize-fall var(--fd, 0.9s) linear var(--d, 0s) forwards;
+  animation: prize-fall var(--fd, 1.6s) linear var(--d, 0s) forwards;
 }
 @keyframes prize-fall {
   0% {
     transform: translate(-50%, 0) rotate(0);
-    opacity: 0;
+    opacity: 1;
   }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
   100% {
-    transform: translate(-50%, 128vh) rotate(var(--spin, 180deg));
-    opacity: 0;
+    transform: translate(-50%, 340vh) rotate(var(--spin, 180deg));
+    opacity: 1;
   }
 }
 
