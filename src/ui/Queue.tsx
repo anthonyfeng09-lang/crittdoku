@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { joinQueue, type Net } from "../net/peer";
+import { ALL_CREATURES, type CreatureId } from "../engine";
+import { Critter } from "./Critter";
 
 /* "Finding an opponent" for the ranked / casual queues. Tries a public
  * rendezvous for a random 20-30s; if nobody's around it hands back so App can
- * start a bot match instead. Ranked entry gets a dense shower of cartoon
- * prizes that fills the whole screen; partway through, while prizes are still
- * pouring past, the queue card bounces in and stays. */
+ * start a bot match instead. Entering a queue drops a full-screen curtain that
+ * pours straight down and off the bottom - trophies and rank badges for
+ * ranked, a stampede of critters for casual - then the queue card bounces in
+ * on the cleared screen. */
 
 const INK = "#2b2233";
 
@@ -83,32 +86,37 @@ export function Queue({
   onHome: () => void;
 }) {
   const ranked = kind === "ranked";
-  const [showShower, setShowShower] = useState(ranked);
-  const [rumble, setRumble] = useState(ranked);
-  const [showCard, setShowCard] = useState(!ranked);
+  const [showShower, setShowShower] = useState(true);
+  const [rumble, setRumble] = useState(true);
+  const [showCard, setShowCard] = useState(false);
   const [dots, setDots] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const cancelRef = useRef<() => void>(() => {});
 
-  // A wall of prizes stacked in a tall band entirely above the viewport, then
-  // poured straight down through the screen and off the bottom. The band is
-  // ~1.8 screens tall so it blankets the viewport the whole way down. The fall
-  // is held a beat after mount so the 1300+ nodes paint before they animate
-  // (no first-frame stutter).
+  // A wall stacked in a tall band entirely above the viewport, then poured
+  // straight down through the screen and off the bottom. The band is ~1.8
+  // screens tall so it blankets the viewport the whole way down. The fall is
+  // held a beat after mount so the nodes paint before they animate (no
+  // first-frame stutter). Ranked rains prize icons; casual rains critters,
+  // which are heavier to draw so there are fewer, larger ones.
   const HOLD = 0.1;
-  const COLS = 22;
+  const COLS = ranked ? 22 : 16;
+  const COUNT = ranked ? 1350 : 480;
   const shower = useRef(
-    Array.from({ length: 1350 }, (_, i) => {
+    Array.from({ length: COUNT }, (_, i) => {
       const col = i % COLS;
       return {
         Icon: ICONS[i % ICONS.length],
-        x: (col / COLS) * 100 + Math.random() * 6,
-        size: 44 + Math.random() * 56,
+        cid: ALL_CREATURES[
+          Math.floor(Math.random() * ALL_CREATURES.length)
+        ] as CreatureId,
+        x: (col / COLS) * 100 + Math.random() * (ranked ? 6 : 8),
+        size: ranked ? 44 + Math.random() * 56 : 54 + Math.random() * 62,
         // all start above the top edge so nothing shows during the hold
         y0: -197 + Math.random() * 185,
         delay: HOLD + Math.random() * 0.12,
         dur: 1.5 + Math.random() * 0.3,
-        spin: (Math.random() - 0.5) * 620,
+        spin: (Math.random() - 0.5) * (ranked ? 620 : 320),
       };
     }),
   );
@@ -150,7 +158,9 @@ export function Queue({
     <div className="app queue-app">
       {showShower && (
         <div
-          className={`prize-storm${rumble ? " rumble" : ""}`}
+          className={`prize-storm${rumble ? " rumble" : ""}${
+            ranked ? "" : " critters"
+          }`}
           aria-hidden="true"
         >
           {shower.current.map((p, i) => {
@@ -170,7 +180,7 @@ export function Queue({
                   } as CSSProperties
                 }
               >
-                <P />
+                {ranked ? <P /> : <Critter id={p.cid} size={p.size} />}
               </span>
             );
           })}
@@ -198,8 +208,9 @@ export function Queue({
             <h2>Finding an opponent{".".repeat(dots)}</h2>
             <div className="q-timer">{mmss}</div>
             <p className="sub">
-              Matching you with a{ranked ? " ranked" : ""} player near your rank.
-              This usually takes a few seconds.
+              {ranked
+                ? "Matching you with a ranked player near your skill."
+                : "Matching you with an opponent for a casual game."}
             </p>
             <div className="pulse-dot" />
             <button

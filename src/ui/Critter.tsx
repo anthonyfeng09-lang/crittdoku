@@ -811,30 +811,44 @@ const SPEC: Record<CreatureId, Spec> = {
   boulderpup: { arch: "cub", feat: "ears", eye: "wide", mouth: "open", belly: true },
   mossback: { arch: "shell", feat: "leaf", eye: "sleepy", mouth: "smile", belly: false },
   slumberstone: { arch: "sprite", feat: "tuft", eye: "sleepy", mouth: "smile", belly: false },
+  mudpaw: { arch: "cub", feat: "roundears", eye: "open", mouth: "flat", belly: true },
+  slatetusk: { arch: "reptile", feat: "horn", eye: "sharp", mouth: "flat", belly: false },
+  lichenox: { arch: "chub", feat: "leaf", eye: "sleepy", mouth: "smile", belly: true },
 
   breezefinch: { arch: "bird", feat: "plume", eye: "open", mouth: "beak", belly: true },
   tumbleweed: { arch: "tumble", feat: "tuft", eye: "derp", mouth: "smile", belly: false },
   glidewing: { arch: "glide", feat: "none", eye: "sharp", mouth: "beak", belly: true },
+  driftmink: { arch: "mist", feat: "none", eye: "wide", mouth: "cat", belly: false },
+  galepup: { arch: "cub", feat: "ears", eye: "derp", mouth: "open", belly: true },
+  dandypuff: { arch: "sprite", feat: "plume", eye: "happy", mouth: "smile", belly: false },
 
   snoozemouse: { arch: "cub", feat: "roundears", eye: "sleepy", mouth: "smile", belly: true },
   fogkit: { arch: "mist", feat: "none", eye: "sleepy", mouth: "smile", belly: false },
   dozderling: { arch: "kit", feat: "antler", eye: "sleepy", mouth: "flat", belly: false },
+  drowsivole: { arch: "mole", feat: "none", eye: "sleepy", mouth: "flat", belly: false },
+  lullabird: { arch: "lark", feat: "plume", eye: "sleepy", mouth: "sing", belly: false },
+  dreamnewt: { arch: "reptile", feat: "fin", eye: "sleepy", mouth: "smile", belly: false },
 
   nutsquirrel: { arch: "squirrel", feat: "tuft", eye: "wide", mouth: "open", belly: true },
   acorncache: { arch: "chub", feat: "leaf", eye: "happy", mouth: "smile", belly: true },
   sunbeetle: { arch: "bug", feat: "horn", eye: "open", mouth: "smile", belly: false },
   tallykit: { arch: "kit", feat: "ears", eye: "sharp", mouth: "flat", belly: true },
+  sunmoth: { arch: "bug", feat: "plume", eye: "happy", mouth: "smile", belly: false },
+  emberfinch: { arch: "bird", feat: "tuft", eye: "wide", mouth: "beak", belly: true },
 
   pricklehog: { arch: "spike", feat: "none", eye: "happy", mouth: "smile", belly: false },
   shellclam: { arch: "clam", feat: "none", eye: "wide", mouth: "smile", belly: false },
   barknewt: { arch: "reptile", feat: "fin", eye: "sharp", mouth: "smile", belly: false },
   thornpod: { arch: "pod", feat: "bud", eye: "sharp", mouth: "flat", belly: false },
   quillhog: { arch: "quill", feat: "none", eye: "open", mouth: "open", belly: false },
+  barkmole: { arch: "mole", feat: "none", eye: "sharp", mouth: "flat", belly: false },
 
   swiftwren: { arch: "swift", feat: "plume", eye: "wide", mouth: "beak", belly: true },
   digmole: { arch: "mole", feat: "none", eye: "dot", mouth: "smile", belly: false },
   wildlark: { arch: "lark", feat: "plume", eye: "happy", mouth: "sing", belly: false },
   bombkit: { arch: "orb", feat: "spark", eye: "derp", mouth: "cat", belly: false },
+  joltjay: { arch: "swift", feat: "spark", eye: "sharp", mouth: "beak", belly: false },
+  sparkpaw: { arch: "kit", feat: "spark", eye: "wink", mouth: "cat", belly: false },
 };
 
 export function Critter({ id, size = 44 }: { id: CreatureId; size?: number }) {
