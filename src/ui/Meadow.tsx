@@ -2,7 +2,41 @@ import { useState, type CSSProperties } from "react";
 import { ABILITY_COST, ROSTER, CreatureId, CATEGORIES } from "../engine";
 import { Critter } from "./Critter";
 
-/** the numbers a drafter cares about: ability cost, rest turns, stored energy */
+/* The draft pool: a wide quiet pond with a slice of the roster afloat on it,
+ * each critter standing on the water. Grab the one you want; the pool fills
+ * back in from the wild pile. A reroll spends energy straight from the same
+ * bank you use on abilities in the match. */
+
+interface Spot {
+  x: number;
+  y: number;
+  s: number;
+}
+
+const SPOTS: Spot[] = [
+  { x: 29, y: 25, s: 0.62 },
+  { x: 50, y: 22, s: 0.62 },
+  { x: 71, y: 26, s: 0.62 },
+  { x: 18, y: 43, s: 0.82 },
+  { x: 40, y: 41, s: 0.84 },
+  { x: 60, y: 42, s: 0.84 },
+  { x: 82, y: 44, s: 0.8 },
+  { x: 27, y: 60, s: 0.98 },
+  { x: 50, y: 59, s: 1.0 },
+  { x: 73, y: 61, s: 0.96 },
+  { x: 38, y: 76, s: 1.12 },
+  { x: 62, y: 77, s: 1.1 },
+];
+
+// decorative lily pads (bg svg coords, 800x460); some emit a slow wave ring
+const PADS: Array<{ x: number; y: number; r: number; wave?: number }> = [
+  { x: 96, y: 150, r: 15, wave: 0 },
+  { x: 720, y: 120, r: 13, wave: 2.2 },
+  { x: 150, y: 380, r: 17, wave: 4 },
+  { x: 690, y: 370, r: 15 },
+  { x: 400, y: 100, r: 12, wave: 5.5 },
+];
+
 function critterFacts(id: CreatureId): Array<{ k: string; v: string }> {
   const d = ROSTER[id];
   const out: Array<{ k: string; v: string }> = [];
@@ -47,51 +81,12 @@ function CritDetail({ id }: { id: CreatureId }) {
   );
 }
 
-/* The draft pool: a quiet pond with the available critters afloat on lily
- * pads. Grab the one you want and it hops ashore; the water fills back in.
- * Spend a forage token to let one slip under and call another up. */
-
-interface Spot {
-  x: number;
-  y: number;
-  s: number;
-}
-
-// pads sit on the water: smaller and higher toward the far bank
-const SPOTS: Spot[] = [
-  { x: 32, y: 33, s: 0.72 },
-  { x: 51, y: 30, s: 0.72 },
-  { x: 69, y: 34, s: 0.72 },
-  { x: 18, y: 51, s: 0.95 },
-  { x: 44, y: 52, s: 1.0 },
-  { x: 80, y: 49, s: 0.9 },
-  { x: 29, y: 66, s: 1.16 },
-  { x: 64, y: 66, s: 1.14 },
-];
-
-function LilyPad() {
-  return (
-    <svg className="mp-pad" viewBox="0 0 100 60" aria-hidden="true">
-      <ellipse cx="50" cy="52" rx="42" ry="9" fill="#1f6f8f" opacity="0.28" />
-      <path
-        d="M50 46 C22 46 10 34 10 22 C10 10 28 4 50 4 C72 4 90 10 90 22 C90 34 78 46 50 46 Z"
-        fill="#5fb45a"
-        stroke="#3f8f42"
-        strokeWidth="2.5"
-      />
-      <path d="M50 24 L74 12" stroke="#3f8f42" strokeWidth="3" strokeLinecap="round" />
-      <ellipse cx="40" cy="18" rx="14" ry="6" fill="#7cc46f" opacity="0.7" />
-    </svg>
-  );
-}
-
 export function MeadowScene({
   options,
   onPick,
   onReroll,
   rerollCost,
-  forageLeft,
-  maxForage,
+  energyLeft,
   disabled,
   ownerName,
   tint,
@@ -100,13 +95,12 @@ export function MeadowScene({
   onPick: (id: CreatureId) => void;
   onReroll: () => void;
   rerollCost: number;
-  forageLeft: number;
-  maxForage: number;
+  energyLeft: number;
   disabled?: boolean;
   ownerName: string;
   tint: string;
 }) {
-  const canReroll = !disabled && forageLeft >= rerollCost;
+  const canReroll = !disabled && energyLeft >= rerollCost;
   const [hover, setHover] = useState<CreatureId | null>(null);
   return (
     <div className="meadow">
@@ -117,10 +111,10 @@ export function MeadowScene({
         aria-hidden="true"
       >
         <defs>
-          <radialGradient id="pool-w" cx="50%" cy="42%" r="62%">
-            <stop offset="0" stopColor="#bfe9f5" />
-            <stop offset="0.6" stopColor="#8fd3ec" />
-            <stop offset="1" stopColor="#5fb6da" />
+          <radialGradient id="pool-w" cx="50%" cy="44%" r="66%">
+            <stop offset="0" stopColor="#cdeef7" />
+            <stop offset="0.55" stopColor="#93d6ec" />
+            <stop offset="1" stopColor="#5cb2d8" />
           </radialGradient>
           <linearGradient id="pool-bank" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#a7dd82" />
@@ -128,54 +122,115 @@ export function MeadowScene({
           </linearGradient>
         </defs>
 
-        {/* grassy bank */}
         <rect width="800" height="460" fill="url(#pool-bank)" />
-        <circle cx="690" cy="66" r="34" fill="#fff3ad" opacity="0.7" />
+        <circle cx="694" cy="60" r="32" fill="#fff3ad" opacity="0.7" />
+        <g fill="#ffffff" opacity="0.5">
+          <ellipse cx="150" cy="66" rx="42" ry="16" />
+          <ellipse cx="185" cy="58" rx="28" ry="13" />
+        </g>
 
         {/* the pool */}
-        <ellipse cx="400" cy="238" rx="366" ry="196" fill="#6cbfa0" opacity="0.35" />
-        <ellipse cx="400" cy="232" rx="348" ry="182" fill="url(#pool-w)" />
-        <ellipse cx="400" cy="150" rx="250" ry="70" fill="#ffffff" opacity="0.12" />
-        {/* ripples */}
-        <g stroke="#ffffff" strokeWidth="2" fill="none" opacity="0.35">
-          <path d="M180 300 q60 18 120 0" />
-          <path d="M470 320 q70 18 150 -2" />
-          <path d="M300 190 q50 12 100 0" />
+        <ellipse cx="400" cy="238" rx="382" ry="210" fill="#69bfa0" opacity="0.3" />
+        <ellipse cx="400" cy="230" rx="366" ry="196" fill="url(#pool-w)" />
+        <ellipse cx="400" cy="140" rx="270" ry="72" fill="#ffffff" opacity="0.1" />
+
+        {/* drifting surface ripples */}
+        <g stroke="#ffffff" strokeWidth="2" fill="none" opacity="0.3">
+          <path d="M120 250 q60 16 130 0">
+            <animate
+              attributeName="d"
+              dur="7s"
+              repeatCount="indefinite"
+              values="M120 250 q60 16 130 0; M120 254 q60 -14 130 2; M120 250 q60 16 130 0"
+            />
+          </path>
+          <path d="M470 320 q80 18 170 -2">
+            <animate
+              attributeName="d"
+              dur="9s"
+              repeatCount="indefinite"
+              values="M470 320 q80 18 170 -2; M470 316 q80 -16 170 4; M470 320 q80 18 170 -2"
+            />
+          </path>
         </g>
 
-        {/* reeds / cattails around the rim */}
-        <g strokeLinecap="round">
-          <g stroke="#4d8f3f" strokeWidth="5">
-            <path d="M64 300 V236 M78 300 V226 M92 300 V244" />
-            <path d="M724 300 V240 M738 300 V228 M752 300 V248" />
-          </g>
-          <g fill="#7c5a3a">
-            <rect x="74" y="212" width="8" height="20" rx="4" />
-            <rect x="734" y="216" width="8" height="20" rx="4" />
-          </g>
+        {/* reeds around the rim */}
+        <g stroke="#4d8f3f" strokeWidth="5" strokeLinecap="round">
+          <path d="M56 298 V232 M70 298 V222 M84 300 V240" />
+          <path d="M724 300 V240 M738 300 V228 M752 302 V248" />
         </g>
 
-        {/* a couple of empty pads + lily flowers so the pool feels lived-in */}
-        <g>
-          <ellipse cx="250" cy="118" rx="26" ry="9" fill="#5fb45a" stroke="#3f8f42" strokeWidth="2" />
-          <path d="M250 113 l14 -6" stroke="#3f8f42" strokeWidth="2.5" strokeLinecap="round" />
-          <ellipse cx="565" cy="130" rx="22" ry="8" fill="#5fb45a" stroke="#3f8f42" strokeWidth="2" />
-          <g transform="translate(600 96)">
-            <path d="M0 0 q-7 -10 0 -16 q7 6 0 16z" fill="#ffd9e6" />
-            <path d="M0 0 q-10 -4 -13 -13 q10 1 13 13z" fill="#ffc3d8" />
-            <path d="M0 0 q10 -4 13 -13 q-10 1 -13 13z" fill="#ffc3d8" />
-            <circle r="3" fill="#ffe9a8" />
+        {/* decorative lily pads, some emitting a slow wave */}
+        {PADS.map((p, i) => (
+          <g key={i} transform={`translate(${p.x} ${p.y})`}>
+            {p.wave != null && (
+              <circle r="0" fill="none" stroke="#ffffff" strokeWidth="2">
+                <animate
+                  attributeName="r"
+                  from="6"
+                  to={p.r + 26}
+                  dur="4.5s"
+                  begin={`${p.wave}s`}
+                  repeatCount="indefinite"
+                />
+                <animate
+                  attributeName="opacity"
+                  from="0.55"
+                  to="0"
+                  dur="4.5s"
+                  begin={`${p.wave}s`}
+                  repeatCount="indefinite"
+                />
+              </circle>
+            )}
+            <ellipse cx="0" cy="3" rx={p.r} ry={p.r * 0.5} fill="#1f6f8f" opacity="0.15" />
+            <path
+              d={`M${p.r} 0 A${p.r} ${p.r * 0.62} 0 1 1 ${p.r * 0.28} ${-p.r * 0.44} L0 0 Z`}
+              fill="#5fb45a"
+              stroke="#3f8f42"
+              strokeWidth="1.6"
+            />
+            <path
+              d={`M0 0 l${p.r * 0.5} ${-p.r * 0.22}`}
+              stroke="#3f8f42"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
           </g>
-        </g>
+        ))}
 
-        {/* floating leaves */}
-        <g fill="#e7b15a" opacity="0.8">
-          <ellipse cx="150" cy="330" rx="9" ry="4" transform="rotate(20 150 330)" />
-          <ellipse cx="640" cy="360" rx="8" ry="4" transform="rotate(-15 640 360)" />
+        {/* a lily flower + a couple of drifting leaves + a fish shadow */}
+        <g transform="translate(596 100)">
+          <path d="M0 0 q-7 -10 0 -16 q7 6 0 16z" fill="#ffd9e6" />
+          <path d="M0 0 q-10 -4 -13 -13 q10 1 13 13z" fill="#ffc3d8" />
+          <path d="M0 0 q10 -4 13 -13 q-10 1 -13 13z" fill="#ffc3d8" />
+          <circle r="3" fill="#ffe9a8" />
+        </g>
+        <g fill="#e7b15a" opacity="0.75">
+          <ellipse cx="160" cy="330" rx="8" ry="4" transform="rotate(20 160 330)" />
+          <ellipse cx="470" cy="200" rx="7" ry="3.5" transform="rotate(-12 470 200)" />
+        </g>
+        <g fill="#3f7d9a" opacity="0.28">
+          <path d="M300 250 q14 -8 30 0 q-8 6 -30 8 z">
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              dur="12s"
+              repeatCount="indefinite"
+              values="0 0; 120 26; 0 0"
+            />
+          </path>
         </g>
 
         {/* dragonfly */}
-        <g transform="translate(520 92)">
+        <g transform="translate(520 84)">
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            dur="10s"
+            repeatCount="indefinite"
+            values="520 84; 470 108; 540 96; 520 84"
+          />
           <path d="M0 0 q-14 -5 -18 0 q14 5 18 0z" fill="#9be3e0" opacity="0.85" />
           <path d="M0 0 q14 -5 18 0 q-14 5 -18 0z" fill="#9be3e0" opacity="0.85" />
           <rect x="-1" y="-1" width="14" height="2.5" rx="1.2" fill="#3f7d7a" />
@@ -186,13 +241,15 @@ export function MeadowScene({
         {ownerName}, grab a friend
       </div>
 
-      {/* persistent forage-token badge */}
-      <div className="meadow-tokens" style={{ borderColor: tint }} title="forage tokens: spend one to reroll the pool">
+      <div
+        className="meadow-tokens"
+        style={{ borderColor: tint }}
+        title="energy — unspent energy carries into the match"
+      >
         <span className="mt-diamonds" style={{ color: tint }}>
-          {"◆".repeat(forageLeft)}
-          {"◇".repeat(Math.max(0, maxForage - forageLeft))}
+          {energyLeft}⚡
         </span>
-        <span className="mt-word">forage</span>
+        <span className="mt-word">energy</span>
       </div>
 
       {options.map((id, i) => {
@@ -214,16 +271,13 @@ export function MeadowScene({
               onFocus={() => setHover(id)}
               onBlur={() => setHover((h) => (h === id ? null : h))}
             >
-              <LilyPad />
+              <span className="mp-ripple" />
               <Critter id={id} size={104} />
             </button>
           </div>
         );
       })}
 
-      {hover && <CritDetail id={hover} />}
-
-      {/* names in their own layer so no lily pad can cover them */}
       <div className="meadow-labels">
         {options.map((id, i) => {
           const sp = SPOTS[i] ?? SPOTS[SPOTS.length - 1];
@@ -246,6 +300,8 @@ export function MeadowScene({
         })}
       </div>
 
+      {hover && <CritDetail id={hover} />}
+
       <button
         className="pool-reroll"
         onClick={onReroll}
@@ -253,15 +309,11 @@ export function MeadowScene({
         title={
           canReroll
             ? "send this pool under and call up a fresh one"
-            : "not enough forage tokens"
+            : "not enough energy"
         }
       >
         <span className="pr-title">↻ Reroll pool</span>
-        <span className="pr-cost">
-          {rerollCost} forage token{rerollCost === 1 ? "" : "s"} &middot;{" "}
-          {"◆".repeat(forageLeft)}
-          {"◇".repeat(Math.max(0, 3 - forageLeft))} left
-        </span>
+        <span className="pr-cost">costs {rerollCost}⚡</span>
       </button>
     </div>
   );

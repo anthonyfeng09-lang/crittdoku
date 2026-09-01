@@ -44,9 +44,9 @@ import type { Net } from "../net/peer";
 
 const SIZE = 9;
 const NAMES = ["Sage", "Clay"] as const;
-const MEADOW_SIZE = 8;
-const FORAGE_TOKENS = 3;
-const REROLL_COST = 1;
+const MEADOW_SIZE = 12;
+const START_ENERGY = 9; // each player brings this into the draft
+const REROLL_COST = 2; // rerolling the pool spends it, straight from that pool
 const CAT_ORDER: Category[] = [
   "anchor",
   "drift",
@@ -114,6 +114,8 @@ interface Match {
   bestOf: 1 | 2;
   mode: Mode;
   botLevel: BotLevel;
+  /** leftover draft energy [seat0, seat1] for leg 1 */
+  startEnergy?: [number, number];
   /** [legIndex] -> [seat0 regions, seat1 regions] once that leg has ended */
   legScores: Array<[number, number] | null>;
 }
@@ -150,28 +152,42 @@ export function App() {
 
   const oppBot: Bot = botLevel === "sharp" ? critterBot : randomActionBot;
 
-  const beginLeg = useCallback((m: Match, presetSeeds?: Seed[]) => {
-    const rng = makeRng((Date.now() ^ (m.seedCount * 40503) ^ m.leg) >>> 0);
-    const seeds =
-      presetSeeds ??
-      generateSeeds({ size: SIZE, box: { rows: 3, cols: 3 } }, m.seedCount, rng);
-    const t = legLoadouts(m);
-    setGame(
-      createGame({
-        rules: { endScoring: "majority" },
-        seeds,
-        firstPlayer: m.leg === 1 ? 0 : 1,
-        loadouts: [loadoutFromIds(t[0], SIZE), loadoutFromIds(t[1], SIZE)],
-      }),
-    );
-    setMatch(m);
-    setSel(null);
-    setAuto(false);
-    setRoute("play");
-  }, []);
+  const beginLeg = useCallback(
+    (m: Match, presetSeeds?: Seed[], startEnergy?: [number, number]) => {
+      const rng = makeRng((Date.now() ^ (m.seedCount * 40503) ^ m.leg) >>> 0);
+      const seeds =
+        presetSeeds ??
+        generateSeeds({ size: SIZE, box: { rows: 3, cols: 3 } }, m.seedCount, rng);
+      const t = legLoadouts(m);
+      const e =
+        startEnergy && m.leg === 1
+          ? startEnergy
+          : startEnergy && m.leg === 2
+            ? ([startEnergy[1], startEnergy[0]] as [number, number])
+            : undefined;
+      setGame(
+        createGame({
+          rules: { endScoring: "majority" },
+          seeds,
+          firstPlayer: m.leg === 1 ? 0 : 1,
+          startEnergy: e,
+          loadouts: [loadoutFromIds(t[0], SIZE), loadoutFromIds(t[1], SIZE)],
+        }),
+      );
+      setMatch(m);
+      setSel(null);
+      setAuto(false);
+      setRoute("play");
+    },
+    [],
+  );
 
   const startMatch = useCallback(
-    (draftTeams: [CreatureId[], CreatureId[]], presetSeeds?: Seed[]) =>
+    (
+      draftTeams: [CreatureId[], CreatureId[]],
+      presetSeeds?: Seed[],
+      startEnergy?: [number, number],
+    ) =>
       beginLeg(
         {
           draftTeams,
@@ -180,9 +196,11 @@ export function App() {
           bestOf: mode === "bot" || mode === "online" ? 1 : 2,
           mode,
           botLevel,
+          startEnergy,
           legScores: [null, null],
         },
         presetSeeds,
+        startEnergy,
       ),
     [beginLeg, seedCount, mode, botLevel],
   );
@@ -421,7 +439,9 @@ export function App() {
         setAuto={setAuto}
         onOpenDex={openDex}
         onHome={goHome}
-        onNextLeg={() => beginLeg({ ...match, leg: 2 })}
+        onNextLeg={() =>
+          beginLeg({ ...match, leg: 2 }, undefined, match.startEnergy)
+        }
         onNewDraft={() => {
           setGame(null);
           setMatch(null);
@@ -544,23 +564,29 @@ function Draft({
   setSeedCount: (n: number) => void;
   botSeat: 0 | 1 | null;
   online: OnlineCtx | null;
-  onStart: (t: [CreatureId[], CreatureId[]], seeds?: Seed[]) => void;
+  onStart: (
+    t: [CreatureId[], CreatureId[]],
+    seeds?: Seed[],
+    startEnergy?: [number, number],
+  ) => void;
   onOpenDex: () => void;
   onHome: () => void;
 }) {
   const order = useMemo(() => snakeOrder(SIZE), []);
   const rng = useRef(makeRng(online ? online.seed : (Date.now() >>> 0) || 1));
   const [picks, setPicks] = useState<[CreatureId[], CreatureId[]]>([[], []]);
-  const [forage, setForage] = useState<[number, number]>([
-    FORAGE_TOKENS,
-    FORAGE_TOKENS,
+  // energy is the SAME resource you spend on abilities in the match:
+  // whatever you do not burn on rerolls carries in as your starting energy
+  const [energy, setEnergy] = useState<[number, number]>([
+    START_ENERGY,
+    START_ENERGY,
   ]);
-  // one shared patch of grass; a slice of the roster is out at any time
+  // one shared pool; a slice of the roster is afloat at any time
   const [meadow, setMeadow] = useState<CreatureId[]>(() =>
     rng.current.shuffle(ALL_CREATURES.slice()).slice(0, MEADOW_SIZE),
   );
   const undoStack = useRef<
-    Array<{ meadow: CreatureId[]; forage: [number, number] }>
+    Array<{ meadow: CreatureId[]; energy: [number, number] }>
   >([]);
   const [stage, setStage] = useState<"pick" | "assign">("pick");
   const [assigned, setAssigned] = useState<[CreatureId[], CreatureId[]]>([
@@ -568,6 +594,7 @@ function Draft({
     [],
   ]);
   const [oppTeam, setOppTeam] = useState<CreatureId[] | null>(null);
+  const [oppEnergy, setOppEnergy] = useState<number>(START_ENERGY);
   const [iReady, setIReady] = useState(false);
 
   const step = picks[0].length + picks[1].length;
@@ -591,7 +618,7 @@ function Draft({
     if (online && !fromNet && current !== online.mySeat) return;
     undoStack.current.push({
       meadow: meadow.slice(),
-      forage: [forage[0], forage[1]],
+      energy: [energy[0], energy[1]],
     });
     const next: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
     next[current].push(id);
@@ -604,7 +631,7 @@ function Draft({
   };
 
   const reroll = (fromNet = false) => {
-    if (done || forage[current] < REROLL_COST) return;
+    if (done || energy[current] < REROLL_COST) return;
     if (online && !fromNet && current !== online.mySeat) return;
     // whole pool slips under; a fresh set surfaces from the wild pile
     const fresh = rng.current.shuffle(wild.slice()).slice(0, MEADOW_SIZE);
@@ -615,9 +642,9 @@ function Draft({
           .slice(0, MEADOW_SIZE - fresh.length),
       );
     }
-    const f: [number, number] = [forage[0], forage[1]];
-    f[current] -= REROLL_COST;
-    setForage(f);
+    const e: [number, number] = [energy[0], energy[1]];
+    e[current] -= REROLL_COST;
+    setEnergy(e);
     setMeadow(fresh);
     if (online && !fromNet) online.net.send({ t: "reroll" });
   };
@@ -657,19 +684,19 @@ function Draft({
     if (target == null || target >= step) return;
     const np: [CreatureId[], CreatureId[]] = [picks[0].slice(), picks[1].slice()];
     let m = meadow;
-    let f: [number, number] = [forage[0], forage[1]];
+    let e: [number, number] = [energy[0], energy[1]];
     while (np[0].length + np[1].length > target) {
       const s = np[0].length + np[1].length - 1;
       np[order[s]].pop();
       const snap = undoStack.current.pop();
       if (snap) {
         m = snap.meadow;
-        f = snap.forage;
+        e = snap.energy;
       }
     }
     setPicks(np);
     setMeadow(m);
-    setForage(f);
+    setEnergy(e);
   };
 
   // vs bot: the opponent seat drafts itself
@@ -694,8 +721,10 @@ function Draft({
     return online.net.onMessage((m) => {
       if (m.t === "pick") draftApi.current.pick(m.id, true);
       else if (m.t === "reroll") draftApi.current.reroll(true);
-      else if (m.t === "ready") setOppTeam(m.team);
-      else if (m.t === "seeds") setOppSeeds(m.seeds);
+      else if (m.t === "ready") {
+        setOppTeam(m.team);
+        setOppEnergy(m.energy);
+      } else if (m.t === "seeds") setOppSeeds(m.seeds);
     });
   }, [online]);
 
@@ -704,6 +733,7 @@ function Draft({
     if (!online || stage !== "assign" || !iReady || !oppTeam || startedRef.current)
       return;
     const myTeam = assigned[online.mySeat];
+    const myE = energy[online.mySeat];
     if (online.mySeat === 0) {
       const seeds = generateSeeds(
         { size: SIZE, box: { rows: 3, cols: 3 } },
@@ -712,17 +742,32 @@ function Draft({
       );
       startedRef.current = true;
       online.net.send({ t: "seeds", seeds });
-      onStart([myTeam, oppTeam], seeds);
+      onStart([myTeam, oppTeam], seeds, [myE, oppEnergy]);
     } else if (oppSeeds) {
       startedRef.current = true;
-      onStart([oppTeam, myTeam], oppSeeds);
+      onStart([oppTeam, myTeam], oppSeeds, [oppEnergy, myE]);
     }
-  }, [online, stage, iReady, oppTeam, oppSeeds, assigned, seedCount, onStart]);
+  }, [
+    online,
+    stage,
+    iReady,
+    oppTeam,
+    oppEnergy,
+    oppSeeds,
+    assigned,
+    energy,
+    seedCount,
+    onStart,
+  ]);
 
   const readyUp = () => {
     if (!online) return;
     setIReady(true);
-    online.net.send({ t: "ready", team: assigned[online.mySeat].slice() });
+    online.net.send({
+      t: "ready",
+      team: assigned[online.mySeat].slice(),
+      energy: energy[online.mySeat],
+    });
   };
 
   if (stage === "assign") {
@@ -736,7 +781,7 @@ function Draft({
               ? oppTeam
                 ? "starting..."
                 : `waiting for ${online.net.peerName()}...`
-              : "your line-up, digits 1 to 9"}
+              : `line-up set · bringing ${energy[online ? online.mySeat : 0]}⚡ into the match`}
           </span>
           <div className="controls" style={{ marginLeft: "auto" }}>
             {!online && (
@@ -765,7 +810,10 @@ function Draft({
                 {iReady ? "ready" : "Ready"}
               </button>
             ) : (
-              <button className="primary" onClick={() => onStart(assigned)}>
+              <button
+                className="primary"
+                onClick={() => onStart(assigned, undefined, [energy[0], energy[1]])}
+              >
                 Start match
               </button>
             )}
@@ -863,9 +911,8 @@ function Draft({
                   );
                 })}
               </div>
-              <span className="forage-count" title="forage tokens left">
-                {"◆".repeat(forage[p])}
-                {"◇".repeat(FORAGE_TOKENS - forage[p])}
+              <span className="forage-count" title="energy left (carries into the match)">
+                {energy[p]}⚡
               </span>
             </div>
           );
@@ -885,8 +932,7 @@ function Draft({
             onPick={pick}
             onReroll={() => reroll()}
             rerollCost={REROLL_COST}
-            forageLeft={forage[current]}
-            maxForage={FORAGE_TOKENS}
+            energyLeft={energy[current]}
             disabled={
               done ||
               (botSeat != null && current === botSeat) ||

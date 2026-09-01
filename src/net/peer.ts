@@ -11,7 +11,7 @@ export type NetMsg =
   | { t: "start"; seed: number } // host -> guest: begin the draft
   | { t: "pick"; id: CreatureId } // the drafter on turn -> the other
   | { t: "reroll" }
-  | { t: "ready"; team: CreatureId[] } // each -> other: my digit-ordered team
+  | { t: "ready"; team: CreatureId[]; energy: number } // digit-ordered team + energy left
   | { t: "seeds"; seeds: Seed[] } // host -> guest: begin the match
   | { t: "move"; action: Action } // the player on turn -> the other
   | { t: "rematch"; seed: number }
