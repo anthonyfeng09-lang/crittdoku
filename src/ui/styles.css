@@ -1058,8 +1058,8 @@ h1 {
 }
 .slot {
   display: grid;
-  grid-template-columns: 22px 36px 1fr;
-  gap: 4px 10px;
+  grid-template-columns: 20px 34px 1fr auto;
+  gap: 3px 9px;
   align-items: center;
   padding: 7px 0;
   border-top: 2px solid var(--line);
@@ -1069,18 +1069,12 @@ h1 {
   color: var(--accent);
   text-align: center;
 }
-.slot select {
-  font-family: inherit;
-  font-size: 13px;
+.slot-name {
   font-weight: 700;
-  padding: 6px 8px;
-  border: 2px solid var(--line-strong);
-  border-radius: 9px;
-  background: #fff;
-  color: var(--ink);
+  font-size: 13px;
 }
 .slot-blurb {
-  grid-column: 3;
+  grid-column: 3 / -1;
   font-size: 11px;
   color: var(--ink-soft);
   line-height: 1.4;

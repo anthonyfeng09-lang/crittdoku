@@ -725,20 +725,6 @@ function Draft({
     online.net.send({ t: "ready", team: assigned[online.mySeat].slice() });
   };
 
-  const setSlot = (p: 0 | 1, digit: number, id: CreatureId) => {
-    const arr = assigned[p].slice();
-    const cur = arr[digit - 1];
-    const other = arr.indexOf(id);
-    if (other >= 0) arr[other] = cur;
-    arr[digit - 1] = id;
-    const next: [CreatureId[], CreatureId[]] = [
-      assigned[0].slice(),
-      assigned[1].slice(),
-    ];
-    next[p] = arr;
-    setAssigned(next);
-  };
-
   if (stage === "assign") {
     const seats: Array<0 | 1> = online ? [online.mySeat] : [0, 1];
     return (
@@ -746,13 +732,11 @@ function Draft({
         <div className="appbar">
           <h1>DENDOKU</h1>
           <span className="status">
-            {online
-              ? iReady
-                ? oppTeam
-                  ? "starting..."
-                  : `waiting for ${online.net.peerName()}...`
-                : "bind each critter to a digit"
-              : "bind each critter to a digit"}
+            {online && iReady
+              ? oppTeam
+                ? "starting..."
+                : `waiting for ${online.net.peerName()}...`
+              : "your line-up, digits 1 to 9"}
           </span>
           <div className="controls" style={{ marginLeft: "auto" }}>
             {!online && (
@@ -772,9 +756,6 @@ function Draft({
             )}
             <button onClick={onHome}>menu</button>
             <button onClick={onOpenDex}>Critterdex</button>
-            {!online && (
-              <button onClick={() => setStage("pick")}>back</button>
-            )}
             {online ? (
               <button
                 className="primary"
@@ -804,18 +785,15 @@ function Draft({
                   <div key={digit} className="slot">
                     <span className="slot-d">{digit}</span>
                     <Critter id={id} size={30} />
-                    <select
-                      value={id}
-                      onChange={(e) =>
-                        setSlot(p, digit, e.target.value as CreatureId)
-                      }
+                    <span className="slot-name">{ROSTER[id].name}</span>
+                    <span
+                      className="type-chip sm"
+                      style={{
+                        background: CATEGORIES[ROSTER[id].category].hue,
+                      }}
                     >
-                      {assigned[p].map((cid) => (
-                        <option key={cid} value={cid}>
-                          {ROSTER[cid].name}
-                        </option>
-                      ))}
-                    </select>
+                      {CATEGORIES[ROSTER[id].category].element}
+                    </span>
                     <span className="slot-blurb">{ROSTER[id].blurb}</span>
                   </div>
                 );
