@@ -17,6 +17,7 @@ import {
   CreatureId,
   GameState,
   Player,
+  Seed,
   applyAction,
   cloneState,
   createGame,
@@ -37,7 +38,9 @@ import { MeadowScene } from "./Meadow";
 import { Home, type Mode, type BotLevel } from "./Home";
 import { Tutorial } from "./Tutorial";
 import { ProfilePage } from "./ProfilePage";
+import { Online } from "./Online";
 import { loadProfile, saveProfile, recordMatch, type Profile } from "./profile";
+import type { Net } from "../net/peer";
 
 const SIZE = 9;
 const NAMES = ["Sage", "Clay"] as const;
@@ -122,7 +125,7 @@ function legLoadouts(m: Match): [CreatureId[], CreatureId[]] {
   return m.leg === 1 ? m.draftTeams : [m.draftTeams[1], m.draftTeams[0]];
 }
 
-type Route = "home" | "draft" | "play" | "tutorial" | "profile";
+type Route = "home" | "draft" | "play" | "tutorial" | "profile" | "online";
 
 export function App() {
   const [route, setRoute] = useState<Route>("home");
@@ -138,15 +141,20 @@ export function App() {
   const botRng = useRef(makeRng(98765));
   const recorded = useRef<GameState | null>(null);
 
+  // --- online ---
+  const [net, setNet] = useState<Net | null>(null);
+  const [mySeat, setMySeat] = useState<0 | 1>(0);
+  const [onlineSeed, setOnlineSeed] = useState(1);
+  const [netErr, setNetErr] = useState<string | null>(null);
+  const online = mode === "online" && net ? { net, mySeat, seed: onlineSeed } : null;
+
   const oppBot: Bot = botLevel === "sharp" ? critterBot : randomActionBot;
 
-  const beginLeg = useCallback((m: Match) => {
+  const beginLeg = useCallback((m: Match, presetSeeds?: Seed[]) => {
     const rng = makeRng((Date.now() ^ (m.seedCount * 40503) ^ m.leg) >>> 0);
-    const seeds = generateSeeds(
-      { size: SIZE, box: { rows: 3, cols: 3 } },
-      m.seedCount,
-      rng,
-    );
+    const seeds =
+      presetSeeds ??
+      generateSeeds({ size: SIZE, box: { rows: 3, cols: 3 } }, m.seedCount, rng);
     const t = legLoadouts(m);
     setGame(
       createGame({
@@ -163,18 +171,27 @@ export function App() {
   }, []);
 
   const startMatch = useCallback(
-    (draftTeams: [CreatureId[], CreatureId[]]) =>
-      beginLeg({
-        draftTeams,
-        seedCount,
-        leg: 1,
-        bestOf: mode === "bot" ? 1 : 2,
-        mode,
-        botLevel,
-        legScores: [null, null],
-      }),
+    (draftTeams: [CreatureId[], CreatureId[]], presetSeeds?: Seed[]) =>
+      beginLeg(
+        {
+          draftTeams,
+          seedCount: presetSeeds ? presetSeeds.length : seedCount,
+          leg: 1,
+          bestOf: mode === "bot" || mode === "online" ? 1 : 2,
+          mode,
+          botLevel,
+          legScores: [null, null],
+        },
+        presetSeeds,
+      ),
     [beginLeg, seedCount, mode, botLevel],
   );
+
+  const leaveOnline = useCallback(() => {
+    net?.close();
+    setNet(null);
+    setNetErr(null);
+  }, [net]);
 
   const commit = useCallback(
     (g: GameState) => {
@@ -191,38 +208,47 @@ export function App() {
         const finished = match.bestOf === 1 || match.leg === 2;
         if (finished && recorded.current !== g) {
           recorded.current = g;
-          const a = g.score[0] + (match.leg === 2 ? (match.legScores[0]?.[0] ?? 0) : 0);
-          const b = g.score[1] + (match.leg === 2 ? (match.legScores[0]?.[1] ?? 0) : 0);
+          const seat = match.mode === "online" ? mySeat : 0;
+          const mine =
+            g.score[seat] +
+            (match.leg === 2 ? (match.legScores[0]?.[seat] ?? 0) : 0);
+          const theirs =
+            g.score[1 - seat] +
+            (match.leg === 2 ? (match.legScores[0]?.[1 - seat] ?? 0) : 0);
           const opp =
             match.mode === "local"
               ? "Local"
-              : match.botLevel === "sharp"
-                ? "Sharp bot"
-                : "Chill bot";
+              : match.mode === "online"
+                ? net?.peerName() ?? "Online"
+                : match.botLevel === "sharp"
+                  ? "Sharp bot"
+                  : "Chill bot";
           setProfile((p) =>
             recordMatch(p, {
-              mode: match.mode,
+              mode: match.mode === "online" ? "local" : match.mode,
               opp,
-              result: a === b ? "draw" : a > b ? "win" : "loss",
-              you: a,
-              them: b,
-              team: legLoadouts(match)[0].slice(),
+              result: mine === theirs ? "draw" : mine > theirs ? "win" : "loss",
+              you: mine,
+              them: theirs,
+              team: legLoadouts(match)[seat].slice(),
             }),
           );
         }
       }
     },
-    [match],
+    [match, mySeat, net],
   );
 
   const doAction = useCallback(
-    (a: Action) => {
+    (a: Action, fromNet = false) => {
       if (!game || game.status !== "playing") return;
+      if (online && !fromNet && game.current !== online.mySeat) return;
       applyAction(game, a);
       commit(game);
       setSel(null);
+      if (online && !fromNet) online.net.send({ t: "move", action: a });
     },
-    [game, commit],
+    [game, commit, online],
   );
 
   const botMove = useCallback(() => {
@@ -231,6 +257,40 @@ export function App() {
     commit(game);
     setSel(null);
   }, [game, commit, oppBot]);
+
+  // route inbound net messages to the live game / draft-start
+  const netApi = useRef<(m: import("../net/peer").NetMsg) => void>(() => {});
+  netApi.current = (m) => {
+    if (m.t === "start") {
+      setOnlineSeed(m.seed);
+      recorded.current = null;
+      setGame(null);
+      setMatch(null);
+      setRoute("draft");
+    } else if (m.t === "move") {
+      doAction(m.action, true);
+    } else if (m.t === "rematch") {
+      setOnlineSeed(m.seed);
+      recorded.current = null;
+      setGame(null);
+      setMatch(null);
+      setRoute("draft");
+    } else if (m.t === "bye") {
+      setNetErr(`${net?.peerName() ?? "Your opponent"} left the match.`);
+    }
+  };
+  useEffect(() => {
+    if (!net) return;
+    const offM = net.onMessage((m) => netApi.current(m));
+    const offS = net.onStatus((s, d) => {
+      if (s === "closed" || s === "error")
+        setNetErr(d ?? "The connection dropped.");
+    });
+    return () => {
+      offM();
+      offS();
+    };
+  }, [net]);
 
   // "auto-play both" toggle (local mode convenience)
   useEffect(() => {
@@ -257,10 +317,28 @@ export function App() {
   const openDex = useCallback(() => setDex(true), []);
 
   const goHome = () => {
+    if (net) leaveOnline();
     setGame(null);
     setMatch(null);
     recorded.current = null;
     setRoute("home");
+  };
+
+  const onConnected = (n: Net, isHost: boolean) => {
+    setNet(n);
+    setMode("online");
+    setMySeat(isHost ? 0 : 1);
+    setNetErr(null);
+    setGame(null);
+    setMatch(null);
+    recorded.current = null;
+    if (isHost) {
+      const seed = (Date.now() >>> 0) || 1;
+      setOnlineSeed(seed);
+      n.send({ t: "start", seed });
+      setRoute("draft");
+    }
+    // guest waits for the "start" message (handled in netApi)
   };
 
   let screen: ReactNode;
@@ -278,8 +356,17 @@ export function App() {
           recorded.current = null;
           setRoute("draft");
         }}
+        onOnline={() => setRoute("online")}
         onTutorial={() => setRoute("tutorial")}
         onDex={openDex}
+      />
+    );
+  } else if (route === "online") {
+    screen = (
+      <Online
+        playerName={profile.name}
+        onConnected={onConnected}
+        onHome={() => setRoute("home")}
       />
     );
   } else if (route === "profile") {
@@ -311,6 +398,7 @@ export function App() {
         seedCount={seedCount}
         setSeedCount={setSeedCount}
         botSeat={mode === "bot" ? 1 : null}
+        online={online}
         onStart={startMatch}
         onOpenDex={openDex}
         onHome={goHome}
@@ -323,6 +411,8 @@ export function App() {
         teams={legLoadouts(match)}
         match={match}
         mode={mode}
+        mySeat={mySeat}
+        peerName={net?.peerName() ?? "Opponent"}
         sel={sel}
         setSel={setSel}
         doAction={doAction}
@@ -338,7 +428,19 @@ export function App() {
           recorded.current = null;
           setRoute("draft");
         }}
-        onRematch={() => startMatch(match.draftTeams)}
+        onRematch={() => {
+          if (mode === "online" && net) {
+            const seed = (Date.now() >>> 0) || 1;
+            setOnlineSeed(seed);
+            net.send({ t: "rematch", seed });
+            recorded.current = null;
+            setGame(null);
+            setMatch(null);
+            setRoute("draft");
+          } else {
+            startMatch(match.draftTeams);
+          }
+        }}
       />
     );
   }
@@ -347,6 +449,17 @@ export function App() {
     <>
       {screen}
       {dex && <Dex onClose={() => setDex(false)} />}
+      {netErr && (
+        <div className="dex-overlay" onClick={goHome}>
+          <div className="dex" style={{ maxWidth: 380, padding: 20 }}>
+            <h2 style={{ marginTop: 0 }}>Match ended</h2>
+            <p className="sub">{netErr}</p>
+            <button className="primary" onClick={goHome}>
+              Back to menu
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -412,10 +525,17 @@ function Dex({ onClose }: { onClose: () => void }) {
  * set. Picks are exclusive and alternate in snake order.
  * ================================================================= */
 
+interface OnlineCtx {
+  net: Net;
+  mySeat: 0 | 1;
+  seed: number;
+}
+
 function Draft({
   seedCount,
   setSeedCount,
   botSeat,
+  online,
   onStart,
   onOpenDex,
   onHome,
@@ -423,12 +543,13 @@ function Draft({
   seedCount: number;
   setSeedCount: (n: number) => void;
   botSeat: 0 | 1 | null;
-  onStart: (t: [CreatureId[], CreatureId[]]) => void;
+  online: OnlineCtx | null;
+  onStart: (t: [CreatureId[], CreatureId[]], seeds?: Seed[]) => void;
   onOpenDex: () => void;
   onHome: () => void;
 }) {
   const order = useMemo(() => snakeOrder(SIZE), []);
-  const rng = useRef(makeRng((Date.now() >>> 0) || 1));
+  const rng = useRef(makeRng(online ? online.seed : (Date.now() >>> 0) || 1));
   const [picks, setPicks] = useState<[CreatureId[], CreatureId[]]>([[], []]);
   const [forage, setForage] = useState<[number, number]>([
     FORAGE_TOKENS,
@@ -446,10 +567,13 @@ function Draft({
     [],
     [],
   ]);
+  const [oppTeam, setOppTeam] = useState<CreatureId[] | null>(null);
+  const [iReady, setIReady] = useState(false);
 
   const step = picks[0].length + picks[1].length;
   const done = step >= order.length;
   const current = order[step] ?? 0;
+  const myTurn = !online || current === online.mySeat;
 
   // roster still in the wild: not drafted, not currently out in the meadow
   const wild = useMemo(() => {
@@ -462,8 +586,9 @@ function Draft({
     setStage("assign");
   };
 
-  const pick = (id: CreatureId) => {
+  const pick = (id: CreatureId, fromNet = false) => {
     if (stage !== "pick" || done || !meadow.includes(id)) return;
+    if (online && !fromNet && current !== online.mySeat) return;
     undoStack.current.push({
       meadow: meadow.slice(),
       forage: [forage[0], forage[1]],
@@ -474,11 +599,13 @@ function Draft({
     const refill = wild.length ? rng.current.pick(wild) : null;
     setMeadow(meadow.flatMap((m) => (m === id ? (refill ? [refill] : []) : [m])));
     setPicks(next);
+    if (online && !fromNet) online.net.send({ t: "pick", id });
     if (next[0].length + next[1].length === order.length) toAssign(next);
   };
 
-  const reroll = () => {
+  const reroll = (fromNet = false) => {
     if (done || forage[current] < REROLL_COST) return;
+    if (online && !fromNet && current !== online.mySeat) return;
     // whole pool slips under; a fresh set surfaces from the wild pile
     const fresh = rng.current.shuffle(wild.slice()).slice(0, MEADOW_SIZE);
     if (fresh.length < MEADOW_SIZE) {
@@ -492,6 +619,7 @@ function Draft({
     f[current] -= REROLL_COST;
     setForage(f);
     setMeadow(fresh);
+    if (online && !fromNet) online.net.send({ t: "reroll" });
   };
 
   const autoRest = () => {
@@ -523,6 +651,7 @@ function Draft({
   /** click a critter in your line-up to send it (and anything picked after
    *  it) back to the pool */
   const returnPick = (p: 0 | 1, i: number) => {
+    if (online) return; // return-to-pool is disabled online
     if (stage !== "pick" || done || !picks[p][i]) return;
     const target = stepOfPick(p, i);
     if (target == null || target >= step) return;
@@ -555,6 +684,47 @@ function Draft({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botSeat, current, done, stage, meadow]);
 
+  // online: apply the opponent's draft actions as they arrive
+  const draftApi = useRef({ pick, reroll });
+  draftApi.current = { pick, reroll };
+  const [oppSeeds, setOppSeeds] = useState<Seed[] | null>(null);
+  const startedRef = useRef(false);
+  useEffect(() => {
+    if (!online) return;
+    return online.net.onMessage((m) => {
+      if (m.t === "pick") draftApi.current.pick(m.id, true);
+      else if (m.t === "reroll") draftApi.current.reroll(true);
+      else if (m.t === "ready") setOppTeam(m.team);
+      else if (m.t === "seeds") setOppSeeds(m.seeds);
+    });
+  }, [online]);
+
+  // online: once both players are ready, start the match in lockstep
+  useEffect(() => {
+    if (!online || stage !== "assign" || !iReady || !oppTeam || startedRef.current)
+      return;
+    const myTeam = assigned[online.mySeat];
+    if (online.mySeat === 0) {
+      const seeds = generateSeeds(
+        { size: SIZE, box: { rows: 3, cols: 3 } },
+        seedCount,
+        rng.current,
+      );
+      startedRef.current = true;
+      online.net.send({ t: "seeds", seeds });
+      onStart([myTeam, oppTeam], seeds);
+    } else if (oppSeeds) {
+      startedRef.current = true;
+      onStart([oppTeam, myTeam], oppSeeds);
+    }
+  }, [online, stage, iReady, oppTeam, oppSeeds, assigned, seedCount, onStart]);
+
+  const readyUp = () => {
+    if (!online) return;
+    setIReady(true);
+    online.net.send({ t: "ready", team: assigned[online.mySeat].slice() });
+  };
+
   const setSlot = (p: 0 | 1, digit: number, id: CreatureId) => {
     const arr = assigned[p].slice();
     const cur = arr[digit - 1];
@@ -570,38 +740,62 @@ function Draft({
   };
 
   if (stage === "assign") {
+    const seats: Array<0 | 1> = online ? [online.mySeat] : [0, 1];
     return (
       <div className="app">
         <div className="appbar">
           <h1>DENDOKU</h1>
-          <span className="status">bind each critter to a digit</span>
+          <span className="status">
+            {online
+              ? iReady
+                ? oppTeam
+                  ? "starting..."
+                  : `waiting for ${online.net.peerName()}...`
+                : "bind each critter to a digit"
+              : "bind each critter to a digit"}
+          </span>
           <div className="controls" style={{ marginLeft: "auto" }}>
-            <label>
-              seeds
-              <select
-                value={seedCount}
-                onChange={(e) => setSeedCount(Number(e.target.value))}
-              >
-                {[0, 1, 3, 6, 10, 16].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!online && (
+              <label>
+                seeds
+                <select
+                  value={seedCount}
+                  onChange={(e) => setSeedCount(Number(e.target.value))}
+                >
+                  {[0, 1, 3, 6, 10, 16].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <button onClick={onHome}>menu</button>
             <button onClick={onOpenDex}>Critterdex</button>
-            <button onClick={() => setStage("pick")}>back</button>
-            <button className="primary" onClick={() => onStart(assigned)}>
-              Start match
-            </button>
+            {!online && (
+              <button onClick={() => setStage("pick")}>back</button>
+            )}
+            {online ? (
+              <button
+                className="primary"
+                onClick={readyUp}
+                disabled={iReady}
+              >
+                {iReady ? "ready" : "Ready"}
+              </button>
+            ) : (
+              <button className="primary" onClick={() => onStart(assigned)}>
+                Start match
+              </button>
+            )}
           </div>
         </div>
         <main className="stage assign">
-          {([0, 1] as const).map((p) => (
+          {seats.map((p) => (
             <div key={p} className="panel">
               <div className="turn">
-                <span className={`dot p${p}`} /> {NAMES[p]}
+                <span className={`dot p${p}`} />{" "}
+                {online ? "Your team" : NAMES[p]}
               </div>
               {Array.from({ length: SIZE }, (_, i) => {
                 const digit = i + 1;
@@ -639,23 +833,27 @@ function Draft({
         <h1>DENDOKU</h1>
         <span className="status">
           <span className={`dot p${current}`} />
-          {botSeat != null
-            ? current === botSeat
-              ? "Bot drafts"
-              : "Your pick"
-            : `${NAMES[current]} drafts`}{" "}
+          {online
+            ? myTurn
+              ? "Your pick"
+              : `${online.net.peerName()} is picking`
+            : botSeat != null
+              ? current === botSeat
+                ? "Bot drafts"
+                : "Your pick"
+              : `${NAMES[current]} drafts`}{" "}
           &middot; {step}/{order.length}
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button onClick={onHome}>menu</button>
           <button onClick={onOpenDex}>Critterdex</button>
-          <button onClick={autoRest}>random</button>
+          {!online && <button onClick={autoRest}>random</button>}
         </div>
       </div>
 
       <div className="draftstrip">
         {([0, 1] as const).map((p) => {
-          const mine = botSeat == null || p !== botSeat;
+          const mine = !online && (botSeat == null || p !== botSeat);
           return (
             <div
               key={p}
@@ -707,17 +905,25 @@ function Draft({
           <MeadowScene
             options={meadow}
             onPick={pick}
-            onReroll={reroll}
+            onReroll={() => reroll()}
             rerollCost={REROLL_COST}
             forageLeft={forage[current]}
             maxForage={FORAGE_TOKENS}
-            disabled={done || (botSeat != null && current === botSeat)}
+            disabled={
+              done ||
+              (botSeat != null && current === botSeat) ||
+              (online != null && !myTurn)
+            }
             ownerName={
-              botSeat != null
-                ? current === botSeat
-                  ? "Bot"
-                  : "You"
-                : NAMES[current]
+              online
+                ? myTurn
+                  ? "You"
+                  : online.net.peerName()
+                : botSeat != null
+                  ? current === botSeat
+                    ? "Bot"
+                    : "You"
+                  : NAMES[current]
             }
             tint={current === 0 ? "var(--p0)" : "var(--p1)"}
           />
@@ -736,6 +942,8 @@ function Play({
   teams,
   match,
   mode,
+  mySeat,
+  peerName,
   sel,
   setSel,
   doAction,
@@ -752,6 +960,8 @@ function Play({
   teams: [CreatureId[], CreatureId[]];
   match: Match;
   mode: Mode;
+  mySeat: 0 | 1;
+  peerName: string;
   sel: number | null;
   setSel: (n: number | null) => void;
   doAction: (a: Action) => void;
@@ -765,6 +975,8 @@ function Play({
   onRematch: () => void;
 }) {
   const vsBot = mode === "bot";
+  const isOnline = mode === "online";
+  const myTurn = !isOnline || game.current === mySeat;
   const box = game.config.box;
   // aggregate match score (seat 0 / seat 1) across finished legs
   const agg: [number, number] = [0, 0];
@@ -860,13 +1072,22 @@ function Play({
     return out;
   }, [game, box.rows, box.cols]);
 
-  const who = (seat: 0 | 1) => (vsBot ? (seat === 0 ? "You" : "Bot") : NAMES[seat]);
+  const who = (seat: 0 | 1) =>
+    isOnline
+      ? seat === mySeat
+        ? "You"
+        : peerName
+      : vsBot
+        ? seat === 0
+          ? "You"
+          : "Bot"
+        : NAMES[seat];
   const matchLine =
     game.status !== "playing"
       ? legOneOver
         ? `Leg 1 done ${game.score[0]}–${game.score[1]}`
         : `${agg[0] === agg[1] ? "Level" : who((agg[0] > agg[1] ? 0 : 1) as 0 | 1) + " win"}${agg[0] === agg[1] ? "" : "s"} ${Math.max(agg[0], agg[1])}–${Math.min(agg[0], agg[1])}`
-      : vsBot
+      : vsBot || isOnline
         ? `${who(cur as 0 | 1)} to move`
         : `Leg ${match.leg}/2 · ${NAMES[cur]} to move${
             match.legScores[0] ? ` · match ${agg[0]}–${agg[1]}` : ""
@@ -882,9 +1103,12 @@ function Play({
           {vsBot && playing && cur === 1 && (
             <span className="thinking"> · thinking</span>
           )}
+          {isOnline && playing && !myTurn && (
+            <span className="thinking"> · their turn</span>
+          )}
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
-          {!vsBot && (
+          {!vsBot && !isOnline && (
             <>
               <button onClick={botMove} disabled={!playing}>
                 Bot move
@@ -896,8 +1120,17 @@ function Play({
           )}
           <button onClick={onHome}>menu</button>
           <button onClick={onOpenDex}>Critterdex</button>
-          <button onClick={onRematch}>Rematch</button>
-          <button onClick={onNewDraft}>New draft</button>
+          {!isOnline && <button onClick={onNewDraft}>New draft</button>}
+          {(!isOnline || mySeat === 0) && (
+            <button onClick={onRematch} disabled={playing}>
+              {isOnline ? "Play again" : "Rematch"}
+            </button>
+          )}
+          {isOnline && mySeat === 1 && !playing && (
+            <span className="hint" style={{ margin: 0 }}>
+              waiting for host...
+            </span>
+          )}
         </div>
       </div>
 
@@ -912,6 +1145,7 @@ function Play({
             const mineOwner = game.mines[cell];
             const selectable =
               playing &&
+              myTurn &&
               (mineOwner !== -1 ||
                 v === 0 ||
                 owner === cur ||

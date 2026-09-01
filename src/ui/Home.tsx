@@ -6,7 +6,7 @@ import { rankFor, type Profile } from "./profile";
 
 /* The front door: pick a mode, see your record, tweak your name. */
 
-export type Mode = "bot" | "local";
+export type Mode = "bot" | "local" | "online";
 export type BotLevel = "chill" | "sharp";
 
 // a few friendly faces bobbing along the bottom of the menu
@@ -24,6 +24,7 @@ export function Home({
   onLang,
   onProfile,
   onStart,
+  onOnline,
   onTutorial,
   onDex,
 }: {
@@ -31,6 +32,7 @@ export function Home({
   onLang: (lang: string) => void;
   onProfile: () => void;
   onStart: (mode: Mode, level: BotLevel) => void;
+  onOnline: () => void;
   onTutorial: () => void;
   onDex: () => void;
 }) {
@@ -120,8 +122,7 @@ export function Home({
           <span className="mc-sub">{t("howtoSub")}</span>
         </button>
 
-        <button className="mode-card disabled" disabled>
-          <span className="mc-badge">{t("soon")}</span>
+        <button className="mode-card" onClick={onOnline}>
           <span className="mc-title">{t("online")}</span>
           <span className="mc-sub">{t("onlineSub")}</span>
         </button>
