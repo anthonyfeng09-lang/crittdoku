@@ -47,10 +47,10 @@ export function Tutorial({
   return (
     <div className="app">
       <div className="appbar">
-        <h1>DENDOKU</h1>
+        <h1>CRITTDOKU</h1>
         <span className="status">how to play</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
-          <button onClick={onHome}>menu</button>
+          <button onClick={onHome}>Menu</button>
           <button onClick={onDex}>Critterdex</button>
           <button className="primary" onClick={onDone}>
             Face a bot
@@ -69,8 +69,8 @@ export function Tutorial({
               </div>
             </section>
           ))}
-          <button className="primary tut-go" onClick={onDone}>
-            Got it, face a bot
+          <button className="tut-go" onClick={onDone}>
+            Face a bot
           </button>
         </div>
       </main>

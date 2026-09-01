@@ -105,39 +105,50 @@ export const territoryBot: Bot = {
 };
 
 /* ------------------------------------------------------------------ *
- * milestone 3 bot - plays the full action set incl. critter abilities
+ * critter bots - play the full action set incl. critter abilities
  * ------------------------------------------------------------------ */
+
+/** cheap pre-score used to shortlist actions before deep evaluation */
+function cheapActionScore(state: GameState, a: Action, me: Player): number {
+  if (a.type === "move") return 0.5; // hops rarely worth it
+  if (a.type === "mine") return 0.4;
+  if (a.type === "clear") return 0.3;
+  if (a.wild) return 1; // save the wild unless deep-eval loves it
+  const m: Move = { cell: a.cell, digit: a.digit };
+  const isReplace = state.grid[a.cell] !== 0;
+  let v = placeTerritoryDelta(state, m, me) * 4 + claimGain(state, a.cell);
+  if (isReplace) v += 1;
+  if (a.burst) v += 0.5;
+  return v;
+}
+
+function positionScore(state: GameState, me: Player): number {
+  const s = projectedScore(state);
+  let v = (s[me] - s[1 - me]) * 5;
+  if (state.status === "ended")
+    v += state.winner === me ? 12 : state.winner === "draw" ? 0 : -12;
+  return v;
+}
+
+function shortlist(state: GameState, me: Player, n: number): Action[] {
+  const actions = legalActions(state);
+  return actions
+    .map((a) => ({ a, c: cheapActionScore(state, a, me) }))
+    .sort((x, y) => y.c - x.c)
+    .slice(0, n)
+    .map((x) => x.a);
+}
 
 export const critterBot: Bot = {
   name: "critter",
   choose(state, rng) {
     const me = state.current as Player;
-    const actions = legalActions(state);
-
-    // cheap pre-score to build a shortlist
-    const cheap = (a: Action): number => {
-      if (a.type === "move") return 0.5; // hops rarely worth it
-      if (a.type === "mine") return 0.4;
-      if (a.type === "clear") return 0.3;
-      if (a.wild) return 1; // save the wild unless deep-eval loves it
-      const m: Move = { cell: a.cell, digit: a.digit };
-      const isReplace = state.grid[a.cell] !== 0;
-      let v = placeTerritoryDelta(state, m, me) * 4 + claimGain(state, a.cell);
-      if (isReplace) v += 1; // denying an opponent cell has some value
-      if (a.burst) v += 0.5;
-      return v;
-    };
-
-    const shortlist = actions
-      .map((a) => ({ a, c: cheap(a) }))
-      .sort((x, y) => y.c - x.c)
-      .slice(0, 6)
-      .map((x) => x.a);
-    if (actions.length > shortlist.length) shortlist.push(rng.pick(actions));
-
+    const list = shortlist(state, me, 6);
+    const all = legalActions(state);
+    if (all.length > list.length) list.push(rng.pick(all));
     const base = projectedScore(state);
     return argmaxRandom(
-      shortlist,
+      list,
       (a) => {
         let next: GameState;
         try {
@@ -148,12 +159,49 @@ export const critterBot: Bot = {
         }
         const after = projectedScore(next);
         let v = (after[me] - after[1 - me]) * 5 - (base[me] - base[1 - me]) * 5;
-        if (next.status === "ended") {
+        if (next.status === "ended")
           v += next.winner === me ? 8 : next.winner === "draw" ? 0 : -8;
-        } else if (next.current === me) {
-          v += 1.5; // kept the turn (Wren)
-        }
+        else if (next.current === me) v += 1.5; // kept the turn
         return v - (a.type === "move" ? 0.3 : 0);
+      },
+      rng,
+    );
+  },
+};
+
+/** two-ply: assume the opponent then plays their best shortlisted reply */
+export const fierceBot: Bot = {
+  name: "fierce",
+  choose(state, rng) {
+    const me = state.current as Player;
+    const opp = (1 - me) as Player;
+    const list = shortlist(state, me, 5);
+    if (list.length === 0) return rng.pick(legalActions(state));
+    return argmaxRandom(
+      list,
+      (a) => {
+        let n1: GameState;
+        try {
+          n1 = cloneState(state);
+          applyAction(n1, a);
+        } catch {
+          return -Infinity;
+        }
+        if (n1.status === "ended") return positionScore(n1, me);
+        if (n1.current === me) return positionScore(n1, me) + 1.2;
+        let worst = Infinity;
+        for (const oa of shortlist(n1, opp, 6)) {
+          let n2: GameState;
+          try {
+            n2 = cloneState(n1);
+            applyAction(n2, oa);
+          } catch {
+            continue;
+          }
+          const e = positionScore(n2, me);
+          if (e < worst) worst = e;
+        }
+        return worst === Infinity ? positionScore(n1, me) : worst;
       },
       rng,
     );
@@ -165,4 +213,5 @@ export const bots: Record<string, Bot> = {
   "random+": randomActionBot,
   territory: territoryBot,
   critter: critterBot,
+  fierce: fierceBot,
 };

@@ -32,13 +32,20 @@ import {
   territoryHolder,
 } from "../engine";
 import { makeRng } from "../engine/rng";
-import { critterBot, randomActionBot, type Bot } from "../sim/bots";
+import {
+  critterBot,
+  fierceBot,
+  randomActionBot,
+  territoryBot,
+  type Bot,
+} from "../sim/bots";
 import { Critter } from "./Critter";
 import { MeadowScene } from "./Meadow";
 import { Home, type Mode, type BotLevel } from "./Home";
 import { Tutorial } from "./Tutorial";
 import { ProfilePage } from "./ProfilePage";
 import { Online } from "./Online";
+import { Queue } from "./Queue";
 import { loadProfile, saveProfile, recordMatch, type Profile } from "./profile";
 import type { Net } from "../net/peer";
 
@@ -116,6 +123,7 @@ interface Match {
   botLevel: BotLevel;
   /** leftover draft energy [seat0, seat1] for leg 1 */
   startEnergy?: [number, number];
+  ranked?: boolean;
   /** [legIndex] -> [seat0 regions, seat1 regions] once that leg has ended */
   legScores: Array<[number, number] | null>;
 }
@@ -127,12 +135,21 @@ function legLoadouts(m: Match): [CreatureId[], CreatureId[]] {
   return m.leg === 1 ? m.draftTeams : [m.draftTeams[1], m.draftTeams[0]];
 }
 
-type Route = "home" | "draft" | "play" | "tutorial" | "profile" | "online";
+type Route =
+  | "home"
+  | "draft"
+  | "play"
+  | "tutorial"
+  | "profile"
+  | "online"
+  | "queue";
 
 export function App() {
   const [route, setRoute] = useState<Route>("home");
   const [mode, setMode] = useState<Mode>("bot");
   const [botLevel, setBotLevel] = useState<BotLevel>("chill");
+  const [ranked, setRanked] = useState(false);
+  const [queueKind, setQueueKind] = useState<"ranked" | "casual">("casual");
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
 
   const [match, setMatch] = useState<Match | null>(null);
@@ -150,7 +167,14 @@ export function App() {
   const [netErr, setNetErr] = useState<string | null>(null);
   const online = mode === "online" && net ? { net, mySeat, seed: onlineSeed } : null;
 
-  const oppBot: Bot = botLevel === "sharp" ? critterBot : randomActionBot;
+  const oppBot: Bot =
+    botLevel === "fierce"
+      ? fierceBot
+      : botLevel === "sharp"
+        ? critterBot
+        : botLevel === "keen"
+          ? territoryBot
+          : randomActionBot;
 
   const beginLeg = useCallback(
     (m: Match, presetSeeds?: Seed[], startEnergy?: [number, number]) => {
@@ -197,12 +221,13 @@ export function App() {
           mode,
           botLevel,
           startEnergy,
+          ranked,
           legScores: [null, null],
         },
         presetSeeds,
         startEnergy,
       ),
-    [beginLeg, seedCount, mode, botLevel],
+    [beginLeg, seedCount, mode, botLevel, ranked],
   );
 
   const leaveOnline = useCallback(() => {
@@ -238,13 +263,12 @@ export function App() {
               ? "Local"
               : match.mode === "online"
                 ? net?.peerName() ?? "Online"
-                : match.botLevel === "sharp"
-                  ? "Sharp bot"
-                  : "Chill bot";
+                : `${match.botLevel[0].toUpperCase()}${match.botLevel.slice(1)} bot`;
           setProfile((p) =>
             recordMatch(p, {
               mode: match.mode === "online" ? "local" : match.mode,
-              opp,
+              opp: match.ranked ? "Ranked" : opp,
+              ranked: match.ranked,
               result: mine === theirs ? "draw" : mine > theirs ? "win" : "loss",
               you: mine,
               them: theirs,
@@ -281,6 +305,7 @@ export function App() {
   netApi.current = (m) => {
     if (m.t === "start") {
       setOnlineSeed(m.seed);
+      setRanked(!!m.ranked);
       recorded.current = null;
       setGame(null);
       setMatch(null);
@@ -342,9 +367,10 @@ export function App() {
     setRoute("home");
   };
 
-  const onConnected = (n: Net, isHost: boolean) => {
+  const onConnected = (n: Net, isHost: boolean, rankedMatch = false) => {
     setNet(n);
     setMode("online");
+    setRanked(rankedMatch);
     setMySeat(isHost ? 0 : 1);
     setNetErr(null);
     setGame(null);
@@ -353,10 +379,28 @@ export function App() {
     if (isHost) {
       const seed = (Date.now() >>> 0) || 1;
       setOnlineSeed(seed);
-      n.send({ t: "start", seed });
+      n.send({ t: "start", seed, ranked: rankedMatch });
       setRoute("draft");
     }
     // guest waits for the "start" message (handled in netApi)
+  };
+
+  const enterQueue = (kind: "ranked" | "casual") => {
+    setQueueKind(kind);
+    setNetErr(null);
+    setGame(null);
+    setMatch(null);
+    recorded.current = null;
+    setRoute("queue");
+  };
+  const queueToBot = () => {
+    setMode("bot");
+    setBotLevel(queueKind === "ranked" ? "fierce" : "sharp");
+    setRanked(queueKind === "ranked");
+    setGame(null);
+    setMatch(null);
+    recorded.current = null;
+    setRoute("draft");
   };
 
   let screen: ReactNode;
@@ -369,21 +413,33 @@ export function App() {
         onStart={(m, lvl) => {
           setMode(m);
           setBotLevel(lvl);
+          setRanked(false);
           setGame(null);
           setMatch(null);
           recorded.current = null;
           setRoute("draft");
         }}
+        onQueue={enterQueue}
         onOnline={() => setRoute("online")}
         onTutorial={() => setRoute("tutorial")}
         onDex={openDex}
+      />
+    );
+  } else if (route === "queue") {
+    screen = (
+      <Queue
+        kind={queueKind}
+        playerName={profile.name}
+        onMatch={(n, host) => onConnected(n, host, queueKind === "ranked")}
+        onBot={queueToBot}
+        onHome={() => setRoute("home")}
       />
     );
   } else if (route === "online") {
     screen = (
       <Online
         playerName={profile.name}
-        onConnected={onConnected}
+        onConnected={(n, host) => onConnected(n, host, false)}
         onHome={() => setRoute("home")}
       />
     );
@@ -401,6 +457,7 @@ export function App() {
         onDone={() => {
           setMode("bot");
           setBotLevel("chill");
+          setRanked(false);
           setGame(null);
           setMatch(null);
           recorded.current = null;
@@ -430,6 +487,12 @@ export function App() {
         match={match}
         mode={mode}
         mySeat={mySeat}
+        rpDelta={
+          match.ranked && game.status === "ended"
+            ? (profile.history[0]?.rp ?? null)
+            : null
+        }
+        rp={profile.rp}
         peerName={net?.peerName() ?? "Opponent"}
         sel={sel}
         setSel={setSel}
@@ -502,8 +565,13 @@ function Dex({ onClose }: { onClose: () => void }) {
           <span className="hint" style={{ margin: 0 }}>
             {ALL_CREATURES.length} critters &middot; six types
           </span>
-          <button className="primary" style={{ marginLeft: "auto" }} onClick={onClose}>
-            close
+          <button
+            className="dex-close"
+            style={{ marginLeft: "auto" }}
+            onClick={onClose}
+            aria-label="close"
+          >
+            &times;
           </button>
         </div>
         <div className="dex-body">
@@ -775,7 +843,7 @@ function Draft({
     return (
       <div className="app">
         <div className="appbar">
-          <h1>DENDOKU</h1>
+          <h1>CRITTDOKU</h1>
           <span className="status">
             {online && iReady
               ? oppTeam
@@ -799,7 +867,7 @@ function Draft({
                 </select>
               </label>
             )}
-            <button onClick={onHome}>menu</button>
+            <button onClick={onHome}>Menu</button>
             <button onClick={onOpenDex}>Critterdex</button>
             {online ? (
               <button
@@ -856,7 +924,7 @@ function Draft({
   return (
     <div className="app">
       <div className="appbar">
-        <h1>DENDOKU</h1>
+        <h1>CRITTDOKU</h1>
         <span className="status">
           <span className={`dot p${current}`} />
           {online
@@ -871,9 +939,9 @@ function Draft({
           &middot; {step}/{order.length}
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
-          <button onClick={onHome}>menu</button>
+          <button onClick={onHome}>Menu</button>
           <button onClick={onOpenDex}>Critterdex</button>
-          {!online && <button onClick={autoRest}>random</button>}
+          {!online && <button onClick={autoRest}>Random</button>}
         </div>
       </div>
 
@@ -907,6 +975,7 @@ function Draft({
                       onClick={() => returnPick(p, i)}
                     >
                       {id && <Critter id={id} size={22} />}
+                      {id && <span className="ts-d">{i + 1}</span>}
                     </button>
                   );
                 })}
@@ -967,6 +1036,8 @@ function Play({
   match,
   mode,
   mySeat,
+  rpDelta,
+  rp,
   peerName,
   sel,
   setSel,
@@ -985,6 +1056,8 @@ function Play({
   match: Match;
   mode: Mode;
   mySeat: 0 | 1;
+  rpDelta: number | null;
+  rp: number;
   peerName: string;
   sel: number | null;
   setSel: (n: number | null) => void;
@@ -1120,7 +1193,8 @@ function Play({
   return (
     <div className="app">
       <div className="appbar">
-        <h1>DENDOKU</h1>
+        <h1>CRITTDOKU</h1>
+        {match.ranked && <span className="ranked-tag">RANKED</span>}
         <span className="status">
           <span className={`dot p${cur}`} />
           {matchLine}
@@ -1129,6 +1203,12 @@ function Play({
           )}
           {isOnline && playing && !myTurn && (
             <span className="thinking"> · their turn</span>
+          )}
+          {!playing && rpDelta != null && (
+            <span className={`rp-note ${rpDelta >= 0 ? "up" : "down"}`}>
+              {rpDelta >= 0 ? "+" : ""}
+              {rpDelta} RP &middot; {rp} total
+            </span>
           )}
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
@@ -1142,7 +1222,7 @@ function Play({
               </button>
             </>
           )}
-          <button onClick={onHome}>menu</button>
+          <button onClick={onHome}>Menu</button>
           <button onClick={onOpenDex}>Critterdex</button>
           {!isOnline && <button onClick={onNewDraft}>New draft</button>}
           {(!isOnline || mySeat === 0) && (

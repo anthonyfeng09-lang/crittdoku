@@ -59,7 +59,7 @@ export function Online({
   return (
     <div className="app">
       <div className="appbar">
-        <h1>DENDOKU</h1>
+        <h1>CRITTDOKU</h1>
         <span className="status">play online</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button

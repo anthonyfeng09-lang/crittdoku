@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ALL_CREATURES, ROSTER, CATEGORIES, CreatureId } from "../engine";
 import { Critter } from "./Critter";
 import {
-  rankFor,
+  rankFromRp,
   exportProfile,
   importProfile,
   resetProfile,
@@ -36,7 +36,7 @@ export function ProfilePage({
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState("");
 
-  const rank = rankFor(profile.wins);
+  const rank = rankFromRp(profile.rp);
   const rate =
     profile.played > 0
       ? Math.round((profile.wins / profile.played) * 100)
@@ -49,11 +49,7 @@ export function ProfilePage({
     return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [profile.history]);
 
-  const progress = (() => {
-    if (rank.next == null) return 1;
-    const span = rank.next - rank.at;
-    return Math.min(1, (profile.wins - rank.at) / span);
-  })();
+  const progress = Math.max(0, Math.min(1, rank.progress));
 
   const commitName = () => {
     const n = name.trim().slice(0, 16) || "Player";
@@ -64,10 +60,10 @@ export function ProfilePage({
   return (
     <div className="app">
       <div className="appbar">
-        <h1>DENDOKU</h1>
+        <h1>CRITTDOKU</h1>
         <span className="status">your account</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
-          <button onClick={onHome}>menu</button>
+          <button onClick={onHome}>Menu</button>
         </div>
       </div>
 
@@ -97,14 +93,18 @@ export function ProfilePage({
                 />
               </div>
               <div className="prof-rank">
-                <b>{rank.name}</b>
+                <b>
+                  {rank.name} <span className="pr-tier">tier {rank.tier + 1}/9</span>
+                </b>
                 <div className="prof-bar">
                   <span style={{ width: `${progress * 100}%` }} />
                 </div>
                 <span className="hint" style={{ margin: 0 }}>
                   {rank.next == null
-                    ? "top rank"
-                    : `${profile.wins}/${rank.next} wins to next rank`}
+                    ? `${profile.rp} RP · top tier`
+                    : `${profile.rp} RP · ${rank.next - profile.rp} to promote`}
+                  {" · ranked "}
+                  {profile.rankedWins}-{profile.rankedLosses}
                 </span>
               </div>
             </div>
