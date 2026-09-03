@@ -1685,21 +1685,49 @@ h1 {
   width: 100%;
   font-family: ui-monospace, monospace;
   font-size: 11px;
-  border: 2px solid var(--line-strong);
-  border-radius: 8px;
-  padding: 6px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 10px;
   resize: vertical;
-  margin: 6px 0;
+  margin: 8px 0 2px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.prof-io textarea:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 .prof-io-btns {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  margin-top: 10px;
 }
-.prof-io-btns button.danger {
-  color: #f43f5e;
-  border-color: #f7b9c3;
+.prof-io-btns button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1.5px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(30, 16, 44, 0.06);
+}
+.prof-io-btns button:first-child {
+  background: linear-gradient(180deg, #a855f7, #7c3aed);
+  border-color: #7c3aed;
+  color: #fff;
+}
+.prof-io-btns button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(120, 60, 160, 0.16);
+}
+.prof-io-btns button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(30, 16, 44, 0.06);
 }
 
 @media (max-width: 780px) {
@@ -1768,14 +1796,12 @@ button {
     color 0.13s ease;
 }
 .controls button:hover,
-.dex-head button:hover,
-.prof-io-btns button:hover {
+.dex-head button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(120, 60, 160, 0.14);
 }
 .controls button:active,
 .dex-head button:active,
-.prof-io-btns button:active,
 .picker button:active {
   transform: translateY(1px);
   box-shadow: none;
@@ -2189,18 +2215,21 @@ button {
   z-index: 60;
   pointer-events: none;
   overflow: hidden;
+  /* isolate the layer: children paint/animate without touching the page */
+  contain: strict;
+  will-change: transform;
 }
 /* the prize layer judders as the curtain crashes down - just the gems, the
-   title and card stay put */
+   title and card stay put. transform-only so it stays on the compositor. */
 .prize-storm.rumble {
-  animation: queue-rumble 0.1s linear infinite;
+  animation: queue-rumble 0.12s linear infinite;
 }
 @keyframes queue-rumble {
-  0% { transform: translate(0, 0); }
-  25% { transform: translate(-2px, 1px); }
-  50% { transform: translate(1.5px, -1.5px); }
-  75% { transform: translate(-1px, -1px); }
-  100% { transform: translate(0, 0); }
+  0% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(-2px, 1px, 0); }
+  50% { transform: translate3d(1.5px, -1.5px, 0); }
+  75% { transform: translate3d(-1px, -1px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .prize-storm.rumble {
@@ -2209,23 +2238,23 @@ button {
 }
 
 /* a prize falls straight from above the screen, through it, and off the
-   bottom - no fade, it just leaves */
+   bottom - no fade, it just leaves. transform-only, no filter (a drop-shadow
+   on hundreds of nodes is what stutters). */
 .prize {
   position: absolute;
   top: -24vh;
-  transform: translate(-50%, 0) rotate(0);
-  color: #ffd23f;
-  filter: drop-shadow(0 3px 3px rgba(20, 12, 30, 0.28));
+  transform: translate3d(-50%, 0, 0);
   animation: prize-fall var(--fd, 1.6s) linear var(--d, 0s) forwards;
+}
+.prize svg {
+  display: block;
 }
 @keyframes prize-fall {
   0% {
-    transform: translate(-50%, 0) rotate(0);
-    opacity: 1;
+    transform: translate3d(-50%, 0, 0) rotate(0);
   }
   100% {
-    transform: translate(-50%, 340vh) rotate(var(--spin, 180deg));
-    opacity: 1;
+    transform: translate3d(-50%, 340vh, 0) rotate(var(--spin, 180deg));
   }
 }
 

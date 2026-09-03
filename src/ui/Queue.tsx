@@ -100,8 +100,8 @@ export function Queue({
   // first-frame stutter). Ranked rains prize icons; casual rains critters,
   // which are heavier to draw so there are fewer, larger ones.
   const HOLD = 0.1;
-  const COLS = ranked ? 22 : 16;
-  const COUNT = ranked ? 1350 : 480;
+  const COLS = ranked ? 20 : 9;
+  const COUNT = ranked ? 900 : 250;
   const shower = useRef(
     Array.from({ length: COUNT }, (_, i) => {
       const col = i % COLS;
@@ -110,13 +110,13 @@ export function Queue({
         cid: ALL_CREATURES[
           Math.floor(Math.random() * ALL_CREATURES.length)
         ] as CreatureId,
-        x: (col / COLS) * 100 + Math.random() * (ranked ? 6 : 8),
-        size: ranked ? 44 + Math.random() * 56 : 54 + Math.random() * 62,
+        x: (col / COLS) * 100 + Math.random() * (ranked ? 7 : 15),
+        size: ranked ? 46 + Math.random() * 54 : 96 + Math.random() * 96,
         // all start above the top edge so nothing shows during the hold
-        y0: -197 + Math.random() * 185,
-        delay: HOLD + Math.random() * 0.12,
-        dur: 1.5 + Math.random() * 0.3,
-        spin: (Math.random() - 0.5) * (ranked ? 620 : 320),
+        y0: -205 + Math.random() * 200,
+        delay: HOLD + Math.random() * 0.1,
+        dur: 1.45 + Math.random() * 0.3,
+        spin: (Math.random() - 0.5) * (ranked ? 620 : 260),
       };
     }),
   );

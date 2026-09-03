@@ -5,7 +5,6 @@ import {
   rankFromRp,
   exportProfile,
   importProfile,
-  resetProfile,
   type Profile,
 } from "./profile";
 
@@ -224,24 +223,19 @@ export function ProfilePage({
 
           <section className="prof-card prof-io">
             {io === "none" && (
-              <div className="prof-io-btns">
-                <button onClick={() => { setIo("export"); setCode(exportProfile(profile)); setMsg(""); }}>
-                  Export
-                </button>
-                <button onClick={() => { setIo("import"); setCode(""); setMsg(""); }}>
-                  Import
-                </button>
-                <button
-                  className="danger"
-                  onClick={() => {
-                    if (confirm("Reset all stats and history? Your name and language stay.")) {
-                      onChange(resetProfile({ name: profile.name, lang: profile.lang }));
-                    }
-                  }}
-                >
-                  Reset stats
-                </button>
-              </div>
+              <>
+                <div className="hint" style={{ marginTop: 0 }}>
+                  move this profile between browsers
+                </div>
+                <div className="prof-io-btns">
+                  <button onClick={() => { setIo("export"); setCode(exportProfile(profile)); setMsg(""); }}>
+                    Export
+                  </button>
+                  <button onClick={() => { setIo("import"); setCode(""); setMsg(""); }}>
+                    Import
+                  </button>
+                </div>
+              </>
             )}
             {io === "export" && (
               <>
