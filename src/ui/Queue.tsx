@@ -100,18 +100,18 @@ export function Queue({
   const [elapsed, setElapsed] = useState(0);
   const cancelRef = useRef<() => void>(() => {});
 
-  // A wall stacked in a tall band entirely above the viewport, then poured
-  // straight down through the screen and off the bottom. The band is ~1.8
-  // screens tall so it blankets the viewport the whole way down. The fall is
-  // held a beat after mount so the nodes paint before they animate (no
-  // first-frame stutter). Ranked rains prize icons; casual rains critters,
-  // which are heavier to draw so there are fewer, larger ones.
   // Held one frame after mount so the nodes paint before they animate, then
   // the whole band (which sits ENTIRELY above the viewport - nothing shows
   // during the hold) pours straight down through the screen and off the
   // bottom. Ranked rains prize icons; casual rains critters, which are
   // heavier to draw so there are fewer, larger ones.
   const HOLD = 0.08;
+  const DELAY_JIT = 0.1;
+  const DUR_MIN = 1.15;
+  const DUR_JIT = 0.3;
+  // the slowest node has fully cleared the screen by here - hide only then,
+  // so the curtain is never chopped off mid-air
+  const CLEAR_MS = Math.round((HOLD + DELAY_JIT + DUR_MIN + DUR_JIT) * 1000) + 70;
   const COLS = ranked ? 20 : 10;
   const COUNT = ranked ? 900 : 200;
   const shower = useRef(
@@ -124,27 +124,27 @@ export function Queue({
         ] as CreatureId,
         x: (col / COLS) * 100 + Math.random() * (ranked ? 7 : 13),
         size: ranked ? 46 + Math.random() * 54 : 90 + Math.random() * 84,
-        // top edge starts at y0vh; -35vh is clear of the viewport even for
-        // the tallest node, so the hold shows an empty screen, not a frozen
-        // wall of things sitting at the top
+        // top edge starts at y0vh; well clear of the viewport even for the
+        // tallest node, so the hold shows an empty screen, not a frozen wall
         y0: -230 + Math.random() * 195,
-        delay: HOLD + Math.random() * 0.1,
-        dur: 1.45 + Math.random() * 0.3,
+        delay: HOLD + Math.random() * DELAY_JIT,
+        dur: DUR_MIN + Math.random() * DUR_JIT,
         spin: (Math.random() - 0.5) * (ranked ? 620 : 240),
       };
     }),
   );
 
-  // one-shot: never re-run, so nothing clears the card timer early. The storm
-  // is hidden with `hidden` (cheap) rather than unmounted mid-frame - tearing
-  // down hundreds of nodes right as the card mounts is its own little hitch.
+  // one-shot: never re-run, so nothing clears the card timer early. The card
+  // and the hide both wait until every node has left the screen on its own,
+  // so the curtain is never visibly cut - then `.spent` (display:none) is a
+  // no-op on anything you can see, and the real unmount happens later still.
   useEffect(() => {
-    const r = setTimeout(() => setRumble(false), 1350);
+    const r = setTimeout(() => setRumble(false), CLEAR_MS - 250);
     const a = setTimeout(() => {
-      setShowShower(false); // .spent -> display:none (cheap)
-      setShowCard(true); // card drops in exactly as the curtain leaves
-    }, 1500);
-    const c = setTimeout(() => setKeepStorm(false), 3200); // now free the nodes
+      setShowShower(false); // .spent -> display:none, nothing on screen to cut
+      setShowCard(true); // card drops in on the now-empty screen
+    }, CLEAR_MS);
+    const c = setTimeout(() => setKeepStorm(false), CLEAR_MS + 1800); // free nodes
     return () => {
       clearTimeout(r);
       clearTimeout(a);
