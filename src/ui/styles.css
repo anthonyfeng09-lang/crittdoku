@@ -2532,12 +2532,17 @@ h1 {
   border-radius: 16px;
   padding: 16px 16px 12px;
   box-shadow: 0 18px 44px rgba(20, 10, 34, 0.4);
-  animation: coach-in 0.28s cubic-bezier(0.2, 0.8, 0.3, 1.1) both;
+  transform: var(--base, translate(-50%, -50%));
+  animation: coach-in 0.34s cubic-bezier(0.2, 0.85, 0.3, 1.05) both;
 }
 @keyframes coach-in {
-  from {
+  0% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
+    transform: var(--base, translate(-50%, -50%)) translateY(14px) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: var(--base, translate(-50%, -50%));
   }
 }
 .coach-pop-top::after,

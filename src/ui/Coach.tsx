@@ -213,17 +213,20 @@ export function Coach({
       )}
 
       <div
+        key={index}
         className={`coach-pop coach-pop-${anchor}`}
-        style={{
-          left: cx,
-          top: cy,
-          transform:
-            anchor === "top"
-              ? "translate(-50%, 0)"
-              : anchor === "bottom"
-                ? "translate(-50%, -100%)"
-                : "translate(-50%, -50%)",
-        }}
+        style={
+          {
+            left: cx,
+            top: cy,
+            "--base":
+              anchor === "top"
+                ? "translate(-50%, 0)"
+                : anchor === "bottom"
+                  ? "translate(-50%, -100%)"
+                  : "translate(-50%, -50%)",
+          } as CSSProperties
+        }
       >
         <div className="coach-step-n">
           {index + 1} / {steps.length}
