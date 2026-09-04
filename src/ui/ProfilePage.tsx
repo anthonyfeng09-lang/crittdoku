@@ -3,6 +3,7 @@ import { ALL_CREATURES, ROSTER, CATEGORIES, CreatureId } from "../engine";
 import { Critter } from "./Critter";
 import { rankFromRp, type Profile } from "./profile";
 import { translator, tierName, type TKey } from "./i18n";
+import { Mark } from "./Mark";
 import type { Account } from "./account";
 
 /* The account page: name, avatar, rank progress, lifetime stats, match log,
@@ -22,12 +23,14 @@ export function ProfilePage({
   account,
   cloudSynced,
   onChange,
+  onTungify,
   onHome,
 }: {
   profile: Profile;
   account: Account;
   cloudSynced: boolean;
   onChange: (p: Profile) => void;
+  onTungify: (mode: "on" | "off") => void;
   onHome: () => void;
 }) {
   const t = translator(profile.lang);
@@ -76,7 +79,7 @@ export function ProfilePage({
   return (
     <div className="app">
       <div className="appbar">
-        <h1>CRITTDOKU</h1>
+        <Mark />
         <span className="status">{t("yourAccount")}</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button onClick={onHome}>{t("menu")}</button>
@@ -410,6 +413,28 @@ export function ProfilePage({
                   {notice && <p className="auth-note">{notice}</p>}
                 </form>
               )}
+          </section>
+
+          <section className="prof-card prof-settings">
+            <div className="hint" style={{ marginTop: 0 }}>
+              {t("settings")}
+            </div>
+            <div className="set-row">
+              <div className="set-text">
+                <b>{t("tungifyName")}</b>
+                <span className="auth-note" style={{ margin: 0 }}>
+                  {t("tungifyHint")}
+                </span>
+              </div>
+              <button
+                className={`tung-toggle ${profile.tungified ? "on" : ""}`}
+                role="switch"
+                aria-checked={!!profile.tungified}
+                onClick={() => onTungify(profile.tungified ? "off" : "on")}
+              >
+                <span className="tt-knob" />
+              </button>
+            </div>
           </section>
         </div>
       </main>

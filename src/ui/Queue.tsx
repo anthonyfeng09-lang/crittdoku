@@ -3,6 +3,7 @@ import { joinQueue, type Net } from "../net/peer";
 import { ALL_CREATURES, type CreatureId } from "../engine";
 import { Critter } from "./Critter";
 import { translator } from "./i18n";
+import { Mark } from "./Mark";
 
 /* "Finding an opponent" for the ranked / casual queues. Tries a public
  * rendezvous for a random 20-30s; if nobody's around it hands back so App can
@@ -208,7 +209,7 @@ export function Queue({
       )}
 
       <div className="appbar">
-        <h1>CRITTDOKU</h1>
+        <Mark />
         <span className="status">
           {ranked ? t("rankedQueue") : t("quickMatch")}
         </span>

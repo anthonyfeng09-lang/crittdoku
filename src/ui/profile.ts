@@ -36,6 +36,7 @@ export interface Profile {
   rankedWins: number;
   rankedLosses: number;
   peakRp: number;
+  tungified?: boolean; // cosmetic reskin toggle
 }
 
 const BLANK: Profile = {

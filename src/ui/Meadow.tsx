@@ -3,6 +3,7 @@ import { ABILITY_COST, ROSTER, CreatureId, CATEGORIES } from "../engine";
 import { Critter } from "./Critter";
 import { catText, type T } from "./i18n";
 import { critterText } from "./critterText";
+import { useTung, dispName } from "./tungContext";
 
 /* The draft pool: a wide quiet pond with a slice of the roster afloat on it,
  * each critter standing on the water. Grab the one you want; the pool fills
@@ -58,6 +59,7 @@ function critterFacts(id: CreatureId): Array<{ k: string; v: string }> {
 
 function CritDetail({ id, lang }: { id: CreatureId; lang: string }) {
   const d = ROSTER[id];
+  const tung = useTung();
   const cat = CATEGORIES[d.category];
   const ci = critterText(lang, id);
   return (
@@ -65,8 +67,8 @@ function CritDetail({ id, lang }: { id: CreatureId; lang: string }) {
       <div className="cd-head">
         <Critter id={id} size={46} />
         <div>
-          <div className="cd-name">{d.name}</div>
-          <div className="cd-ep">{ci.epithet}</div>
+          <div className="cd-name">{dispName(id, tung)}</div>
+          <div className="cd-ep">{tung ? ROSTER[id].name : ci.epithet}</div>
         </div>
         <span className="type-chip" style={{ background: cat.hue, marginLeft: "auto" }}>
           {catText(lang, d.category).element}
@@ -107,6 +109,7 @@ export function MeadowScene({
   ownerName: string;
   tint: string;
 }) {
+  const tung = useTung();
   const canReroll = !disabled && energyLeft >= rerollCost;
   const [hover, setHover] = useState<CreatureId | null>(null);
   return (
@@ -291,7 +294,7 @@ export function MeadowScene({
           return (
             <span
               key={id}
-              className="mp-name"
+              className={`mp-name${tung ? " mp-name-tung" : ""}`}
               style={
                 {
                   left: `${sp.x}%`,
@@ -301,7 +304,7 @@ export function MeadowScene({
                 } as CSSProperties
               }
             >
-              {ROSTER[id].name}
+              {dispName(id, tung)}
             </span>
           );
         })}

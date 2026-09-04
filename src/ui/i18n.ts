@@ -239,6 +239,15 @@ const EN: Dict = {
 
   // dex
   critterCount: "{n} critters · six types",
+
+  // settings / tungify
+  settings: "settings",
+  tungifyName: "Tungify",
+  tungifyHint:
+    "A cosmetic reskin: every critter becomes a tung tung tung sahur, the whole thing becomes TUNG³DOKU. Zero effect on gameplay.",
+  turnOn: "Turn on",
+  turnOff: "Turn off",
+  tungdex: "Tungdex",
 };
 
 const ES: Dict = {
@@ -456,6 +465,13 @@ const ES: Dict = {
   daysAgo: "hace {n} d",
 
   critterCount: "{n} critters · seis tipos",
+  settings: "ajustes",
+  tungifyName: "Tungify",
+  tungifyHint:
+    "Un reskin cosmético: cada critter se vuelve un tung tung tung sahur y todo pasa a ser TUNG³DOKU. Cero efecto en el juego.",
+  turnOn: "Activar",
+  turnOff: "Desactivar",
+  tungdex: "Tungdex",
 };
 
 const FR: Dict = {
@@ -673,6 +689,13 @@ const FR: Dict = {
   daysAgo: "il y a {n} j",
 
   critterCount: "{n} critters · six types",
+  settings: "paramètres",
+  tungifyName: "Tungify",
+  tungifyHint:
+    "Un reskin cosmétique : chaque critter devient un tung tung tung sahur, le tout devient TUNG³DOKU. Aucun effet sur le jeu.",
+  turnOn: "Activer",
+  turnOff: "Désactiver",
+  tungdex: "Tungdex",
 };
 
 const ZH: Dict = {
@@ -887,6 +910,13 @@ const ZH: Dict = {
   daysAgo: "{n} 天前",
 
   critterCount: "{n} 只生物 · 六种类型",
+  settings: "设置",
+  tungifyName: "Tungify",
+  tungifyHint:
+    "纯外观换皮：每只生物都会变成 tung tung tung sahur，整个游戏变成 TUNG³DOKU。对玩法零影响。",
+  turnOn: "开启",
+  turnOff: "关闭",
+  tungdex: "Tung 图鉴",
 };
 
 const AR: Dict = {
@@ -1104,6 +1134,13 @@ const AR: Dict = {
   daysAgo: "قبل {n} ي",
 
   critterCount: "{n} مخلوقًا · ستة أنواع",
+  settings: "الإعدادات",
+  tungifyName: "Tungify",
+  tungifyHint:
+    "تغيير مظهر تجميلي: كل مخلوق يصير tung tung tung sahur، وكل شيء يصير TUNG³DOKU. لا أثر على اللعب.",
+  turnOn: "تشغيل",
+  turnOff: "إيقاف",
+  tungdex: "دليل التونغ",
 };
 
 const TABLE: Record<string, Dict> = { en: EN, es: ES, fr: FR, zh: ZH, ar: AR };

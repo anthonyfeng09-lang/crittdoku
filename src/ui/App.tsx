@@ -45,6 +45,9 @@ import { Home, type Mode, type BotLevel } from "./Home";
 import { ProfilePage } from "./ProfilePage";
 import { Coach } from "./Coach";
 import { tutorialSteps } from "./tutorialSteps";
+import { TungContext, useTung, dispName } from "./tungContext";
+import { TungFX } from "./TungFX";
+import { Mark } from "./Mark";
 import { Online } from "./Online";
 import { Queue } from "./Queue";
 import { randomHandle } from "./names";
@@ -220,6 +223,7 @@ export function App() {
   const [sel, setSel] = useState<number | null>(null);
   const [auto, setAuto] = useState(false);
   const [coach, setCoach] = useState<number | null>(null);
+  const [tungFx, setTungFx] = useState<"on" | "off" | null>(null);
   const botRng = useRef(makeRng(98765));
   const recorded = useRef<GameState | null>(null);
 
@@ -554,6 +558,10 @@ export function App() {
         account={account}
         cloudSynced={cloudSynced}
         onChange={(p) => setProfile(saveProfile(p))}
+        onTungify={(m) => {
+          setRoute("home");
+          setTungFx(m);
+        }}
         onHome={() => setRoute("home")}
       />
     );
@@ -624,7 +632,7 @@ export function App() {
   }
 
   return (
-    <>
+    <TungContext.Provider value={!!profile.tungified}>
       {screen}
       {dex && <Dex t={t} lang={profile.lang} onClose={() => setDex(false)} />}
       {coach !== null && !dex && (
@@ -633,6 +641,16 @@ export function App() {
           index={coach}
           onNext={coachNext}
           onSkip={coachSkip}
+        />
+      )}
+      {tungFx && (
+        <TungFX
+          mode={tungFx}
+          onDone={() => {
+            if (tungFx === "on") setProfile((p) => saveProfile({ ...p, tungified: true }));
+            if (tungFx === "off") setProfile((p) => saveProfile({ ...p, tungified: false }));
+            setTungFx(null);
+          }}
         />
       )}
       {netErr && (
@@ -646,7 +664,7 @@ export function App() {
           </div>
         </div>
       )}
-    </>
+    </TungContext.Provider>
   );
 }
 
@@ -663,6 +681,14 @@ function Dex({
   lang: string;
   onClose: () => void;
 }) {
+  const tung = useTung();
+  const [revealed, setRevealed] = useState<Set<string>>(() => new Set());
+  const toggle = (id: string) =>
+    setRevealed((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
   return (
     <div className="dex-overlay" onClick={onClose}>
       <div
@@ -672,7 +698,7 @@ function Dex({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="dex-head">
-          <h2>{t("dex")}</h2>
+          <h2>{tung ? t("tungdex") : t("dex")}</h2>
           <span className="hint" style={{ margin: 0 }}>
             {t("critterCount", { n: ALL_CREATURES.length })}
           </span>
@@ -701,14 +727,31 @@ function Dex({
                 <div className="dex-grid">
                   {creaturesByCategory(cat).map((c) => {
                     const ci = critterText(lang, c.id);
+                    const showReal = tung && revealed.has(c.id);
                     return (
-                      <div key={c.id} className="dex-card">
-                        <Critter id={c.id} size={72} />
+                      <div
+                        key={c.id}
+                        className={`dex-card${tung ? " tung-card" : ""}${
+                          showReal ? " revealed" : ""
+                        }`}
+                        onClick={tung ? () => toggle(c.id) : undefined}
+                        title={tung ? "tap to see the real critter" : undefined}
+                      >
+                        <Critter id={c.id} size={72} noTung={showReal} />
                         <div className="dex-info">
-                          <div className="dex-name">{c.name}</div>
-                          <div className="dex-ep">{ci.epithet}</div>
+                          <div className="dex-name">
+                            {dispName(c.id, tung && !showReal)}
+                          </div>
+                          {(!tung || showReal) && (
+                            <div className="dex-ep">{ci.epithet}</div>
+                          )}
                           <div className="dex-blurb">{ci.blurb}</div>
                         </div>
+                        {tung && (
+                          <span className="dex-flip" aria-hidden="true">
+                            {showReal ? "tung ↺" : "real ↺"}
+                          </span>
+                        )}
                       </div>
                     );
                   })}
@@ -759,6 +802,8 @@ function Draft({
   onOpenDex: () => void;
   onHome: () => void;
 }) {
+  const tung = useTung();
+  const dexLabel = tung ? t("tungdex") : t("dex");
   const order = useMemo(() => snakeOrder(SIZE), []);
   const rng = useRef(makeRng(online ? online.seed : (Date.now() >>> 0) || 1));
   const [picks, setPicks] = useState<[CreatureId[], CreatureId[]]>([[], []]);
@@ -962,7 +1007,7 @@ function Draft({
     return (
       <div className="app">
         <div className="appbar">
-          <h1>CRITTDOKU</h1>
+          <Mark />
           <span className="status">
             {online && iReady
               ? oppTeam
@@ -989,7 +1034,7 @@ function Draft({
               </label>
             )}
             <button onClick={onHome}>{t("menu")}</button>
-            <button onClick={onOpenDex}>{t("dex")}</button>
+            <button onClick={onOpenDex}>{dexLabel}</button>
             {online ? (
               <button className="primary" onClick={readyUp} disabled={iReady}>
                 {t("ready")}
@@ -1019,7 +1064,7 @@ function Draft({
                   <div key={digit} className="slot">
                     <span className="slot-d">{digit}</span>
                     <Critter id={id} size={30} />
-                    <span className="slot-name">{ROSTER[id].name}</span>
+                    <span className="slot-name">{dispName(id, tung)}</span>
                     <span
                       className="type-chip sm"
                       style={{
@@ -1044,7 +1089,7 @@ function Draft({
   return (
     <div className="app">
       <div className="appbar">
-        <h1>CRITTDOKU</h1>
+        <Mark />
         <span className="status">
           <span className={`dot p${current}`} />
           {online
@@ -1060,7 +1105,7 @@ function Draft({
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button onClick={onHome}>{t("menu")}</button>
-          <button onClick={onOpenDex}>{t("dex")}</button>
+          <button onClick={onOpenDex}>{dexLabel}</button>
           {!online && <button onClick={autoRest}>{t("random")}</button>}
         </div>
       </div>
@@ -1199,6 +1244,8 @@ function Play({
   onNewDraft: () => void;
   onRematch: () => void;
 }) {
+  const tung = useTung();
+  const dexLabel = tung ? t("tungdex") : t("dex");
   // a disguised bot presents exactly like an online opponent
   const asOpponent = mode === "online" || disguised;
   const vsBot = mode === "bot" && !disguised;
@@ -1341,7 +1388,7 @@ function Play({
   return (
     <div className="app">
       <div className="appbar">
-        <h1>CRITTDOKU</h1>
+        <Mark />
         {match.ranked && <span className="ranked-tag">{t("rankedTag")}</span>}
         <span className="status">
           <span className={`dot p${cur}`} />
@@ -1373,7 +1420,7 @@ function Play({
             </>
           )}
           <button onClick={onHome}>{t("menu")}</button>
-          <button onClick={onOpenDex}>{t("dex")}</button>
+          <button onClick={onOpenDex}>{dexLabel}</button>
           {!asOpponent && <button onClick={onNewDraft}>{t("newDraft")}</button>}
           {(!isOnline || mySeat === 0) && (
             <button onClick={onRematch} disabled={playing}>
@@ -1567,7 +1614,7 @@ function Play({
                       <span className="tc-d">{i + 1}</span>
                       <Critter id={id} size={40} />
                       <span className="tc-body">
-                        <span className="tc-name">{def.name}</span>
+                        <span className="tc-name">{dispName(id, tung)}</span>
                         <span
                           className="type-chip sm"
                           style={{

@@ -1,5 +1,7 @@
 import { useId, type ReactNode } from "react";
 import { CATEGORIES, ROSTER, CreatureId, creaturesByCategory } from "../engine";
+import { Tung } from "./TungCritter";
+import { useTung } from "./tungContext";
 
 /* A stylised vector take on the collector-monster look: 3/4-angled bodies with
  * real limbs and features, anime almond eyes with irises and lids, hard cel
@@ -851,8 +853,19 @@ const SPEC: Record<CreatureId, Spec> = {
   sparkpaw: { arch: "kit", feat: "spark", eye: "wink", mouth: "cat", belly: false },
 };
 
-export function Critter({ id, size = 44 }: { id: CreatureId; size?: number }) {
+export function Critter({
+  id,
+  size = 44,
+  noTung = false,
+}: {
+  id: CreatureId;
+  size?: number;
+  /** force the real critter art even when the tung skin is on */
+  noTung?: boolean;
+}) {
+  const tung = useTung();
   const uid = useId();
+  if (tung && !noTung) return <Tung id={id} size={size} />;
   const spec = SPEC[id];
   const cat = ROSTER[id].category;
   const sibIdx = creaturesByCategory(cat).findIndex((c) => c.id === id);

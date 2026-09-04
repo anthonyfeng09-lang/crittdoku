@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { hostRoom, joinRoom, type Net, type NetStatus } from "../net/peer";
 import { translator } from "./i18n";
+import { Mark } from "./Mark";
 
 /* The online lobby: host a room and share the code, or join with one. Once the
  * data channel is open this hands the live Net up to App, which drives the
@@ -63,7 +64,7 @@ export function Online({
   return (
     <div className="app">
       <div className="appbar">
-        <h1>CRITTDOKU</h1>
+        <Mark />
         <span className="status">{t("playOnline")}</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button

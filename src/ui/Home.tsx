@@ -3,6 +3,8 @@ import { ALL_CREATURES } from "../engine";
 import { Critter } from "./Critter";
 import { translator, tierName } from "./i18n";
 import { LangMenu } from "./LangMenu";
+import { Mark } from "./Mark";
+import { useTung } from "./tungContext";
 import { rankFromRp, type Profile } from "./profile";
 
 /* The front door: pick a mode, see your record, tweak your name. */
@@ -41,6 +43,7 @@ export function Home({
   onDex: () => void;
 }) {
   const t = translator(profile.lang);
+  const tung = useTung();
   const [level, setLevel] = useState<BotLevel>("chill");
   const rank = rankFromRp(profile.rp);
   const rname = tierName(profile.lang, rank.tier);
@@ -49,7 +52,7 @@ export function Home({
   return (
     <div className="app home">
       <div className="home-top">
-        <h1 className="home-wordmark">CRITTDOKU</h1>
+        <Mark home />
         <p className="home-tag">{t("tagline")}</p>
       </div>
 
@@ -160,7 +163,7 @@ export function Home({
           <Critter id="glidewing" size={26} />
         </span>
         <span className="dex-pill-text">
-          <b>{t("dex")}</b>
+          <b>{tung ? t("tungdex") : t("dex")}</b>
           <span>
             {ALL_CREATURES.length} {t("dexSub")}
           </span>
