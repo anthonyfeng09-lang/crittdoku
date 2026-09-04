@@ -1,15 +1,14 @@
 import { ROSTER, type CreatureId } from "../engine";
 
 /* TUNGIFY: a pure cosmetic reskin. When on, every critter becomes a "tung
- * tung tung sahur" - the same base model but funny-proportioned, on a
- * different prop, in a different pose - and gets a tung name. Nothing here
- * touches gameplay.
+ * tung tung sahur" - a stubby wooden-bat body - and gets a tung name.
+ * Nothing here touches gameplay.
  *
- * Adding a critter later needs nothing here: `tungName` falls back to a
- * generated "Tung ... Sahur" and `tungStyle` derives a deterministic variant
- * from the critter's own archetype, so the roster and the animation both
- * scale automatically. The map below is just hand-tuned names for the ones
- * that shipped. */
+ * Every critter's tung is a different silhouette (body shape, arm pose, leg
+ * pose, mouth, head tilt, skew, scale) as well as different props/hat/held
+ * item, all derived deterministically from the critter id, so no two read
+ * the same. Adding a critter later needs nothing here: `tungName` falls back
+ * to a generated "Tung ...sahur" and `tungStyle` derives from the id. */
 
 const NAMES: Partial<Record<CreatureId, string>> = {
   boulderpup: "Tung Boulder Sahur",
@@ -52,14 +51,16 @@ const NAMES: Partial<Record<CreatureId, string>> = {
 
 export function tungName(id: CreatureId): string {
   if (NAMES[id]) return NAMES[id] as string;
-  // generated fallback for critters added later
   const base = ROSTER[id]?.name ?? id;
   return `Tung ${base}sahur`;
 }
 
-/* per-critter visual variant. Deterministic from the id so it's stable, and
- * spread across the option lists so no two critters land the same. */
+/* ---- per-critter visual variant ---- */
 
+export type TungBody = "fat" | "tall" | "lumpy" | "crook" | "peanut" | "chonk";
+export type TungArms = "down" | "up" | "wave" | "cross" | "out" | "hips";
+export type TungLegs = "stand" | "step" | "sit" | "hop" | "wide" | "tip";
+export type TungMouth = "o" | "grin" | "flat" | "wobble" | "tiny" | "gape";
 export type TungProp = "none" | "cloud" | "rock" | "pad" | "stump" | "puddle";
 export type TungHat =
   | "none"
@@ -74,18 +75,32 @@ export type TungHold = "none" | "bat" | "stick" | "flag" | "spoon" | "phone";
 export type TungEyes = "goofy" | "wide" | "cross" | "sleepy" | "spiral" | "dots";
 
 export interface TungStyle {
+  body: TungBody;
+  arms: TungArms;
+  legs: TungLegs;
+  mouth: TungMouth;
   prop: TungProp;
   hat: TungHat;
   hold: TungHold;
   eyes: TungEyes;
-  /** body lean, degrees */
+  /** whole-body lean, degrees */
   lean: number;
-  /** how stretched the body is, 0.8 - 1.5 */
-  stretch: number;
-  /** small hop offset so the parade / grid isn't a straight line */
+  /** head tilt on top of the lean, degrees */
+  headTilt: number;
+  /** horizontal skew, degrees */
+  skew: number;
+  /** overall size multiplier */
+  scale: number;
+  /** vertical hop offset so a row of tungs isn't a straight line */
   bob: number;
+  /** flip horizontally */
+  flip: boolean;
 }
 
+const BODIES: TungBody[] = ["fat", "tall", "lumpy", "crook", "peanut", "chonk"];
+const ARMS: TungArms[] = ["down", "up", "wave", "cross", "out", "hips"];
+const LEGS: TungLegs[] = ["stand", "step", "sit", "hop", "wide", "tip"];
+const MOUTHS: TungMouth[] = ["o", "grin", "flat", "wobble", "tiny", "gape"];
 const PROPS: TungProp[] = ["none", "cloud", "rock", "pad", "stump", "puddle"];
 const HATS: TungHat[] = [
   "none",
@@ -111,18 +126,22 @@ function hash(s: string): number {
 
 export function tungStyle(id: CreatureId): TungStyle {
   const h = hash(id);
-  const a = (h >> 2) & 255;
-  const b = (h >> 9) & 255;
-  const c = (h >> 15) & 255;
-  const d = (h >> 21) & 255;
+  const bit = (shift: number, m: number) => ((h >>> shift) % m);
   return {
-    prop: PROPS[h % PROPS.length],
-    hat: HATS[a % HATS.length],
-    hold: HOLDS[b % HOLDS.length],
-    eyes: EYES[c % EYES.length],
-    lean: ((d % 13) - 6) * 2, // -12..12 deg
-    stretch: 0.82 + ((h >> 4) % 60) / 90, // 0.82..1.48
-    bob: ((h >> 6) % 9) - 4, // -4..4 px
+    body: BODIES[bit(1, BODIES.length)],
+    arms: ARMS[bit(4, ARMS.length)],
+    legs: LEGS[bit(7, LEGS.length)],
+    mouth: MOUTHS[bit(10, MOUTHS.length)],
+    prop: PROPS[bit(13, PROPS.length)],
+    hat: HATS[bit(16, HATS.length)],
+    hold: HOLDS[bit(19, HOLDS.length)],
+    eyes: EYES[bit(22, EYES.length)],
+    lean: bit(25, 13) - 6, // -6..6 deg
+    headTilt: bit(3, 17) - 8, // -8..8
+    skew: bit(6, 11) - 5, // -5..5
+    scale: 0.86 + bit(9, 24) / 90, // 0.86..1.12
+    bob: bit(12, 11) - 5, // -5..5 px
+    flip: bit(15, 2) === 1,
   };
 }
 

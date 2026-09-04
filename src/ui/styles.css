@@ -2370,6 +2370,9 @@ h1 {
   font-weight: 900;
   letter-spacing: 0.03em;
   white-space: nowrap;
+  /* sized to whichever word is wider, so the two layers share a box and the
+     brush edge lines up exactly */
+  display: grid;
   animation: tfx-band-out 0.5s ease 2.3s forwards;
 }
 @keyframes tfx-band-out {
@@ -2380,14 +2383,21 @@ h1 {
 }
 .tfx-brush-band .tfx-old,
 .tfx-brush-band .tfx-new {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  transform: translateX(-50%);
+  grid-area: 1 / 1;
+  text-align: center;
 }
+/* the old wordmark is wiped away from the left, exactly as the new one is
+   painted in from the left - one moving edge, no overlap */
 .tfx-old {
   color: #b98a55;
   text-shadow: 0 3px 0 #7c4f28;
+  clip-path: inset(-30% -12% -30% 0);
+  animation: tfx-wipe-old 1.5s cubic-bezier(0.45, 0, 0.25, 1) 0.35s forwards;
+}
+@keyframes tfx-wipe-old {
+  to {
+    clip-path: inset(-30% -12% -30% 102%);
+  }
 }
 .tfx-new {
   color: #241b2e;
@@ -2395,12 +2405,12 @@ h1 {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  clip-path: inset(-30% 100% -30% -8%);
+  clip-path: inset(-30% 102% -30% 0);
   animation: tfx-paint 1.5s cubic-bezier(0.45, 0, 0.25, 1) 0.35s forwards;
 }
 @keyframes tfx-paint {
   to {
-    clip-path: inset(-30% -8% -30% -8%);
+    clip-path: inset(-30% -12% -30% 0);
   }
 }
 /* the brush head that drags across, revealing the new wordmark behind it */
