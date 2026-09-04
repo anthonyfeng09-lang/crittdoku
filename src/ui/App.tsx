@@ -194,6 +194,13 @@ export function App() {
     return () => clearTimeout(t);
   }, [profile, account.userId, cloudSynced]);
 
+  // reflect the chosen language on <html> for correct font shaping. The
+  // layout stays LTR even for Arabic (the text still shapes right-to-left
+  // within its runs) so every control keeps its place.
+  useEffect(() => {
+    document.documentElement.lang = profile.lang;
+  }, [profile.lang]);
+
   // a password-reset link was clicked: land on the account page to set one
   useEffect(() => {
     if (account.recovering) setRoute("profile");

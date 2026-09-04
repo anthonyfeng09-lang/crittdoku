@@ -120,8 +120,8 @@ export function Home({
         </button>
 
         <button className="mode-card" onClick={() => onQueue("casual")}>
-          <span className="mc-title">Quick Match</span>
-          <span className="mc-sub">queue online, unranked</span>
+          <span className="mc-title">{t("quick")}</span>
+          <span className="mc-sub">{t("quickSub")}</span>
         </button>
 
         <button className="mode-card" onClick={() => onStart("bot", level)}>
@@ -165,7 +165,9 @@ export function Home({
         </span>
         <span className="dex-pill-text">
           <b>{t("dex")}</b>
-          <span>{ALL_CREATURES.length} critters &middot; six types</span>
+          <span>
+            {ALL_CREATURES.length} {t("dexSub")}
+          </span>
         </span>
         <span className="dex-pill-arrow" aria-hidden="true">
           &rsaquo;

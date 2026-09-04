@@ -1,10 +1,17 @@
-/* A tiny string table. Not a full i18n stack: enough to prove the switch
- * works and to make adding a language a matter of filling in one map. */
+/* A tiny string table. Not a full i18n stack: enough to make the language
+ * switch real. Each language fills in the same keys; anything missing falls
+ * back to English. Add a language: one entry in LANGS + one dict + TABLE. */
 
 export const LANGS: Record<string, string> = {
   en: "English",
-  es: "Espanol",
+  es: "Español",
+  fr: "Français",
+  zh: "中文",
+  ar: "العربية",
 };
+
+/** languages that read right-to-left */
+export const RTL_LANGS = new Set(["ar"]);
 
 type Dict = Record<string, string>;
 
@@ -18,8 +25,11 @@ const EN: Dict = {
   howtoSub: "the rules in a minute",
   online: "Play a Friend",
   onlineSub: "share a room code, peer to peer",
+  quick: "Quick Match",
+  quickSub: "queue online, unranked",
   soon: "coming soon",
   dex: "Critterdex",
+  dexSub: "critters, six types",
   chill: "Chill",
   sharp: "Sharp",
   difficulty: "Bot skill",
@@ -36,17 +46,20 @@ const EN: Dict = {
 };
 
 const ES: Dict = {
-  tagline: "un duelo tranquilo en una cuadricula compartida",
+  tagline: "un duelo tranquilo en una cuadrícula compartida",
   playBot: "Jugar contra un Bot",
   playBotSub: "una partida en solitario contra un entrenador",
   playLocal: "2 Jugadores Local",
   playLocalSub: "pasad un dispositivo, al mejor de dos",
-  howto: "Como Jugar",
+  howto: "Cómo Jugar",
   howtoSub: "las reglas en un minuto",
   online: "Jugar con un Amigo",
-  onlineSub: "comparte un codigo de sala, P2P",
-  soon: "proximamente",
+  onlineSub: "comparte un código de sala, P2P",
+  quick: "Partida Rápida",
+  quickSub: "cola en línea, sin clasificación",
+  soon: "próximamente",
   dex: "Critterdex",
+  dexSub: "critters, seis tipos",
   chill: "Tranquilo",
   sharp: "Agudo",
   difficulty: "Nivel del bot",
@@ -57,12 +70,102 @@ const ES: Dict = {
   rank: "Rango",
   ranked: "Clasificatoria",
   rankedSub: "sube la escalera de 9 niveles",
-  back: "Volver al menu",
+  back: "Volver al menú",
   startBot: "Enfrentar a un bot",
   editName: "editar nombre",
 };
 
-const TABLE: Record<string, Dict> = { en: EN, es: ES };
+const FR: Dict = {
+  tagline: "un duel tranquille sur une grille partagée",
+  playBot: "Jouer contre un bot",
+  playBotSub: "une partie solo contre un dresseur",
+  playLocal: "2 joueurs en local",
+  playLocalSub: "passez un appareil, au meilleur des deux",
+  howto: "Comment jouer",
+  howtoSub: "les règles en une minute",
+  online: "Jouer avec un ami",
+  onlineSub: "partagez un code de salon, pair à pair",
+  quick: "Partie rapide",
+  quickSub: "file d'attente en ligne, non classée",
+  soon: "bientôt disponible",
+  dex: "Critterdex",
+  dexSub: "critters, six types",
+  chill: "Calme",
+  sharp: "Vif",
+  difficulty: "Niveau du bot",
+  keen: "Fin",
+  fierce: "Féroce",
+  record: "Bilan",
+  streak: "Série",
+  rank: "Rang",
+  ranked: "Classé",
+  rankedSub: "gravissez les 9 paliers",
+  back: "Retour au menu",
+  startBot: "Affronter un bot",
+  editName: "modifier le nom",
+};
+
+const ZH: Dict = {
+  tagline: "在共享棋盘上的静谧对决",
+  playBot: "对战电脑",
+  playBotSub: "单人对战一位培养师",
+  playLocal: "本地双人",
+  playLocalSub: "传递设备，两局定胜负",
+  howto: "游戏规则",
+  howtoSub: "一分钟看懂规则",
+  online: "邀请好友",
+  onlineSub: "分享房间代码，点对点连接",
+  quick: "快速匹配",
+  quickSub: "在线匹配，不计排位",
+  soon: "敬请期待",
+  dex: "生物图鉴",
+  dexSub: "只生物，六种类型",
+  chill: "悠闲",
+  sharp: "机敏",
+  difficulty: "电脑难度",
+  keen: "敏锐",
+  fierce: "凶猛",
+  record: "战绩",
+  streak: "连胜",
+  rank: "段位",
+  ranked: "排位赛",
+  rankedSub: "冲上九段天梯",
+  back: "返回菜单",
+  startBot: "对战电脑",
+  editName: "修改名称",
+};
+
+const AR: Dict = {
+  tagline: "مبارزة هادئة على شبكة مشتركة",
+  playBot: "اللعب ضد الحاسوب",
+  playBotSub: "مباراة فردية ضد مدرّب",
+  playLocal: "لاعبان محليًا",
+  playLocalSub: "مرّر جهازًا واحدًا، الأفضل من جولتين",
+  howto: "كيفية اللعب",
+  howtoSub: "القواعد في دقيقة",
+  online: "اللعب مع صديق",
+  onlineSub: "شارك رمز الغرفة، اتصال مباشر",
+  quick: "مباراة سريعة",
+  quickSub: "طابور عبر الإنترنت، بدون تصنيف",
+  soon: "قريبًا",
+  dex: "دليل المخلوقات",
+  dexSub: "مخلوقًا، ستة أنواع",
+  chill: "هادئ",
+  sharp: "حاد",
+  difficulty: "مستوى الحاسوب",
+  keen: "فطن",
+  fierce: "شرس",
+  record: "السجل",
+  streak: "سلسلة",
+  rank: "الرتبة",
+  ranked: "التصنيفي",
+  rankedSub: "اصعد سلّم الرتب التسع",
+  back: "العودة إلى القائمة",
+  startBot: "مواجهة الحاسوب",
+  editName: "تعديل الاسم",
+};
+
+const TABLE: Record<string, Dict> = { en: EN, es: ES, fr: FR, zh: ZH, ar: AR };
 
 export function translator(lang: string) {
   const d = TABLE[lang] ?? EN;
