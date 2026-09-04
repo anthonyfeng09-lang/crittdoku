@@ -40,7 +40,7 @@ export function TungFX({
   useEffect(() => {
     const total = mode === "on" ? 15000 : 3000;
     const marks =
-      mode === "on" ? [0, 2500, 5000, 7000, 12200, 14400] : [0, 1600, 2600];
+      mode === "on" ? [0, 2500, 3300, 3600, 10600, 13000] : [0, 1600, 2600];
     let fired = false;
     const timers = marks.map((m, i) => setTimeout(() => setPhase(i), m));
     const end = setTimeout(() => {
@@ -91,10 +91,13 @@ export function TungFX({
       <div className="tfx-kanji tfx-k2">TUNG</div>
       <div className="tfx-kanji tfx-k3">SAHUR</div>
 
+      {/* wind-up silhouette */}
+      <div className="tfx-sil" />
+
       {/* impact */}
       <div className="tfx-flash" />
       {Array.from({ length: 3 }, (_, i) => (
-        <div key={i} className="tfx-shock" style={{ animationDelay: `${5 + i * 0.14}s` }} />
+        <div key={i} className="tfx-shock" style={{ animationDelay: `${3.3 + i * 0.14}s` }} />
       ))}
       <div className="tfx-speed" aria-hidden="true">
         {Array.from({ length: 18 }, (_, i) => (
@@ -114,7 +117,7 @@ export function TungFX({
                 {
                   "--i": i,
                   "--n": RING_N,
-                  animationDelay: `${7.2 + i * 0.28}s`,
+                  animationDelay: `${4.4 + i * 0.42}s`,
                 } as CSSProperties
               }
             >
@@ -145,7 +148,7 @@ export function TungFX({
               {
                 left: `${5 + Math.random() * 90}%`,
                 "--r": `${(Math.random() - 0.5) * 720}deg`,
-                animationDelay: `${12.4 + Math.random() * 0.7}s`,
+                animationDelay: `${10.9 + Math.random() * 0.8}s`,
               } as CSSProperties
             }
           >
