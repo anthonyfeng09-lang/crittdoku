@@ -1,19 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { hostRoom, joinRoom, type Net, type NetStatus } from "../net/peer";
+import { translator } from "./i18n";
 
 /* The online lobby: host a room and share the code, or join with one. Once the
  * data channel is open this hands the live Net up to App, which drives the
  * synced draft and match. */
 
 export function Online({
+  lang,
   playerName,
   onConnected,
   onHome,
 }: {
+  lang: string;
   playerName: string;
   onConnected: (net: Net, isHost: boolean) => void;
   onHome: () => void;
 }) {
+  const t = translator(lang);
   const [mode, setMode] = useState<"choose" | "host" | "join">("choose");
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<NetStatus>("starting");
@@ -60,7 +64,7 @@ export function Online({
     <div className="app">
       <div className="appbar">
         <h1>CRITTDOKU</h1>
-        <span className="status">Play online</span>
+        <span className="status">{t("playOnline")}</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button
             onClick={() => {
@@ -68,7 +72,7 @@ export function Online({
               onHome();
             }}
           >
-            Menu
+            {t("menu")}
           </button>
         </div>
       </div>
@@ -77,18 +81,15 @@ export function Online({
         <div className="online-card">
           {mode === "choose" && (
             <>
-              <h2>Play a friend</h2>
-              <p className="sub">
-                One of you hosts and reads out the code. Peer to peer, no
-                account. Best with both of you on decent wifi.
-              </p>
+              <h2>{t("playAFriendTitle")}</h2>
+              <p className="sub">{t("hostIntro")}</p>
               <button className="big-btn" onClick={startHost}>
-                Host a room
+                {t("hostRoom")}
               </button>
-              <div className="online-or">or</div>
+              <div className="online-or">{t("or")}</div>
               <div className="join-row">
                 <input
-                  placeholder="ROOM CODE"
+                  placeholder={t("roomCodePh")}
                   value={code}
                   maxLength={5}
                   onChange={(e) =>
@@ -101,7 +102,7 @@ export function Online({
                   onClick={startJoin}
                   disabled={code.trim().length < 4}
                 >
-                  Join
+                  {t("joinRoom")}
                 </button>
               </div>
             </>
@@ -109,7 +110,7 @@ export function Online({
 
           {mode === "host" && (
             <>
-              <h2>Room code</h2>
+              <h2>{t("roomCode")}</h2>
               <div className="room-code">
                 {(roomCode || "----").split("").map((ch, i) => (
                   <span key={i}>{ch}</span>
@@ -123,19 +124,19 @@ export function Online({
                   setTimeout(() => setCopied(false), 1500);
                 }}
               >
-                {copied ? "Copied" : "Copy code"}
+                {copied ? t("copied") : t("copyCode")}
               </button>
               <p className="sub">
                 {status === "waiting"
-                  ? "Waiting for your friend to join..."
+                  ? t("waitingFriend")
                   : status === "error"
-                    ? detail || "Something went wrong."
-                    : "Setting up the room..."}
+                    ? detail || t("somethingWrong")
+                    : t("settingRoom")}
               </p>
               {status === "waiting" && <div className="pulse-dot" />}
               {status === "error" && (
                 <button className="big-btn" onClick={startHost}>
-                  Try again
+                  {t("tryAgain")}
                 </button>
               )}
             </>
@@ -143,11 +144,11 @@ export function Online({
 
           {mode === "join" && (
             <>
-              <h2>Joining {code}</h2>
+              <h2>{t("joining", { code })}</h2>
               <p className="sub">
                 {status === "error"
-                  ? detail || "Could not connect."
-                  : "Connecting to the room..."}
+                  ? detail || t("couldNotConnect")
+                  : t("connectingRoom")}
               </p>
               {status !== "error" && <div className="pulse-dot" />}
               {status === "error" && (
@@ -159,7 +160,7 @@ export function Online({
                     setStatus("starting");
                   }}
                 >
-                  Back
+                  {t("back")}
                 </button>
               )}
             </>

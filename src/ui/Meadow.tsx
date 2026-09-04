@@ -1,6 +1,8 @@
 import { useState, type CSSProperties } from "react";
 import { ABILITY_COST, ROSTER, CreatureId, CATEGORIES } from "../engine";
 import { Critter } from "./Critter";
+import { catText, type T } from "./i18n";
+import { critterText } from "./critterText";
 
 /* The draft pool: a wide quiet pond with a slice of the roster afloat on it,
  * each critter standing on the water. Grab the one you want; the pool fills
@@ -54,22 +56,23 @@ function critterFacts(id: CreatureId): Array<{ k: string; v: string }> {
   return out;
 }
 
-function CritDetail({ id }: { id: CreatureId }) {
+function CritDetail({ id, lang }: { id: CreatureId; lang: string }) {
   const d = ROSTER[id];
   const cat = CATEGORIES[d.category];
+  const ci = critterText(lang, id);
   return (
     <div className="crit-detail">
       <div className="cd-head">
         <Critter id={id} size={46} />
         <div>
           <div className="cd-name">{d.name}</div>
-          <div className="cd-ep">{d.epithet}</div>
+          <div className="cd-ep">{ci.epithet}</div>
         </div>
         <span className="type-chip" style={{ background: cat.hue, marginLeft: "auto" }}>
-          {cat.element}
+          {catText(lang, d.category).element}
         </span>
       </div>
-      <div className="cd-blurb">{d.blurb}</div>
+      <div className="cd-blurb">{ci.blurb}</div>
       <div className="cd-facts">
         {critterFacts(id).map((f) => (
           <span key={f.k} className="cd-fact">
@@ -82,6 +85,8 @@ function CritDetail({ id }: { id: CreatureId }) {
 }
 
 export function MeadowScene({
+  t,
+  lang,
   options,
   onPick,
   onReroll,
@@ -91,6 +96,8 @@ export function MeadowScene({
   ownerName,
   tint,
 }: {
+  t: T;
+  lang: string;
   options: CreatureId[];
   onPick: (id: CreatureId) => void;
   onReroll: () => void;
@@ -238,18 +245,18 @@ export function MeadowScene({
       </svg>
 
       <div className="meadow-tag" style={{ background: tint }}>
-        {ownerName}, grab a friend
+        {ownerName}, {t("grabAFriend")}
       </div>
 
       <div
         className="meadow-tokens"
         style={{ borderColor: tint }}
-        title="energy — unspent energy carries into the match"
+        title={t("energy")}
       >
         <span className="mt-diamonds" style={{ color: tint }}>
           {energyLeft}⚡
         </span>
-        <span className="mt-word">energy</span>
+        <span className="mt-word">{t("energy")}</span>
       </div>
 
       {options.map((id, i) => {
@@ -300,20 +307,17 @@ export function MeadowScene({
         })}
       </div>
 
-      {hover && <CritDetail id={hover} />}
+      {hover && <CritDetail id={hover} lang={lang} />}
 
       <button
         className="pool-reroll"
         onClick={onReroll}
         disabled={!canReroll}
-        title={
-          canReroll
-            ? "send this pool under and call up a fresh one"
-            : "not enough energy"
-        }
       >
-        <span className="pr-title">↻ Reroll pool</span>
-        <span className="pr-cost">costs {rerollCost}⚡</span>
+        <span className="pr-title">↻ {t("rerollPool")}</span>
+        <span className="pr-cost">
+          {t("costs")} {rerollCost}⚡
+        </span>
       </button>
     </div>
   );

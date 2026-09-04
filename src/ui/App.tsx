@@ -49,6 +49,8 @@ import { Queue } from "./Queue";
 import { randomHandle } from "./names";
 import { loadProfile, saveProfile, recordMatch, type Profile } from "./profile";
 import { useAccount } from "./account";
+import { translator, catText, type T } from "./i18n";
+import { critterText } from "./critterText";
 import { pullProfile, pushProfile } from "../net/cloudProfile";
 import type { Net } from "../net/peer";
 
@@ -468,6 +470,8 @@ export function App() {
     setRoute("draft");
   };
 
+  const t = translator(profile.lang);
+
   let screen: ReactNode;
   if (route === "home") {
     screen = (
@@ -495,6 +499,7 @@ export function App() {
     screen = (
       <Queue
         kind={queueKind}
+        lang={profile.lang}
         playerName={profile.name}
         canSignIn={account.configured}
         signedIn={account.status === "in"}
@@ -507,6 +512,7 @@ export function App() {
   } else if (route === "online") {
     screen = (
       <Online
+        lang={profile.lang}
         playerName={profile.name}
         onConnected={(n, host) => onConnected(n, host, false)}
         onHome={() => setRoute("home")}
@@ -525,6 +531,7 @@ export function App() {
   } else if (route === "tutorial") {
     screen = (
       <Tutorial
+        lang={profile.lang}
         onDone={() => {
           setMode("bot");
           setBotLevel("chill");
@@ -542,6 +549,8 @@ export function App() {
   } else if (route === "draft" || !game || !match) {
     screen = (
       <Draft
+        t={t}
+        lang={profile.lang}
         seedCount={seedCount}
         setSeedCount={setSeedCount}
         botSeat={mode === "bot" ? 1 : null}
@@ -554,6 +563,8 @@ export function App() {
   } else {
     screen = (
       <Play
+        t={t}
+        lang={profile.lang}
         game={game}
         teams={legLoadouts(match)}
         match={match}
@@ -604,11 +615,11 @@ export function App() {
   return (
     <>
       {screen}
-      {dex && <Dex onClose={() => setDex(false)} />}
+      {dex && <Dex t={t} lang={profile.lang} onClose={() => setDex(false)} />}
       {netErr && (
         <div className="dex-overlay" onClick={goHome}>
           <div className="dex" style={{ maxWidth: 380, padding: 20 }}>
-            <h2 style={{ marginTop: 0 }}>Match ended</h2>
+            <h2 style={{ marginTop: 0 }}>{t("matchEnded")}</h2>
             <p className="sub">{netErr}</p>
             <button className="primary" onClick={goHome}>
               Back to menu
@@ -624,7 +635,15 @@ export function App() {
  * Critterdex - every creature and what it does
  * ================================================================= */
 
-function Dex({ onClose }: { onClose: () => void }) {
+function Dex({
+  t,
+  lang,
+  onClose,
+}: {
+  t: T;
+  lang: string;
+  onClose: () => void;
+}) {
   return (
     <div className="dex-overlay" onClick={onClose}>
       <div
@@ -634,46 +653,52 @@ function Dex({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="dex-head">
-          <h2>Critterdex</h2>
+          <h2>{t("dex")}</h2>
           <span className="hint" style={{ margin: 0 }}>
-            {ALL_CREATURES.length} critters &middot; six types
+            {t("critterCount", { n: ALL_CREATURES.length })}
           </span>
           <button
             className="dex-close"
             style={{ marginLeft: "auto" }}
             onClick={onClose}
-            aria-label="close"
+            aria-label={t("close")}
           >
             &times;
           </button>
         </div>
         <div className="dex-body">
-          {CAT_ORDER.map((cat) => (
-            <section key={cat} className="dex-section">
-              <h3 style={{ color: CATEGORIES[cat].hue }}>
-                <span
-                  className="type-chip"
-                  style={{ background: CATEGORIES[cat].hue }}
-                >
-                  {CATEGORIES[cat].element}
-                </span>
-                {CATEGORIES[cat].name}
-                <span className="dex-tagline">{CATEGORIES[cat].tagline}</span>
-              </h3>
-              <div className="dex-grid">
-                {creaturesByCategory(cat).map((c) => (
-                  <div key={c.id} className="dex-card">
-                    <Critter id={c.id} size={72} />
-                    <div className="dex-info">
-                      <div className="dex-name">{c.name}</div>
-                      <div className="dex-ep">{c.epithet}</div>
-                      <div className="dex-blurb">{c.blurb}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
+          {CAT_ORDER.map((cat) => {
+            const ct = catText(lang, cat);
+            return (
+              <section key={cat} className="dex-section">
+                <h3 style={{ color: CATEGORIES[cat].hue }}>
+                  <span
+                    className="type-chip"
+                    style={{ background: CATEGORIES[cat].hue }}
+                  >
+                    {ct.element}
+                  </span>
+                  {ct.name}
+                  <span className="dex-tagline">{ct.tagline}</span>
+                </h3>
+                <div className="dex-grid">
+                  {creaturesByCategory(cat).map((c) => {
+                    const ci = critterText(lang, c.id);
+                    return (
+                      <div key={c.id} className="dex-card">
+                        <Critter id={c.id} size={72} />
+                        <div className="dex-info">
+                          <div className="dex-name">{c.name}</div>
+                          <div className="dex-ep">{ci.epithet}</div>
+                          <div className="dex-blurb">{ci.blurb}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -693,6 +718,8 @@ interface OnlineCtx {
 }
 
 function Draft({
+  t,
+  lang,
   seedCount,
   setSeedCount,
   botSeat,
@@ -701,12 +728,14 @@ function Draft({
   onOpenDex,
   onHome,
 }: {
+  t: T;
+  lang: string;
   seedCount: number;
   setSeedCount: (n: number) => void;
   botSeat: 0 | 1 | null;
   online: OnlineCtx | null;
   onStart: (
-    t: [CreatureId[], CreatureId[]],
+    teams: [CreatureId[], CreatureId[]],
     seeds?: Seed[],
     startEnergy?: [number, number],
   ) => void;
@@ -920,9 +949,11 @@ function Draft({
           <span className="status">
             {online && iReady
               ? oppTeam
-                ? "starting..."
-                : `waiting for ${online.net.peerName()}...`
-              : `line-up set · bringing ${energy[online ? online.mySeat : 0]}⚡ into the match`}
+                ? t("starting")
+                : t("waitingFor", { name: online.net.peerName() })
+              : `${t("lineUpSet")} · ${t("bringingEnergy", {
+                  n: energy[online ? online.mySeat : 0],
+                })}`}
           </span>
           <div className="controls" style={{ marginLeft: "auto" }}>
             {!online && (
@@ -940,22 +971,18 @@ function Draft({
                 </select>
               </label>
             )}
-            <button onClick={onHome}>Menu</button>
-            <button onClick={onOpenDex}>Critterdex</button>
+            <button onClick={onHome}>{t("menu")}</button>
+            <button onClick={onOpenDex}>{t("dex")}</button>
             {online ? (
-              <button
-                className="primary"
-                onClick={readyUp}
-                disabled={iReady}
-              >
-                {iReady ? "ready" : "Ready"}
+              <button className="primary" onClick={readyUp} disabled={iReady}>
+                {t("ready")}
               </button>
             ) : (
               <button
                 className="primary"
                 onClick={() => onStart(assigned, undefined, [energy[0], energy[1]])}
               >
-                Start match
+                {t("startMatch")}
               </button>
             )}
           </div>
@@ -965,7 +992,7 @@ function Draft({
             <div key={p} className="panel">
               <div className="turn">
                 <span className={`dot p${p}`} />{" "}
-                {online ? "Your team" : NAMES[p]}
+                {online ? t("yourTeam") : NAMES[p]}
               </div>
               {Array.from({ length: SIZE }, (_, i) => {
                 const digit = i + 1;
@@ -981,9 +1008,11 @@ function Draft({
                         background: CATEGORIES[ROSTER[id].category].hue,
                       }}
                     >
-                      {CATEGORIES[ROSTER[id].category].element}
+                      {catText(lang, ROSTER[id].category).element}
                     </span>
-                    <span className="slot-blurb">{ROSTER[id].blurb}</span>
+                    <span className="slot-blurb">
+                      {critterText(lang, id).blurb}
+                    </span>
                   </div>
                 );
               })}
@@ -1002,19 +1031,19 @@ function Draft({
           <span className={`dot p${current}`} />
           {online
             ? myTurn
-              ? "Your pick"
-              : `${online.net.peerName()} is picking`
+              ? t("yourPick")
+              : t("playerPicking")
             : botSeat != null
               ? current === botSeat
-                ? "Bot drafts"
-                : "Your pick"
-              : `${NAMES[current]} drafts`}{" "}
+                ? t("botDrafts")
+                : t("yourPick")
+              : t("yourPick")}{" "}
           &middot; {step}/{order.length}
         </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
-          <button onClick={onHome}>Menu</button>
-          <button onClick={onOpenDex}>Critterdex</button>
-          {!online && <button onClick={autoRest}>Random</button>}
+          <button onClick={onHome}>{t("menu")}</button>
+          <button onClick={onOpenDex}>{t("dex")}</button>
+          {!online && <button onClick={autoRest}>{t("random")}</button>}
         </div>
       </div>
 
@@ -1065,11 +1094,13 @@ function Draft({
         {done ? (
           <div className="meadow">
             <div className="meadow-tag" style={{ background: "var(--ink)" }}>
-              teams are set
+              {t("lineUpSet")}
             </div>
           </div>
         ) : (
           <MeadowScene
+            t={t}
+            lang={lang}
             options={meadow}
             onPick={pick}
             onReroll={() => reroll()}
@@ -1083,12 +1114,12 @@ function Draft({
             ownerName={
               online
                 ? myTurn
-                  ? "You"
+                  ? t("you")
                   : online.net.peerName()
                 : botSeat != null
                   ? current === botSeat
-                    ? "Bot"
-                    : "You"
+                    ? t("bot")
+                    : t("you")
                   : NAMES[current]
             }
             tint={current === 0 ? "var(--p0)" : "var(--p1)"}
@@ -1104,6 +1135,8 @@ function Draft({
  * ================================================================= */
 
 function Play({
+  t,
+  lang,
   game,
   teams,
   match,
@@ -1125,6 +1158,8 @@ function Play({
   onNewDraft,
   onRematch,
 }: {
+  t: T;
+  lang: string;
   game: GameState;
   teams: [CreatureId[], CreatureId[]];
   match: Match;
@@ -1260,42 +1295,51 @@ function Play({
   const who = (seat: 0 | 1) =>
     asOpponent
       ? seat === mySeat
-        ? "You"
+        ? t("you")
         : peerName
       : vsBot
         ? seat === 0
-          ? "You"
-          : "Bot"
+          ? t("you")
+          : t("bot")
         : NAMES[seat];
+  const hi = Math.max(agg[0], agg[1]);
+  const lo = Math.min(agg[0], agg[1]);
   const matchLine =
     game.status !== "playing"
       ? legOneOver
-        ? `Leg 1 done ${game.score[0]}–${game.score[1]}`
-        : `${agg[0] === agg[1] ? "Level" : who((agg[0] > agg[1] ? 0 : 1) as 0 | 1) + " win"}${agg[0] === agg[1] ? "" : "s"} ${Math.max(agg[0], agg[1])}–${Math.min(agg[0], agg[1])}`
+        ? t("legDone", { a: game.score[0], b: game.score[1] })
+        : agg[0] === agg[1]
+          ? t("levelAt", { a: hi, b: lo })
+          : t("wins", {
+              name: who((agg[0] > agg[1] ? 0 : 1) as 0 | 1),
+              a: hi,
+              b: lo,
+            })
       : vsBot || asOpponent
-        ? `${who(cur as 0 | 1)} to move`
-        : `Leg ${match.leg}/2 · ${NAMES[cur]} to move${
-            match.legScores[0] ? ` · match ${agg[0]}–${agg[1]}` : ""
-          }`;
+        ? t("toMove", { name: who(cur as 0 | 1) })
+        : t("legToMove", { leg: match.leg, name: NAMES[cur] }) +
+          (match.legScores[0] ? ` · ${agg[0]}–${agg[1]}` : "");
 
   return (
     <div className="app">
       <div className="appbar">
         <h1>CRITTDOKU</h1>
-        {match.ranked && <span className="ranked-tag">RANKED</span>}
+        {match.ranked && <span className="ranked-tag">{t("rankedTag")}</span>}
         <span className="status">
           <span className={`dot p${cur}`} />
           {matchLine}
-          {vsBot && playing && cur === 1 && (
-            <span className="thinking"> · thinking</span>
-          )}
-          {asOpponent && playing && game.current !== mySeat && (
-            <span className="thinking"> · their turn</span>
-          )}
+          {playing &&
+            ((asOpponent && game.current !== mySeat) ||
+              (vsBot && cur === 1)) && (
+              <span className="thinking">{t("theirTurn")}</span>
+            )}
           {!playing && rpDelta != null && (
             <span className={`rp-note ${rpDelta >= 0 ? "up" : "down"}`}>
-              {rpDelta >= 0 ? "+" : ""}
-              {rpDelta} RP &middot; {rp} total
+              {t("rpNote", {
+                sign: rpDelta >= 0 ? "+" : "",
+                delta: rpDelta,
+                total: rp,
+              })}
             </span>
           )}
         </span>
@@ -1303,24 +1347,24 @@ function Play({
           {!vsBot && !asOpponent && (
             <>
               <button onClick={botMove} disabled={!playing}>
-                Bot move
+                {t("botMove")}
               </button>
               <button onClick={() => setAuto((x) => !x)} disabled={!playing}>
-                {auto ? "Stop" : "Auto-play"}
+                {auto ? t("stop") : t("autoplay")}
               </button>
             </>
           )}
-          <button onClick={onHome}>Menu</button>
-          <button onClick={onOpenDex}>Critterdex</button>
-          {!asOpponent && <button onClick={onNewDraft}>New draft</button>}
+          <button onClick={onHome}>{t("menu")}</button>
+          <button onClick={onOpenDex}>{t("dex")}</button>
+          {!asOpponent && <button onClick={onNewDraft}>{t("newDraft")}</button>}
           {(!isOnline || mySeat === 0) && (
             <button onClick={onRematch} disabled={playing}>
-              {asOpponent ? "Play again" : "Rematch"}
+              {asOpponent ? t("playAgain") : t("rematch")}
             </button>
           )}
           {isOnline && mySeat === 1 && !playing && (
             <span className="hint" style={{ margin: 0 }}>
-              waiting for host...
+              {t("waitingHost")}
             </span>
           )}
         </div>
@@ -1375,14 +1419,18 @@ function Play({
           <div className="panel">
             {legOneOver && (
               <div className="banner" style={{ marginBottom: 10 }}>
-                Leg 1: Sage {game.score[0]}, Clay {game.score[1]}. Teams swap
-                for leg 2.{" "}
+                {t("legOneSwap", {
+                  n0: NAMES[0],
+                  a: game.score[0],
+                  n1: NAMES[1],
+                  b: game.score[1],
+                })}{" "}
                 <button
                   className="primary"
                   style={{ marginLeft: 6 }}
                   onClick={onNextLeg}
                 >
-                  Play leg 2
+                  {t("playLeg2")}
                 </button>
               </div>
             )}
@@ -1390,16 +1438,18 @@ function Play({
               <div className="banner" style={{ marginBottom: 10 }}>
                 {agg[0] === agg[1]
                   ? vsBot
-                    ? "Dead level."
-                    : "The match is level."
-                  : `${who((agg[0] > agg[1] ? 0 : 1) as 0 | 1)} ${
-                      vsBot && agg[0] < agg[1] ? "won" : "takes it"
-                    }, ${Math.max(agg[0], agg[1])}–${Math.min(agg[0], agg[1])}.`}
+                    ? t("deadLevel")
+                    : t("matchLevel")
+                  : t(vsBot && agg[0] < agg[1] ? "wonIt" : "takesIt", {
+                      name: who((agg[0] > agg[1] ? 0 : 1) as 0 | 1),
+                      a: hi,
+                      b: lo,
+                    })}
               </div>
             )}
             {playing && game.pendingExtra && (
               <div className="banner" style={{ marginBottom: 10 }}>
-                {who(cur as 0 | 1)}: place your burst digit.
+                {t("burstPrompt", { name: who(cur as 0 | 1) })}
               </div>
             )}
 
@@ -1460,14 +1510,14 @@ function Play({
               <div className="picker-wrap">
                 <div className="hint" style={{ marginTop: 0 }}>
                   {game.mines[sel] !== -1
-                    ? `A mine (${who(game.mines[sel] as 0 | 1)})`
+                    ? t("aMine", { name: who(game.mines[sel] as 0 | 1) })
                     : game.grid[sel] === 0
-                      ? "Pick a digit for this cell"
+                      ? t("pickDigit")
                       : creatureLabel(sel)}
                 </div>
                 <div className="picker">
                   {selActions.length === 0 && (
-                    <span className="hint">nothing legal here</span>
+                    <span className="hint">{t("nothingLegal")}</span>
                   )}
                   {selActions.map((a, i) => (
                     <button key={i} onClick={() => doAction(a)} title={actionHelp(a)}>
@@ -1484,14 +1534,18 @@ function Play({
               <div className="team-head">
                 <span className={`dot p${p}`} /> {who(p)}
                 <span className="team-locked">
-                  locked <b>{lockedCounts[p]}</b>
+                  {t("locked")} <b>{lockedCounts[p]}</b>
                 </span>
               </div>
               <div className="team-cards">
                 {teams[p].map((id, i) => {
                   const def = ROSTER[id];
                   return (
-                    <div key={i} className="tcard" title={def.blurb}>
+                    <div
+                      key={i}
+                      className="tcard"
+                      title={critterText(lang, id).blurb}
+                    >
                       <span className="tc-d">{i + 1}</span>
                       <Critter id={id} size={40} />
                       <span className="tc-body">
@@ -1502,7 +1556,7 @@ function Play({
                             background: CATEGORIES[def.category].hue,
                           }}
                         >
-                          {CATEGORIES[def.category].element}
+                          {catText(lang, def.category).element}
                         </span>
                       </span>
                     </div>

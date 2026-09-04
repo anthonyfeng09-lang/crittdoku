@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { ALL_CREATURES } from "../engine";
 import { Critter } from "./Critter";
-import { translator, LANGS } from "./i18n";
+import { translator, tierName } from "./i18n";
+import { LangMenu } from "./LangMenu";
 import { rankFromRp, type Profile } from "./profile";
 
 /* The front door: pick a mode, see your record, tweak your name. */
@@ -42,6 +43,8 @@ export function Home({
   const t = translator(profile.lang);
   const [level, setLevel] = useState<BotLevel>("chill");
   const rank = rankFromRp(profile.rp);
+  const rname = tierName(profile.lang, rank.tier);
+  const nextName = rank.next == null ? "" : tierName(profile.lang, rank.tier + 1);
 
   return (
     <div className="app home">
@@ -55,7 +58,7 @@ export function Home({
           {profile.avatar ? (
             <Critter id={profile.avatar} size={40} />
           ) : (
-            rank.name.charAt(0)
+            rname.charAt(0)
           )}
         </button>
         <button className="hp-main as-btn" onClick={onProfile}>
@@ -65,7 +68,7 @@ export function Home({
           </div>
           <div className="hp-stats">
             <span>
-              {t("rank")}: <b>{rank.name}</b>
+              {t("rank")}: <b>{rname}</b>
             </span>
             <span>
               {t("record")}:{" "}
@@ -86,18 +89,7 @@ export function Home({
             </span>
           </div>
         </button>
-        <select
-          className="hp-lang"
-          value={profile.lang}
-          onChange={(e) => onLang(e.target.value)}
-          aria-label="language"
-        >
-          {Object.entries(LANGS).map(([code, name]) => (
-            <option key={code} value={code}>
-              {name}
-            </option>
-          ))}
-        </select>
+        <LangMenu value={profile.lang} onChange={onLang} />
       </div>
 
       <div className="home-modes">
@@ -106,7 +98,7 @@ export function Home({
           onClick={() => onQueue("ranked")}
         >
           <span className="mc-rank">
-            {rank.name} · {rank.tier + 1}/9
+            {rname} · {rank.tier + 1}/9
           </span>
           <span className="mc-title">{t("ranked")}</span>
           <div className="mc-bar">
@@ -114,8 +106,12 @@ export function Home({
           </div>
           <span className="mc-rp">
             {rank.next == null
-              ? `${profile.rp} RP · top tier`
-              : `${rank.have} / ${rank.need} RP to ${rank.nextName}`}
+              ? `${profile.rp} RP · ${t("topTier")}`
+              : t("rpToNext", {
+                  have: rank.have,
+                  need: rank.need,
+                  next: nextName,
+                })}
           </span>
         </button>
 

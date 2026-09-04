@@ -26,14 +26,15 @@ export interface Account {
   clearError: () => void;
 }
 
+/* returns an i18n key the UI can translate, or the raw message if unmapped */
 function friendly(msg: string): string {
   const m = msg.toLowerCase();
-  if (m.includes("invalid login")) return "Wrong email or password.";
-  if (m.includes("already registered")) return "That email already has an account.";
-  if (m.includes("password should be")) return "Password needs at least 6 characters.";
-  if (m.includes("unable to validate email")) return "That does not look like an email.";
-  if (m.includes("email not confirmed")) return "Check your inbox to confirm your email first.";
-  if (m.includes("same password")) return "That is already your password.";
+  if (m.includes("invalid login")) return "wrongLogin";
+  if (m.includes("already registered")) return "emailTaken";
+  if (m.includes("password should be")) return "passwordShort";
+  if (m.includes("unable to validate email")) return "badEmail";
+  if (m.includes("email not confirmed")) return "confirmFirst";
+  if (m.includes("same password")) return "samePassword";
   return msg;
 }
 

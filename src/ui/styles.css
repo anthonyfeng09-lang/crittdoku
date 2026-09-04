@@ -1301,37 +1301,94 @@ h1 {
 .hp-stats b {
   color: var(--ink);
 }
-.hp-lang {
+/* custom language picker (native <select> popups can't be styled) */
+.lang-menu {
   flex: none;
+  position: relative;
+}
+.lang-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: inherit;
   font-size: 13px;
   font-weight: 700;
   color: var(--ink);
-  padding: 7px 26px 7px 12px;
+  padding: 7px 12px;
   border: 1.5px solid var(--line-strong);
   border-radius: 999px;
-  background-color: var(--bg);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' fill='none' stroke='%236b6478' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 9px center;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
+  background: var(--bg);
   cursor: pointer;
   transition:
     border-color 0.13s ease,
     box-shadow 0.13s ease;
 }
-.hp-lang:hover {
+.lang-trigger svg {
+  color: var(--ink-soft);
+}
+.lang-trigger:hover {
   border-color: var(--accent);
 }
-.hp-lang:focus-visible {
+.lang-trigger:focus-visible {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
 }
-/* the layout is always LTR; these lines mix an untranslated name + digits, so
-   let the browser resolve direction per string for languages like Arabic */
+.lang-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  min-width: 140px;
+  background: var(--panel);
+  border: 1.5px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(40, 20, 60, 0.16);
+  animation: lang-pop 0.12s ease both;
+}
+@keyframes lang-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.lang-list li {
+  margin: 0;
+}
+.lang-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+.lang-list button:hover {
+  background: var(--bg);
+}
+.lang-list button.on {
+  color: var(--accent);
+  font-weight: 800;
+}
+.lang-list button svg {
+  color: var(--accent);
+  flex: none;
+}
+
+/* layout is always LTR; these lines mix an untranslated name + digits, so let
+   the browser resolve direction per string for languages like Arabic */
 .mc-rank,
 .mc-rp,
 .hp-stats,

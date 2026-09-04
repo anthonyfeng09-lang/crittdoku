@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { joinQueue, type Net } from "../net/peer";
 import { ALL_CREATURES, type CreatureId } from "../engine";
 import { Critter } from "./Critter";
+import { translator } from "./i18n";
 
 /* "Finding an opponent" for the ranked / casual queues. Tries a public
  * rendezvous for a random 20-30s; if nobody's around it hands back so App can
@@ -74,6 +75,7 @@ const ICONS = [Trophy, Star, Medal, Badge, Gem, Crown];
 
 export function Queue({
   kind,
+  lang,
   playerName,
   canSignIn,
   signedIn,
@@ -83,6 +85,7 @@ export function Queue({
   onAccount,
 }: {
   kind: "ranked" | "casual";
+  lang: string;
   playerName: string;
   canSignIn: boolean;
   signedIn: boolean;
@@ -91,6 +94,7 @@ export function Queue({
   onHome: () => void;
   onAccount: () => void;
 }) {
+  const t = translator(lang);
   const ranked = kind === "ranked";
   const [showShower, setShowShower] = useState(true);
   const [keepStorm, setKeepStorm] = useState(true);
@@ -205,7 +209,9 @@ export function Queue({
 
       <div className="appbar">
         <h1>CRITTDOKU</h1>
-        <span className="status">{ranked ? "Ranked queue" : "Quick match"}</span>
+        <span className="status">
+          {ranked ? t("rankedQueue") : t("quickMatch")}
+        </span>
         <div className="controls" style={{ marginLeft: "auto" }}>
           <button
             onClick={() => {
@@ -213,7 +219,7 @@ export function Queue({
               onHome();
             }}
           >
-            Menu
+            {t("menu")}
           </button>
         </div>
       </div>
@@ -221,12 +227,13 @@ export function Queue({
       <main className="stage online">
         {showCard && (
           <div className="online-card q-card-bounce">
-            <h2>Finding an opponent{".".repeat(dots)}</h2>
+            <h2>
+              {t("findingOpponent")}
+              {".".repeat(dots)}
+            </h2>
             <div className="q-timer">{mmss}</div>
             <p className="sub">
-              {ranked
-                ? "Matching you with a ranked player near your skill."
-                : "Matching you with an opponent for a casual game."}
+              {ranked ? t("matchRankedSub") : t("matchCasualSub")}
             </p>
             {ranked && canSignIn && !signedIn && (
               <button
@@ -236,7 +243,7 @@ export function Queue({
                   onAccount();
                 }}
               >
-                Sign up to save your rank &rsaquo;
+                {t("signUpRank")} &rsaquo;
               </button>
             )}
             <div className="pulse-dot" />
@@ -248,7 +255,7 @@ export function Queue({
                 onHome();
               }}
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         )}

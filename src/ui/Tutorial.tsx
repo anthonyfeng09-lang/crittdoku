@@ -1,59 +1,38 @@
 import { Critter } from "./Critter";
+import { translator } from "./i18n";
 
 /* A one-minute rules read. Static, illustrated with a few critters. */
 
-const STEPS: Array<{ n: string; title: string; body: string; art?: string }> = [
-  {
-    n: "1",
-    title: "Draft from the pool",
-    body: "Take turns pulling one critter out of the pond. Picking is free, but the pool is small, so grab what fits your plan. Spend energy to send the whole pool under and call up a fresh one. Energy you keep here carries into the match for abilities. Then bind your nine critters to the digits 1 to 9.",
-    art: "shellclam",
-  },
-  {
-    n: "2",
-    title: "Place a legal digit",
-    body: "The grid starts nearly empty. On your turn place one digit in any empty cell, as long as it does not repeat in that row, that column or that 3x3 box. There is no fixed solution: legality is the only rule.",
-    art: "boulderpup",
-  },
-  {
-    n: "3",
-    title: "Hold the ground",
-    body: "When play freezes, every row, column and box is scored for whoever holds the most cells in it. Finishing a region early locks it to you for a bonus. Most cells wins the region; most regions wins the match.",
-    art: "mossback",
-  },
-  {
-    n: "4",
-    title: "Spend energy on abilities",
-    body: "Placing digits and claiming regions earns energy. Your critters spend it: hop a cell to a neighbour, place twice in a turn, lay a mine the opponent must clear, remove a contested digit, or place ignoring the rules.",
-    art: "thornpod",
-  },
-  {
-    n: "5",
-    title: "Play the timing",
-    body: "Some critters sleep a turn or two, then wake and snap up any region you already lead. Others store energy, protect a region from being locked, or grow back after they are removed. Check the Critterdex for exactly what each one does.",
-    art: "fogkit",
-  },
+const STEPS: Array<{ n: string; k: string; art: string }> = [
+  { n: "1", k: "tut1", art: "shellclam" },
+  { n: "2", k: "tut2", art: "boulderpup" },
+  { n: "3", k: "tut3", art: "mossback" },
+  { n: "4", k: "tut4", art: "thornpod" },
+  { n: "5", k: "tut5", art: "fogkit" },
 ];
 
 export function Tutorial({
+  lang,
   onDone,
   onHome,
   onDex,
 }: {
+  lang: string;
   onDone: () => void;
   onHome: () => void;
   onDex: () => void;
 }) {
+  const t = translator(lang);
   return (
     <div className="app">
       <div className="appbar">
         <h1>CRITTDOKU</h1>
-        <span className="status">How to play</span>
+        <span className="status">{t("howToPlay")}</span>
         <div className="controls" style={{ marginLeft: "auto" }}>
-          <button onClick={onHome}>Menu</button>
-          <button onClick={onDex}>Critterdex</button>
+          <button onClick={onHome}>{t("menu")}</button>
+          <button onClick={onDex}>{t("dex")}</button>
           <button className="primary" onClick={onDone}>
-            Face a bot
+            {t("faceBot")}
           </button>
         </div>
       </div>
@@ -62,15 +41,15 @@ export function Tutorial({
           {STEPS.map((s) => (
             <section key={s.n} className="tut-step">
               <div className="tut-num">{s.n}</div>
-              {s.art && <Critter id={s.art as never} size={72} />}
+              <Critter id={s.art as never} size={72} />
               <div className="tut-text">
-                <h3>{s.title}</h3>
-                <p>{s.body}</p>
+                <h3>{t(`${s.k}Title` as never)}</h3>
+                <p>{t(`${s.k}Body` as never)}</p>
               </div>
             </section>
           ))}
           <button className="tut-go" onClick={onDone}>
-            Face a bot
+            {t("faceBot")}
           </button>
         </div>
       </main>
