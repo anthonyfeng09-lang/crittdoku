@@ -34,6 +34,7 @@ export function ProfilePage({
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [notice, setNotice] = useState("");
+  const [authMode, setAuthMode] = useState<"signin" | "reset">("signin");
 
   const rank = rankFromRp(profile.rp);
   const rate =
@@ -237,7 +238,35 @@ export function ProfilePage({
               <p className="auth-note">Checking your session...</p>
             )}
 
-            {account.configured && account.status === "in" && (
+            {account.configured && account.recovering && (
+              <form className="auth-form" onSubmit={(e) => e.preventDefault()}>
+                <p className="auth-note">
+                  Choose a new password{account.email ? <> for <b>{account.email}</b></> : null}.
+                </p>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="new password"
+                  value={pw}
+                  onChange={(e) => {
+                    setPw(e.target.value);
+                    account.clearError();
+                  }}
+                />
+                <div className="auth-btns">
+                  <button
+                    className="auth-btn"
+                    disabled={account.busy || pw.length < 6}
+                    onClick={() => account.setPassword(pw)}
+                  >
+                    Save new password
+                  </button>
+                </div>
+                {account.error && <p className="auth-err">{account.error}</p>}
+              </form>
+            )}
+
+            {account.configured && !account.recovering && account.status === "in" && (
               <div className="auth-in">
                 <p className="auth-note">
                   Signed in as <b>{account.email}</b>
@@ -256,63 +285,123 @@ export function ProfilePage({
               </div>
             )}
 
-            {account.configured && account.status === "out" && (
-              <form
-                className="auth-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                }}
-              >
-                <input
-                  type="email"
-                  autoComplete="email"
-                  placeholder="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    account.clearError();
-                    setNotice("");
-                  }}
-                />
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="password"
-                  value={pw}
-                  onChange={(e) => {
-                    setPw(e.target.value);
-                    account.clearError();
-                    setNotice("");
-                  }}
-                />
-                <div className="auth-btns">
+            {account.configured &&
+              !account.recovering &&
+              account.status === "out" &&
+              authMode === "signin" && (
+                <form
+                  className="auth-form"
+                  onSubmit={(e) => e.preventDefault()}
+                >
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      account.clearError();
+                      setNotice("");
+                    }}
+                  />
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="password"
+                    value={pw}
+                    onChange={(e) => {
+                      setPw(e.target.value);
+                      account.clearError();
+                      setNotice("");
+                    }}
+                  />
+                  <div className="auth-btns">
+                    <button
+                      className="auth-btn"
+                      disabled={account.busy || !email || !pw}
+                      onClick={() => account.signIn(email, pw)}
+                    >
+                      Sign in
+                    </button>
+                    <button
+                      className="auth-btn ghost"
+                      disabled={account.busy || !email || !pw}
+                      onClick={async () => {
+                        const ok = await account.signUp(email, pw);
+                        if (ok)
+                          setNotice(
+                            "Account created. Check your inbox if it asks you to confirm, then sign in.",
+                          );
+                      }}
+                    >
+                      Create account
+                    </button>
+                  </div>
                   <button
-                    className="auth-btn"
-                    disabled={account.busy || !email || !pw}
-                    onClick={() => account.signIn(email, pw)}
-                  >
-                    Sign in
-                  </button>
-                  <button
-                    className="auth-btn ghost"
-                    disabled={account.busy || !email || !pw}
-                    onClick={async () => {
-                      const ok = await account.signUp(email, pw);
-                      if (ok)
-                        setNotice(
-                          "Account created. If it asks, confirm your email, then sign in.",
-                        );
+                    type="button"
+                    className="auth-link"
+                    onClick={() => {
+                      setAuthMode("reset");
+                      setNotice("");
+                      account.clearError();
                     }}
                   >
-                    Create account
+                    Forgot password?
                   </button>
-                </div>
-                {account.error && (
-                  <p className="auth-err">{account.error}</p>
-                )}
-                {notice && <p className="auth-note">{notice}</p>}
-              </form>
-            )}
+                  {account.error && <p className="auth-err">{account.error}</p>}
+                  {notice && <p className="auth-note">{notice}</p>}
+                </form>
+              )}
+
+            {account.configured &&
+              !account.recovering &&
+              account.status === "out" &&
+              authMode === "reset" && (
+                <form
+                  className="auth-form"
+                  onSubmit={(e) => e.preventDefault()}
+                >
+                  <p className="auth-note">
+                    Enter your email and we will send a reset link.
+                  </p>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      account.clearError();
+                      setNotice("");
+                    }}
+                  />
+                  <div className="auth-btns">
+                    <button
+                      className="auth-btn"
+                      disabled={account.busy || !email}
+                      onClick={async () => {
+                        const ok = await account.sendReset(email);
+                        if (ok)
+                          setNotice("Sent. Check your inbox for the reset link.");
+                      }}
+                    >
+                      Send reset link
+                    </button>
+                    <button
+                      className="auth-btn ghost"
+                      onClick={() => {
+                        setAuthMode("signin");
+                        setNotice("");
+                        account.clearError();
+                      }}
+                    >
+                      Back
+                    </button>
+                  </div>
+                  {account.error && <p className="auth-err">{account.error}</p>}
+                  {notice && <p className="auth-note">{notice}</p>}
+                </form>
+              )}
           </section>
         </div>
       </main>

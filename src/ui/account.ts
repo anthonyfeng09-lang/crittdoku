@@ -14,9 +14,15 @@ export interface Account {
   email: string | null;
   error: string | null;
   busy: boolean;
+  /** true after clicking a password-reset link: the UI should collect a new one */
+  recovering: boolean;
+  /** flips each time an explicit sign-in / sign-up succeeds (for "go home") */
+  authNonce: number;
   signUp: (email: string, password: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
+  sendReset: (email: string) => Promise<boolean>;
+  setPassword: (password: string) => Promise<boolean>;
   clearError: () => void;
 }
 
@@ -27,6 +33,7 @@ function friendly(msg: string): string {
   if (m.includes("password should be")) return "Password needs at least 6 characters.";
   if (m.includes("unable to validate email")) return "That does not look like an email.";
   if (m.includes("email not confirmed")) return "Check your inbox to confirm your email first.";
+  if (m.includes("same password")) return "That is already your password.";
   return msg;
 }
 
@@ -38,7 +45,12 @@ export function useAccount(): Account {
   const [email, setEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [recovering, setRecovering] = useState(false);
+  const [authNonce, setAuthNonce] = useState(0);
   const mounted = useRef(true);
+  // set right before an explicit sign-in / sign-up so we can tell a real
+  // "you just logged in" SIGNED_IN apart from a session restored on page load
+  const explicit = useRef(false);
 
   useEffect(() => {
     mounted.current = true;
@@ -50,11 +62,16 @@ export function useAccount(): Account {
       setEmail(s?.user.email ?? null);
       setStatus(s ? "in" : "out");
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted.current) return;
       setUserId(session?.user.id ?? null);
       setEmail(session?.user.email ?? null);
       setStatus(session ? "in" : "out");
+      if (event === "PASSWORD_RECOVERY") setRecovering(true);
+      if (event === "SIGNED_IN" && explicit.current) {
+        explicit.current = false;
+        setAuthNonce((n) => n + 1);
+      }
     });
     return () => {
       mounted.current = false;
@@ -82,21 +99,54 @@ export function useAccount(): Account {
   );
 
   const signUp = useCallback(
-    (em: string, pw: string) =>
-      run(() => supabase!.auth.signUp({ email: em.trim(), password: pw })),
+    (em: string, pw: string) => {
+      explicit.current = true;
+      return run(() =>
+        supabase!.auth.signUp({ email: em.trim(), password: pw }),
+      ).then((ok) => {
+        if (!ok) explicit.current = false;
+        return ok;
+      });
+    },
     [run],
   );
   const signIn = useCallback(
-    (em: string, pw: string) =>
-      run(() =>
+    (em: string, pw: string) => {
+      explicit.current = true;
+      return run(() =>
         supabase!.auth.signInWithPassword({ email: em.trim(), password: pw }),
-      ),
+      ).then((ok) => {
+        if (!ok) explicit.current = false;
+        return ok;
+      });
+    },
     [run],
   );
   const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
   }, []);
+
+  const sendReset = useCallback(
+    (em: string) =>
+      run(() =>
+        supabase!.auth.resetPasswordForEmail(em.trim(), {
+          redirectTo: window.location.origin,
+        }),
+      ),
+    [run],
+  );
+  const setPassword = useCallback(
+    async (pw: string) => {
+      const ok = await run(() => supabase!.auth.updateUser({ password: pw }));
+      if (ok) {
+        setRecovering(false);
+        setAuthNonce((n) => n + 1);
+      }
+      return ok;
+    },
+    [run],
+  );
 
   return {
     configured: supabaseReady,
@@ -105,9 +155,13 @@ export function useAccount(): Account {
     email,
     error,
     busy,
+    recovering,
+    authNonce,
     signUp,
     signIn,
     signOut,
+    sendReset,
+    setPassword,
     clearError: () => setError(null),
   };
 }

@@ -194,6 +194,16 @@ export function App() {
     return () => clearTimeout(t);
   }, [profile, account.userId, cloudSynced]);
 
+  // a password-reset link was clicked: land on the account page to set one
+  useEffect(() => {
+    if (account.recovering) setRoute("profile");
+  }, [account.recovering]);
+
+  // a fresh sign-in / sign-up / password change succeeded: back to the menu
+  useEffect(() => {
+    if (account.authNonce > 0) setRoute("home");
+  }, [account.authNonce]);
+
   const [match, setMatch] = useState<Match | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
   const [seedCount, setSeedCount] = useState(6);
