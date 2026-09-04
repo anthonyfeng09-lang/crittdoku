@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+// build marker: v1 (Supabase env wired)
+
 export default defineConfig({
   plugins: [react()],
   build: {
