@@ -2312,6 +2312,29 @@ button {
   font-variant-numeric: tabular-nums;
   margin: 4px 0 8px;
 }
+.q-signup {
+  display: inline-block;
+  margin: 2px 0 4px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1.5px solid #e0a800;
+  background: linear-gradient(180deg, #ffe08a, #f2c200);
+  color: #5a3d00;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 0.13s ease,
+    box-shadow 0.13s ease;
+}
+.q-signup:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(224, 168, 0, 0.32);
+}
+.q-signup:active {
+  transform: translateY(0);
+}
 
 /* cells you could legally place in this turn - a quiet nudge, no animation */
 .cell.legal {

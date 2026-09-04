@@ -479,9 +479,12 @@ export function App() {
       <Queue
         kind={queueKind}
         playerName={profile.name}
+        canSignIn={account.configured}
+        signedIn={account.status === "in"}
         onMatch={(n, host) => onConnected(n, host, queueKind === "ranked")}
         onBot={queueToBot}
         onHome={() => setRoute("home")}
+        onAccount={() => setRoute("profile")}
       />
     );
   } else if (route === "online") {

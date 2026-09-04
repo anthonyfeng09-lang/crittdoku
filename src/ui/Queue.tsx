@@ -75,15 +75,21 @@ const ICONS = [Trophy, Star, Medal, Badge, Gem, Crown];
 export function Queue({
   kind,
   playerName,
+  canSignIn,
+  signedIn,
   onMatch,
   onBot,
   onHome,
+  onAccount,
 }: {
   kind: "ranked" | "casual";
   playerName: string;
+  canSignIn: boolean;
+  signedIn: boolean;
   onMatch: (net: Net, isHost: boolean) => void;
   onBot: () => void;
   onHome: () => void;
+  onAccount: () => void;
 }) {
   const ranked = kind === "ranked";
   const [showShower, setShowShower] = useState(true);
@@ -222,6 +228,17 @@ export function Queue({
                 ? "Matching you with a ranked player near your skill."
                 : "Matching you with an opponent for a casual game."}
             </p>
+            {ranked && canSignIn && !signedIn && (
+              <button
+                className="q-signup"
+                onClick={() => {
+                  cancelRef.current();
+                  onAccount();
+                }}
+              >
+                Sign up to save your rank &rsaquo;
+              </button>
+            )}
             <div className="pulse-dot" />
             <button
               className="big-btn ghost"
