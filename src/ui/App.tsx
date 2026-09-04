@@ -698,6 +698,7 @@ function Dex({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="dex-head">
+          <Mark />
           <h2>{tung ? t("tungdex") : t("dex")}</h2>
           <span className="hint" style={{ margin: 0 }}>
             {t("critterCount", { n: ALL_CREATURES.length })}
