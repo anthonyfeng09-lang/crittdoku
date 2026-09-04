@@ -262,52 +262,57 @@ export function MeadowScene({
         <span className="mt-word">{t("energy")}</span>
       </div>
 
-      {options.map((id, i) => {
-        const sp = SPOTS[i] ?? SPOTS[SPOTS.length - 1];
-        return (
-          <div
-            key={id}
-            className="meadow-pick"
-            style={
-              { left: `${sp.x}%`, top: `${sp.y}%`, "--s": sp.s } as CSSProperties
-            }
-          >
-            <button
-              className="mp-draft"
-              disabled={disabled}
-              onClick={() => onPick(id)}
-              onMouseEnter={() => setHover(id)}
-              onMouseLeave={() => setHover((h) => (h === id ? null : h))}
-              onFocus={() => setHover(id)}
-              onBlur={() => setHover((h) => (h === id ? null : h))}
-            >
-              <span className="mp-ripple" />
-              <Critter id={id} size={104} />
-            </button>
-          </div>
-        );
-      })}
-
-      <div className="meadow-labels">
+      {/* everything below is positioned by SPOTS' percentages against this
+          box, which stops short of the reroll button so the bottom row of
+          critters never sits under it, on any screen size */}
+      <div className="meadow-field">
         {options.map((id, i) => {
           const sp = SPOTS[i] ?? SPOTS[SPOTS.length - 1];
           return (
-            <span
+            <div
               key={id}
-              className={`mp-name${tung ? " mp-name-tung" : ""}`}
+              className="meadow-pick"
               style={
-                {
-                  left: `${sp.x}%`,
-                  top: `${sp.y}%`,
-                  "--s": sp.s,
-                  background: CATEGORIES[ROSTER[id].category].hue,
-                } as CSSProperties
+                { left: `${sp.x}%`, top: `${sp.y}%`, "--s": sp.s } as CSSProperties
               }
             >
-              {dispName(id, tung)}
-            </span>
+              <button
+                className="mp-draft"
+                disabled={disabled}
+                onClick={() => onPick(id)}
+                onMouseEnter={() => setHover(id)}
+                onMouseLeave={() => setHover((h) => (h === id ? null : h))}
+                onFocus={() => setHover(id)}
+                onBlur={() => setHover((h) => (h === id ? null : h))}
+              >
+                <span className="mp-ripple" />
+                <Critter id={id} size={104} />
+              </button>
+            </div>
           );
         })}
+
+        <div className="meadow-labels">
+          {options.map((id, i) => {
+            const sp = SPOTS[i] ?? SPOTS[SPOTS.length - 1];
+            return (
+              <span
+                key={id}
+                className={`mp-name${tung ? " mp-name-tung" : ""}`}
+                style={
+                  {
+                    left: `${sp.x}%`,
+                    top: `${sp.y}%`,
+                    "--s": sp.s,
+                    background: CATEGORIES[ROSTER[id].category].hue,
+                  } as CSSProperties
+                }
+              >
+                {dispName(id, tung)}
+              </span>
+            );
+          })}
+        </div>
       </div>
 
       {hover && <CritDetail id={hover} lang={lang} />}
