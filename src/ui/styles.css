@@ -1765,19 +1765,19 @@ h1 {
 }
 .auth-link {
   align-self: flex-start;
-  margin-top: 2px;
-  padding: 2px 0;
+  margin-top: 4px;
+  padding: 0;
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--ink-soft, #8a8395);
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
-  text-decoration: underline;
+  text-decoration: none;
 }
 .auth-link:hover {
-  opacity: 0.75;
+  color: var(--accent);
 }
 
 @media (max-width: 780px) {
