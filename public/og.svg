@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff4e6"/>
+      <stop offset="0.5" stop-color="#fdf0ff"/>
+      <stop offset="1" stop-color="#e8f7ff"/>
+    </linearGradient>
+    <linearGradient id="word" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f43f5e"/>
+      <stop offset="0.28" stop-color="#fb923c"/>
+      <stop offset="0.5" stop-color="#22c55e"/>
+      <stop offset="0.72" stop-color="#06b6d4"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- mini board -->
+  <g transform="translate(792 132)">
+    <rect x="0" y="0" width="300" height="300" rx="26" fill="#fef9ff" stroke="#2b2233" stroke-width="6"/>
+    <rect x="34"  y="34"  width="66" height="66" rx="12" fill="#22c55e"/>
+    <rect x="200" y="34"  width="66" height="66" rx="12" fill="#a855f7"/>
+    <rect x="117" y="117" width="66" height="66" rx="12" fill="#f59e0b"/>
+    <rect x="34"  y="200" width="66" height="66" rx="12" fill="#f43f5e"/>
+    <rect x="200" y="200" width="66" height="66" rx="12" fill="#fb923c"/>
+    <g stroke="#2b2233" stroke-width="5" stroke-linecap="round" opacity="0.9">
+      <path d="M100 20 V280 M200 20 V280 M20 100 H280 M20 200 H280"/>
+    </g>
+    <g transform="translate(150 67)">
+      <circle cx="-15" cy="0" r="7" fill="#2b2233"/>
+      <circle cx="15" cy="0" r="7" fill="#2b2233"/>
+      <path d="M-16 15 Q 0 28 16 15" fill="none" stroke="#2b2233" stroke-width="7" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <text x="96" y="300" font-family="Verdana, Geneva, sans-serif" font-size="128" font-weight="900" fill="url(#word)" letter-spacing="4">CRITTDOKU</text>
+  <text x="100" y="360" font-family="Verdana, Geneva, sans-serif" font-size="34" font-weight="700" fill="#5b5566">a quiet duel on a shared grid</text>
+
+  <g transform="translate(100 430)">
+    <rect x="0"   y="0" width="54" height="54" rx="14" fill="#22c55e" stroke="#2b2233" stroke-width="4"/>
+    <rect x="70"  y="0" width="54" height="54" rx="14" fill="#06b6d4" stroke="#2b2233" stroke-width="4"/>
+    <rect x="140" y="0" width="54" height="54" rx="14" fill="#a855f7" stroke="#2b2233" stroke-width="4"/>
+    <rect x="210" y="0" width="54" height="54" rx="14" fill="#f59e0b" stroke="#2b2233" stroke-width="4"/>
+    <rect x="280" y="0" width="54" height="54" rx="14" fill="#f43f5e" stroke="#2b2233" stroke-width="4"/>
+    <rect x="350" y="0" width="54" height="54" rx="14" fill="#fb923c" stroke="#2b2233" stroke-width="4"/>
+    <text x="424" y="38" font-family="Verdana, Geneva, sans-serif" font-size="28" font-weight="700" fill="#5b5566">36 critters &#183; six types</text>
+  </g>
+</svg>

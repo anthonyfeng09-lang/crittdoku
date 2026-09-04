@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#fef9ff"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#2b2233" stroke-width="3"/>
+  <!-- filled cells: the six critter types -->
+  <rect x="9"  y="9"  width="14" height="14" rx="3" fill="#22c55e"/>
+  <rect x="41" y="9"  width="14" height="14" rx="3" fill="#a855f7"/>
+  <rect x="25" y="25" width="14" height="14" rx="3" fill="#f59e0b"/>
+  <rect x="9"  y="41" width="14" height="14" rx="3" fill="#f43f5e"/>
+  <rect x="41" y="41" width="14" height="14" rx="3" fill="#fb923c"/>
+  <!-- a little critter peeking out of the centre-top cell -->
+  <g transform="translate(32 16)">
+    <circle cx="-3.4" cy="0" r="1.7" fill="#2b2233"/>
+    <circle cx="3.4" cy="0" r="1.7" fill="#2b2233"/>
+    <path d="M-3.6 3.4 Q 0 6.4 3.6 3.4" fill="none" stroke="#2b2233" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+  <!-- grid rules -->
+  <g stroke="#2b2233" stroke-width="2.4" stroke-linecap="round" opacity="0.9">
+    <path d="M24 8 V56 M40 8 V56 M8 24 H56 M8 40 H56"/>
+  </g>
+</svg>
