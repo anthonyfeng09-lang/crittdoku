@@ -1681,53 +1681,87 @@ h1 {
   white-space: nowrap;
 }
 
-.prof-io textarea {
-  width: 100%;
-  font-family: ui-monospace, monospace;
-  font-size: 11px;
-  border: 1.5px solid var(--line);
+/* account / sign-in block on the profile page */
+.auth-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft, #6b6475);
+  line-height: 1.5;
+}
+.auth-sync {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 700;
+}
+.auth-err {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e11d48;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  max-width: 320px;
+}
+.auth-form input {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 12px;
   border-radius: 10px;
-  padding: 9px 10px;
-  resize: vertical;
-  margin: 8px 0 2px;
+  border: 1.5px solid var(--line);
   background: var(--bg);
   color: var(--ink);
 }
-.prof-io textarea:focus {
+.auth-form input:focus {
   outline: none;
   border-color: var(--accent);
 }
-.prof-io-btns {
+.auth-btns {
   display: flex;
   gap: 8px;
-  align-items: center;
   flex-wrap: wrap;
-  margin-top: 10px;
+  margin-top: 2px;
 }
-.prof-io-btns button {
+.auth-in {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.auth-btn {
   font-family: inherit;
   font-size: 13px;
   font-weight: 700;
   padding: 9px 18px;
   border-radius: 10px;
-  border: 1.5px solid var(--line);
+  border: 1.5px solid #7c3aed;
+  background: linear-gradient(180deg, #a855f7, #7c3aed);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(30, 16, 44, 0.08);
+  transition:
+    transform 0.13s ease,
+    box-shadow 0.13s ease,
+    background 0.13s ease;
+}
+.auth-btn.ghost {
   background: var(--panel);
   color: var(--ink);
-  cursor: pointer;
-  box-shadow: 0 1px 2px rgba(30, 16, 44, 0.06);
+  border-color: var(--line);
 }
-.prof-io-btns button:first-child {
-  background: linear-gradient(180deg, #a855f7, #7c3aed);
-  border-color: #7c3aed;
-  color: #fff;
-}
-.prof-io-btns button:hover {
+.auth-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(120, 60, 160, 0.16);
+  box-shadow: 0 6px 16px rgba(120, 60, 160, 0.18);
 }
-.prof-io-btns button:active {
+.auth-btn:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(30, 16, 44, 0.06);
+}
+.auth-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 @media (max-width: 780px) {
@@ -1783,7 +1817,6 @@ button {
 .dex-head button,
 .dex-pill,
 .pool-reroll,
-.prof-io-btns button,
 .mode-card,
 .tut-go,
 .avatar-opt,
@@ -2218,6 +2251,10 @@ button {
   /* isolate the layer: children paint/animate without touching the page */
   contain: strict;
   will-change: transform;
+}
+/* curtain has fallen: kill it from the render tree without a mid-frame unmount */
+.prize-storm.spent {
+  display: none;
 }
 /* the prize layer judders as the curtain crashes down - just the gems, the
    title and card stay put. transform-only so it stays on the compositor. */

@@ -87,6 +87,7 @@ export function Queue({
 }) {
   const ranked = kind === "ranked";
   const [showShower, setShowShower] = useState(true);
+  const [keepStorm, setKeepStorm] = useState(true);
   const [rumble, setRumble] = useState(true);
   const [showCard, setShowCard] = useState(false);
   const [dots, setDots] = useState(0);
@@ -99,9 +100,14 @@ export function Queue({
   // held a beat after mount so the nodes paint before they animate (no
   // first-frame stutter). Ranked rains prize icons; casual rains critters,
   // which are heavier to draw so there are fewer, larger ones.
-  const HOLD = 0.1;
-  const COLS = ranked ? 20 : 9;
-  const COUNT = ranked ? 900 : 250;
+  // Held one frame after mount so the nodes paint before they animate, then
+  // the whole band (which sits ENTIRELY above the viewport - nothing shows
+  // during the hold) pours straight down through the screen and off the
+  // bottom. Ranked rains prize icons; casual rains critters, which are
+  // heavier to draw so there are fewer, larger ones.
+  const HOLD = 0.08;
+  const COLS = ranked ? 20 : 10;
+  const COUNT = ranked ? 900 : 200;
   const shower = useRef(
     Array.from({ length: COUNT }, (_, i) => {
       const col = i % COLS;
@@ -110,31 +116,35 @@ export function Queue({
         cid: ALL_CREATURES[
           Math.floor(Math.random() * ALL_CREATURES.length)
         ] as CreatureId,
-        x: (col / COLS) * 100 + Math.random() * (ranked ? 7 : 15),
-        size: ranked ? 46 + Math.random() * 54 : 96 + Math.random() * 96,
-        // all start above the top edge so nothing shows during the hold
-        y0: -205 + Math.random() * 200,
+        x: (col / COLS) * 100 + Math.random() * (ranked ? 7 : 13),
+        size: ranked ? 46 + Math.random() * 54 : 90 + Math.random() * 84,
+        // top edge starts at y0vh; -35vh is clear of the viewport even for
+        // the tallest node, so the hold shows an empty screen, not a frozen
+        // wall of things sitting at the top
+        y0: -230 + Math.random() * 195,
         delay: HOLD + Math.random() * 0.1,
         dur: 1.45 + Math.random() * 0.3,
-        spin: (Math.random() - 0.5) * (ranked ? 620 : 260),
+        spin: (Math.random() - 0.5) * (ranked ? 620 : 240),
       };
     }),
   );
 
+  // one-shot: never re-run, so nothing clears the card timer early. The storm
+  // is hidden with `hidden` (cheap) rather than unmounted mid-frame - tearing
+  // down hundreds of nodes right as the card mounts is its own little hitch.
   useEffect(() => {
-    if (!showShower) return;
-    // shaking eases off as the last prizes leave the bottom of the screen...
-    const r = setTimeout(() => setRumble(false), 1550);
-    // ...the storm unmounts once everything is out of view...
-    const a = setTimeout(() => setShowShower(false), 1750);
-    // ...and only then does the card drop in and bounce.
-    const b = setTimeout(() => setShowCard(true), 1770);
+    const r = setTimeout(() => setRumble(false), 1350);
+    const a = setTimeout(() => {
+      setShowShower(false); // .spent -> display:none (cheap)
+      setShowCard(true); // card drops in exactly as the curtain leaves
+    }, 1500);
+    const c = setTimeout(() => setKeepStorm(false), 3200); // now free the nodes
     return () => {
-      clearTimeout(a);
-      clearTimeout(b);
       clearTimeout(r);
+      clearTimeout(a);
+      clearTimeout(c);
     };
-  }, [showShower]);
+  }, []);
 
   useEffect(() => {
     const timeoutMs = 20000 + Math.floor(Math.random() * 10000); // 20-30s
@@ -156,11 +166,11 @@ export function Queue({
 
   return (
     <div className="app queue-app">
-      {showShower && (
+      {keepStorm && (
         <div
           className={`prize-storm${rumble ? " rumble" : ""}${
             ranked ? "" : " critters"
-          }`}
+          }${showShower ? "" : " spent"}`}
           aria-hidden="true"
         >
           {shower.current.map((p, i) => {

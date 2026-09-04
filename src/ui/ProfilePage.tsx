@@ -1,16 +1,12 @@
 import { useMemo, useState } from "react";
 import { ALL_CREATURES, ROSTER, CATEGORIES, CreatureId } from "../engine";
 import { Critter } from "./Critter";
-import {
-  rankFromRp,
-  exportProfile,
-  importProfile,
-  type Profile,
-} from "./profile";
+import { rankFromRp, type Profile } from "./profile";
+import type { Account } from "./account";
 
-/* The account page. Local only, but it behaves like one: name, avatar,
- * rank progress, lifetime stats, match history, and an export/import so it
- * can move between browsers. */
+/* The account page: name, avatar, rank progress, lifetime stats, match log,
+ * and an email/password sign-in that syncs the profile to the cloud so it
+ * follows you between devices. */
 
 function ago(ts: number): string {
   const s = Math.floor((Date.now() - ts) / 1000);
@@ -22,18 +18,22 @@ function ago(ts: number): string {
 
 export function ProfilePage({
   profile,
+  account,
+  cloudSynced,
   onChange,
   onHome,
 }: {
   profile: Profile;
+  account: Account;
+  cloudSynced: boolean;
   onChange: (p: Profile) => void;
   onHome: () => void;
 }) {
   const [name, setName] = useState(profile.name);
   const [pickAvatar, setPickAvatar] = useState(false);
-  const [io, setIo] = useState<"none" | "export" | "import">("none");
-  const [code, setCode] = useState("");
-  const [msg, setMsg] = useState("");
+  const [email, setEmail] = useState("");
+  const [pw, setPw] = useState("");
+  const [notice, setNotice] = useState("");
 
   const rank = rankFromRp(profile.rp);
   const rate =
@@ -221,70 +221,97 @@ export function ProfilePage({
             </div>
           </section>
 
-          <section className="prof-card prof-io">
-            {io === "none" && (
-              <>
-                <div className="hint" style={{ marginTop: 0 }}>
-                  move this profile between browsers
-                </div>
-                <div className="prof-io-btns">
-                  <button onClick={() => { setIo("export"); setCode(exportProfile(profile)); setMsg(""); }}>
-                    Export
-                  </button>
-                  <button onClick={() => { setIo("import"); setCode(""); setMsg(""); }}>
-                    Import
-                  </button>
-                </div>
-              </>
+          <section className="prof-card prof-auth">
+            <div className="hint" style={{ marginTop: 0 }}>
+              account
+            </div>
+
+            {!account.configured && (
+              <p className="auth-note">
+                Cloud accounts are not set up on this build. Your profile is
+                saved in this browser only.
+              </p>
             )}
-            {io === "export" && (
-              <>
-                <div className="hint" style={{ marginTop: 0 }}>
-                  copy this code and paste it into Import on another browser
-                </div>
-                <textarea readOnly value={code} rows={3} onFocus={(e) => e.currentTarget.select()} />
-                <div className="prof-io-btns">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard?.writeText(code);
-                      setMsg("copied");
-                    }}
-                  >
-                    Copy
-                  </button>
-                  <button onClick={() => setIo("none")}>Done</button>
-                  {msg && <span className="hint" style={{ margin: 0 }}>{msg}</span>}
-                </div>
-              </>
+
+            {account.configured && account.status === "loading" && (
+              <p className="auth-note">Checking your session...</p>
             )}
-            {io === "import" && (
-              <>
-                <div className="hint" style={{ marginTop: 0 }}>
-                  paste an exported code
-                </div>
-                <textarea
-                  value={code}
-                  rows={3}
-                  onChange={(e) => setCode(e.target.value)}
+
+            {account.configured && account.status === "in" && (
+              <div className="auth-in">
+                <p className="auth-note">
+                  Signed in as <b>{account.email}</b>
+                  <br />
+                  <span className="auth-sync">
+                    {cloudSynced ? "Progress is syncing to the cloud" : "Syncing..."}
+                  </span>
+                </p>
+                <button
+                  className="auth-btn ghost"
+                  disabled={account.busy}
+                  onClick={() => account.signOut()}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+
+            {account.configured && account.status === "out" && (
+              <form
+                className="auth-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                }}
+              >
+                <input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    account.clearError();
+                    setNotice("");
+                  }}
                 />
-                <div className="prof-io-btns">
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="password"
+                  value={pw}
+                  onChange={(e) => {
+                    setPw(e.target.value);
+                    account.clearError();
+                    setNotice("");
+                  }}
+                />
+                <div className="auth-btns">
                   <button
-                    onClick={() => {
-                      const p = importProfile(code);
-                      if (p) {
-                        onChange(p);
-                        setIo("none");
-                      } else {
-                        setMsg("that code did not read");
-                      }
+                    className="auth-btn"
+                    disabled={account.busy || !email || !pw}
+                    onClick={() => account.signIn(email, pw)}
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    className="auth-btn ghost"
+                    disabled={account.busy || !email || !pw}
+                    onClick={async () => {
+                      const ok = await account.signUp(email, pw);
+                      if (ok)
+                        setNotice(
+                          "Account created. If it asks, confirm your email, then sign in.",
+                        );
                     }}
                   >
-                    Load
+                    Create account
                   </button>
-                  <button onClick={() => setIo("none")}>Cancel</button>
-                  {msg && <span className="hint" style={{ margin: 0 }}>{msg}</span>}
                 </div>
-              </>
+                {account.error && (
+                  <p className="auth-err">{account.error}</p>
+                )}
+                {notice && <p className="auth-note">{notice}</p>}
+              </form>
             )}
           </section>
         </div>

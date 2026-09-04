@@ -48,6 +48,8 @@ import { Online } from "./Online";
 import { Queue } from "./Queue";
 import { randomHandle } from "./names";
 import { loadProfile, saveProfile, recordMatch, type Profile } from "./profile";
+import { useAccount } from "./account";
+import { pullProfile, pushProfile } from "../net/cloudProfile";
 import type { Net } from "../net/peer";
 
 const SIZE = 9;
@@ -156,6 +158,41 @@ export function App() {
   // when a queue quietly falls back to a bot, wear a normal-looking handle
   const [disguise, setDisguise] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
+
+  // --- account + cloud profile sync ---
+  const account = useAccount();
+  const [cloudSynced, setCloudSynced] = useState(false);
+  const syncingUid = useRef<string | null>(null);
+
+  useEffect(() => {
+    const uid = account.userId;
+    if (!uid) {
+      setCloudSynced(false);
+      syncingUid.current = null;
+      return;
+    }
+    if (syncingUid.current === uid) return;
+    syncingUid.current = uid;
+    setCloudSynced(false);
+    let cancelled = false;
+    (async () => {
+      const remote = await pullProfile(uid);
+      if (cancelled) return;
+      if (remote) setProfile(saveProfile(remote));
+      else await pushProfile(uid, loadProfile()); // first sign-in keeps local progress
+      if (!cancelled) setCloudSynced(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [account.userId]);
+
+  useEffect(() => {
+    const uid = account.userId;
+    if (!uid || !cloudSynced) return;
+    const t = setTimeout(() => pushProfile(uid, profile), 800);
+    return () => clearTimeout(t);
+  }, [profile, account.userId, cloudSynced]);
 
   const [match, setMatch] = useState<Match | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
@@ -459,6 +496,8 @@ export function App() {
     screen = (
       <ProfilePage
         profile={profile}
+        account={account}
+        cloudSynced={cloudSynced}
         onChange={(p) => setProfile(saveProfile(p))}
         onHome={() => setRoute("home")}
       />
