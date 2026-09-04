@@ -42,8 +42,9 @@ import {
 import { Critter } from "./Critter";
 import { MeadowScene } from "./Meadow";
 import { Home, type Mode, type BotLevel } from "./Home";
-import { Tutorial } from "./Tutorial";
 import { ProfilePage } from "./ProfilePage";
+import { Coach } from "./Coach";
+import { tutorialSteps } from "./tutorialSteps";
 import { Online } from "./Online";
 import { Queue } from "./Queue";
 import { randomHandle } from "./names";
@@ -218,6 +219,7 @@ export function App() {
   const [seedCount, setSeedCount] = useState(6);
   const [sel, setSel] = useState<number | null>(null);
   const [auto, setAuto] = useState(false);
+  const [coach, setCoach] = useState<number | null>(null);
   const botRng = useRef(makeRng(98765));
   const recorded = useRef<GameState | null>(null);
 
@@ -429,6 +431,7 @@ export function App() {
     setGame(null);
     setMatch(null);
     recorded.current = null;
+    setCoach(null);
     setRoute("home");
   };
 
@@ -470,7 +473,33 @@ export function App() {
     setRoute("draft");
   };
 
+  // the interactive tutorial: a real game vs the gentlest bot with the coach
+  // overlay guiding each step
+  const startTutorial = () => {
+    setMode("bot");
+    setBotLevel("chill");
+    setRanked(false);
+    setDisguise(null);
+    setGame(null);
+    setMatch(null);
+    recorded.current = null;
+    setCoach(0);
+    setRoute("draft");
+  };
+
   const t = translator(profile.lang);
+  const coachSteps = useMemo(() => tutorialSteps(t), [profile.lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  const coachNext = useCallback(
+    () =>
+      setCoach((s) =>
+        s === null || s >= coachSteps.length - 1 ? null : s + 1,
+      ),
+    [coachSteps.length],
+  );
+  const coachSkip = useCallback(() => {
+    setCoach(null);
+    goHome();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   let screen: ReactNode;
   if (route === "home") {
@@ -491,7 +520,7 @@ export function App() {
         }}
         onQueue={enterQueue}
         onOnline={() => setRoute("online")}
-        onTutorial={() => setRoute("tutorial")}
+        onTutorial={startTutorial}
         onDex={openDex}
       />
     );
@@ -526,24 +555,6 @@ export function App() {
         cloudSynced={cloudSynced}
         onChange={(p) => setProfile(saveProfile(p))}
         onHome={() => setRoute("home")}
-      />
-    );
-  } else if (route === "tutorial") {
-    screen = (
-      <Tutorial
-        lang={profile.lang}
-        onDone={() => {
-          setMode("bot");
-          setBotLevel("chill");
-          setRanked(false);
-          setDisguise(null);
-          setGame(null);
-          setMatch(null);
-          recorded.current = null;
-          setRoute("draft");
-        }}
-        onHome={() => setRoute("home")}
-        onDex={openDex}
       />
     );
   } else if (route === "draft" || !game || !match) {
@@ -616,13 +627,21 @@ export function App() {
     <>
       {screen}
       {dex && <Dex t={t} lang={profile.lang} onClose={() => setDex(false)} />}
+      {coach !== null && !dex && (
+        <Coach
+          steps={coachSteps}
+          index={coach}
+          onNext={coachNext}
+          onSkip={coachSkip}
+        />
+      )}
       {netErr && (
         <div className="dex-overlay" onClick={goHome}>
           <div className="dex" style={{ maxWidth: 380, padding: 20 }}>
             <h2 style={{ marginTop: 0 }}>{t("matchEnded")}</h2>
             <p className="sub">{netErr}</p>
             <button className="primary" onClick={goHome}>
-              Back to menu
+              {t("back")}
             </button>
           </div>
         </div>
@@ -662,9 +681,7 @@ function Dex({
             style={{ marginLeft: "auto" }}
             onClick={onClose}
             aria-label={t("close")}
-          >
-            &times;
-          </button>
+          />
         </div>
         <div className="dex-body">
           {CAT_ORDER.map((cat) => {
@@ -980,6 +997,7 @@ function Draft({
             ) : (
               <button
                 className="primary"
+                data-coach="start"
                 onClick={() => onStart(assigned, undefined, [energy[0], energy[1]])}
               >
                 {t("startMatch")}

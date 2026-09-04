@@ -66,7 +66,48 @@ const EN: Dict = {
   burstPrompt: "{name}: place your burst digit.",
   legOneSwap: "Leg 1: {n0} {a}, {n1} {b}. Teams swap for leg 2.",
 
-  // tutorial
+  // interactive tutorial (coach-marks)
+  tut_welcomeTitle: "Let's play a real game",
+  tut_welcomeBody:
+    "This is a live match against the gentlest bot. I'll spotlight each part and explain it as we go. You can leave any time with Skip.",
+  tut_poolTitle: "Draft your team",
+  tut_poolBody:
+    "Every turn a few critters float in the pond. Tap one to take it onto your team, then the bot takes one, back and forth until you each have nine. Picks are exclusive: once it's taken, it's gone. Tap any critter now.",
+  tut_rerollTitle: "Reroll the pool",
+  tut_rerollBody:
+    "Don't like what's out? This green button sinks the whole pool and calls up a fresh set. It costs energy though, and that same energy powers your abilities in the match, so every reroll is one less ability later.",
+  tut_energyTitle: "Energy is shared",
+  tut_energyBody:
+    "This is your energy bank. Whatever you don't spend rerolling in the draft, you carry straight into the game to cast abilities. Frugal drafters get more tricks.",
+  tut_trayTitle: "Your line-up",
+  tut_trayBody:
+    "Your picks fill this tray in order. The small number under each critter is the digit it's bound to: your first pick is digit 1, your second is digit 2, and so on up to 9.",
+  tut_fillTitle: "Fill out your team",
+  tut_fillBody:
+    "Now draft the rest. Keep tapping critters (the bot picks in between) until all nine of your slots are full. Reroll if nothing fits. When your team is complete you'll move to the line-up screen automatically.",
+  tut_startTitle: "Start the match",
+  tut_startBody:
+    "The bot has finished drafting and your nine critters are locked to the digits 1 to 9. Tap Start match to take the board.",
+  tut_boardTitle: "The grid",
+  tut_boardBody:
+    "It starts almost empty. On your turn you place one digit in any empty cell. The only rule: that digit can't already appear in the same row, the same column, or the same 3x3 box. There's no hidden solution - if it's legal, it's allowed.",
+  tut_placeTitle: "Place a digit",
+  tut_placeBody:
+    "The glowing cells are every legal spot for you right now. Tap one to place its critter's digit there and claim that cell for yourself.",
+  tut_holdTitle: "Hold the ground",
+  tut_holdBody:
+    "When the board locks up, every row, column and box goes to whoever holds the most cells in it. This panel shows the live count. Complete a region yourself and it locks to you early, with a bonus. Most regions wins the match.",
+  tut_abilityTitle: "Spend energy on abilities",
+  tut_abilityBody:
+    "Your critters aren't just digits. They can hop to a neighbouring cell, place twice in a turn, lay a mine the bot must clear, remove a contested digit, or place ignoring the rules - each for a cost in energy. Tap one of your own digits to see its options.",
+  tut_teamTitle: "Know your critters",
+  tut_teamBody:
+    "Your nine are listed here with their type. Some sleep a turn then wake and seize a region you lead. Some store energy or shield a region. Hover any of them, or open the Critterdex, for the exact effect.",
+  tut_doneTitle: "That's the whole game",
+  tut_doneBody:
+    "Place legal digits, hold the most ground, and time your abilities. Finish this match for practice, or head back to the menu whenever you like. Good luck.",
+
+  // tutorial (legacy static, still used by keys elsewhere)
   howToPlay: "How to play",
   tut1Title: "Draft from the pool",
   tut1Body:
@@ -251,6 +292,46 @@ const ES: Dict = {
   burstPrompt: "{name}: coloca tu dígito extra.",
   legOneSwap: "Manga 1: {n0} {a}, {n1} {b}. Los equipos cambian para la manga 2.",
 
+  tut_welcomeTitle: "Vamos a jugar de verdad",
+  tut_welcomeBody:
+    "Esta es una partida real contra el bot más suave. Iré señalando cada parte y explicándola sobre la marcha. Puedes salir cuando quieras con Saltar.",
+  tut_poolTitle: "Recluta tu equipo",
+  tut_poolBody:
+    "Cada turno flotan unos critters en el estanque. Toca uno para llevártelo, luego el bot toma otro, por turnos hasta tener nueve cada uno. Los picks son exclusivos: si se lo llevan, desaparece. Toca un critter ahora.",
+  tut_rerollTitle: "Rehacer la reserva",
+  tut_rerollBody:
+    "¿No te gusta lo que hay? Este botón verde hunde toda la reserva y saca un conjunto nuevo. Pero cuesta energía, y esa misma energía alimenta tus habilidades en la partida, así que cada reroll es una habilidad menos después.",
+  tut_energyTitle: "La energía es compartida",
+  tut_energyBody:
+    "Este es tu banco de energía. Lo que no gastes rerolleando en el draft lo llevas directo a la partida para lanzar habilidades. Quien drafteas con moderación tiene más trucos.",
+  tut_trayTitle: "Tu alineación",
+  tut_trayBody:
+    "Tus picks llenan esta bandeja en orden. El número pequeño bajo cada critter es el dígito al que está atado: tu primer pick es el dígito 1, el segundo el 2, y así hasta el 9.",
+  tut_fillTitle: "Completa tu equipo",
+  tut_fillBody:
+    "Ahora draftea el resto. Sigue tocando critters (el bot elige entre medias) hasta llenar tus nueve casillas. Rerollea si nada encaja. Cuando tu equipo esté completo pasarás a la pantalla de alineación automáticamente.",
+  tut_startTitle: "Empieza la partida",
+  tut_startBody:
+    "El bot terminó de draftear y tus nueve critters están atados a los dígitos del 1 al 9. Toca Empezar partida para salir al tablero.",
+  tut_boardTitle: "La cuadrícula",
+  tut_boardBody:
+    "Empieza casi vacía. En tu turno colocas un dígito en cualquier celda vacía. La única regla: ese dígito no puede aparecer ya en la misma fila, la misma columna o la misma caja de 3x3. No hay solución oculta: si es legal, se permite.",
+  tut_placeTitle: "Coloca un dígito",
+  tut_placeBody:
+    "Las celdas que brillan son todos tus movimientos legales ahora mismo. Toca una para colocar ahí el dígito de su critter y reclamar esa celda.",
+  tut_holdTitle: "Domina el terreno",
+  tut_holdBody:
+    "Cuando el tablero se bloquea, cada fila, columna y caja va a quien tenga más celdas en ella. Este panel muestra el conteo en vivo. Completa tú una región y se te bloquea antes, con bonificación. Más regiones gana la partida.",
+  tut_abilityTitle: "Gasta energía en habilidades",
+  tut_abilityBody:
+    "Tus critters no son solo dígitos. Pueden saltar a una celda vecina, colocar dos veces en un turno, poner una mina que el bot debe limpiar, quitar un dígito disputado o colocar ignorando las reglas, cada una por un coste en energía. Toca uno de tus dígitos para ver sus opciones.",
+  tut_teamTitle: "Conoce a tus critters",
+  tut_teamBody:
+    "Tus nueve están listados aquí con su tipo. Algunos duermen un turno, luego despiertan y toman una región que lideras. Otros almacenan energía o protegen una región. Pasa el cursor por cualquiera, o abre el Critterdex, para el efecto exacto.",
+  tut_doneTitle: "Ese es todo el juego",
+  tut_doneBody:
+    "Coloca dígitos legales, domina más terreno y calcula el momento de tus habilidades. Termina esta partida para practicar, o vuelve al menú cuando quieras. Suerte.",
+
   howToPlay: "Cómo jugar",
   tut1Title: "Recluta del estanque",
   tut1Body:
@@ -427,6 +508,46 @@ const FR: Dict = {
   wonIt: "{name} a gagné, {a}–{b}.",
   burstPrompt: "{name} : posez votre chiffre bonus.",
   legOneSwap: "Manche 1 : {n0} {a}, {n1} {b}. Les équipes changent pour la manche 2.",
+
+  tut_welcomeTitle: "Jouons une vraie partie",
+  tut_welcomeBody:
+    "Ceci est un vrai match contre le bot le plus doux. Je vais éclairer chaque partie et l'expliquer au fur et à mesure. Vous pouvez quitter à tout moment avec Passer.",
+  tut_poolTitle: "Recrutez votre équipe",
+  tut_poolBody:
+    "À chaque tour, quelques critters flottent dans l'étang. Touchez-en un pour le prendre, puis le bot en prend un, chacun son tour jusqu'à neuf. Les choix sont exclusifs : une fois pris, c'est fini. Touchez un critter maintenant.",
+  tut_rerollTitle: "Relancer le vivier",
+  tut_rerollBody:
+    "Ça ne vous plaît pas ? Ce bouton vert immerge tout le vivier et en fait remonter un neuf. Mais ça coûte de l'énergie, et cette énergie alimente vos capacités en match : chaque relance, c'est une capacité de moins plus tard.",
+  tut_energyTitle: "L'énergie est partagée",
+  tut_energyBody:
+    "Voici votre réserve d'énergie. Ce que vous ne dépensez pas à relancer au draft, vous l'emportez directement en partie pour lancer des capacités. Les drafteurs économes ont plus de tours dans leur sac.",
+  tut_trayTitle: "Votre composition",
+  tut_trayBody:
+    "Vos choix remplissent ce plateau dans l'ordre. Le petit chiffre sous chaque critter est le chiffre auquel il est lié : votre premier choix est le chiffre 1, le deuxième le 2, et ainsi jusqu'à 9.",
+  tut_fillTitle: "Complétez votre équipe",
+  tut_fillBody:
+    "Draftez le reste. Continuez à toucher des critters (le bot choisit entre-temps) jusqu'à remplir vos neuf emplacements. Relancez si rien ne convient. Une fois l'équipe complète, vous passerez à l'écran de composition automatiquement.",
+  tut_startTitle: "Lancez le match",
+  tut_startBody:
+    "Le bot a fini son draft et vos neuf critters sont liés aux chiffres 1 à 9. Touchez Lancer la partie pour entrer sur le plateau.",
+  tut_boardTitle: "La grille",
+  tut_boardBody:
+    "Elle commence presque vide. À votre tour, vous placez un chiffre dans une case vide. Seule règle : ce chiffre ne doit pas déjà figurer dans la même ligne, la même colonne ou la même boîte 3x3. Aucune solution cachée : si c'est légal, c'est permis.",
+  tut_placeTitle: "Placez un chiffre",
+  tut_placeBody:
+    "Les cases qui brillent sont tous vos coups légaux en ce moment. Touchez-en une pour y poser le chiffre de son critter et vous emparer de cette case.",
+  tut_holdTitle: "Tenez le terrain",
+  tut_holdBody:
+    "Quand le plateau se fige, chaque ligne, colonne et boîte revient à qui y possède le plus de cases. Ce panneau montre le compte en direct. Complétez une région vous-même et elle se verrouille tôt, avec bonus. Le plus de régions gagne la partie.",
+  tut_abilityTitle: "Dépensez l'énergie en capacités",
+  tut_abilityBody:
+    "Vos critters ne sont pas que des chiffres. Ils peuvent sauter vers une case voisine, poser deux fois dans un tour, poser une mine que le bot doit déminer, retirer un chiffre disputé, ou poser en ignorant les règles - chacun pour un coût en énergie. Touchez un de vos chiffres pour voir ses options.",
+  tut_teamTitle: "Connaissez vos critters",
+  tut_teamBody:
+    "Vos neuf sont listés ici avec leur type. Certains dorment un tour puis se réveillent et saisissent une région où vous menez. D'autres stockent de l'énergie ou protègent une région. Survolez-en un, ou ouvrez le Critterdex, pour l'effet exact.",
+  tut_doneTitle: "Voilà tout le jeu",
+  tut_doneBody:
+    "Placez des chiffres légaux, tenez le plus de terrain, et calculez le timing de vos capacités. Terminez ce match pour vous entraîner, ou revenez au menu quand vous voulez. Bonne chance.",
 
   howToPlay: "Comment jouer",
   tut1Title: "Recrutez dans le bassin",
@@ -605,6 +726,46 @@ const ZH: Dict = {
   burstPrompt: "{name}：落下你的连击数字。",
   legOneSwap: "第 1 局：{n0} {a}，{n1} {b}。第 2 局双方交换队伍。",
 
+  tut_welcomeTitle: "来打一局真正的对局",
+  tut_welcomeBody:
+    "这是一场对阵最温和电脑的真实对局。我会依次高亮每个部分并讲解。你随时可以点「跳过」离开。",
+  tut_poolTitle: "征召你的队伍",
+  tut_poolBody:
+    "每回合池塘里会漂着几只生物。点一只把它收入队伍，然后电脑选一只，轮流直到各有九只。选取是排他的：被拿走就没了。现在点一只生物吧。",
+  tut_rerollTitle: "刷新池子",
+  tut_rerollBody:
+    "不喜欢现在的？这个绿色按钮会让整个池子沉下去，换一批新的。但它消耗能量，而同样的能量在对局中用来发动技能，所以每次刷新都意味着之后少一次技能。",
+  tut_energyTitle: "能量是共享的",
+  tut_energyBody:
+    "这是你的能量库。选人阶段没花在刷新上的能量，会直接带进对局用来发动技能。省着选的人手里的花招更多。",
+  tut_trayTitle: "你的阵容",
+  tut_trayBody:
+    "你选的生物按顺序填进这个托盘。每只生物下方的小数字就是它绑定的数字：第一个选的是数字 1，第二个是数字 2，依此类推到 9。",
+  tut_fillTitle: "补满你的队伍",
+  tut_fillBody:
+    "现在把剩下的选完。继续点生物（电脑在中间轮流选），直到你的九个格子全满。没有合适的就刷新。队伍满员后会自动进入阵容界面。",
+  tut_startTitle: "开始对局",
+  tut_startBody:
+    "电脑选人完毕，你的九只生物已绑定到数字 1 到 9。点「开始对局」进入棋盘。",
+  tut_boardTitle: "棋盘",
+  tut_boardBody:
+    "它一开始几乎是空的。轮到你时，在任意空格放一个数字。唯一规则：该数字不能已经出现在同一行、同一列或同一个 3x3 宫里。没有隐藏解——只要合法就允许。",
+  tut_placeTitle: "落一个数字",
+  tut_placeBody:
+    "发光的格子是你此刻所有的合法落点。点其中一个，把它对应生物的数字落在那里，占下这个格子。",
+  tut_holdTitle: "守住地盘",
+  tut_holdBody:
+    "当棋盘锁死时，每一行、每一列、每一宫都归占格最多的一方。这个面板显示实时统计。你自己完成一个区域，它会提前锁定给你并有加成。得区域多者胜。",
+  tut_abilityTitle: "用能量发动技能",
+  tut_abilityBody:
+    "你的生物不只是数字。它们可以跳到相邻格、一回合落两子、放一颗电脑必须清除的地雷、移除争夺中的数字，或无视规则落子——每项都消耗能量。点你自己的一个数字查看它的选项。",
+  tut_teamTitle: "了解你的生物",
+  tut_teamBody:
+    "你的九只连同类型列在这里。有些会沉睡一回合，然后醒来抢占你领先的区域。有些储存能量或保护区域。悬停任意一只，或打开生物图鉴，查看确切效果。",
+  tut_doneTitle: "这就是全部玩法",
+  tut_doneBody:
+    "落合法数字，占更多地盘，把握技能时机。打完这局练练手，或随时回到菜单。祝你好运。",
+
   howToPlay: "游戏规则",
   tut1Title: "从池中征召",
   tut1Body:
@@ -778,6 +939,46 @@ const AR: Dict = {
   wonIt: "{name} فاز، {a}–{b}.",
   burstPrompt: "{name}: ضع رقم الاندفاع.",
   legOneSwap: "الجولة 1: {n0} {a}، {n1} {b}. يتبادل الفريقان للجولة 2.",
+
+  tut_welcomeTitle: "لنلعب مباراة حقيقية",
+  tut_welcomeBody:
+    "هذه مباراة حيّة ضد أهدأ حاسوب. سأضيء كل جزء وأشرحه ونحن نتقدّم. يمكنك المغادرة في أي وقت بزر تخطّي.",
+  tut_poolTitle: "اختر فريقك",
+  tut_poolBody:
+    "في كل دور تطفو بضعة مخلوقات في البركة. المس واحدًا لأخذه إلى فريقك، ثم يأخذ الحاسوب واحدًا، بالتناوب حتى يصير لكل منكما تسعة. الاختيارات حصرية: ما إن يُؤخذ حتى يزول. المس مخلوقًا الآن.",
+  tut_rerollTitle: "تحديث المجموعة",
+  tut_rerollBody:
+    "لا يعجبك المعروض؟ هذا الزر الأخضر يُغرق المجموعة كلها ويستدعي مجموعة جديدة. لكنه يكلّف طاقة، وهذه الطاقة نفسها تشغّل قدراتك في المباراة، فكل تحديث يعني قدرة أقل لاحقًا.",
+  tut_energyTitle: "الطاقة مشتركة",
+  tut_energyBody:
+    "هذا بنك طاقتك. ما لا تنفقه على التحديث في الاختيار تحمله مباشرة إلى المباراة لاستخدام القدرات. من يختار باقتصاد تكون حيله أكثر.",
+  tut_trayTitle: "تشكيلتك",
+  tut_trayBody:
+    "اختياراتك تملأ هذا الشريط بالترتيب. الرقم الصغير تحت كل مخلوق هو الرقم المرتبط به: اختيارك الأول هو الرقم 1، والثاني هو 2، وهكذا حتى 9.",
+  tut_fillTitle: "أكمل فريقك",
+  tut_fillBody:
+    "الآن اختر البقية. استمر في لمس المخلوقات (الحاسوب يختار بينها) حتى تمتلئ خاناتك التسع. حدّث إن لم يناسبك شيء. عند اكتمال الفريق ستنتقل إلى شاشة التشكيلة تلقائيًا.",
+  tut_startTitle: "ابدأ المباراة",
+  tut_startBody:
+    "أنهى الحاسوب اختياره ومخلوقاتك التسعة مرتبطة بالأرقام من 1 إلى 9. المس ابدأ المباراة لدخول اللوحة.",
+  tut_boardTitle: "الشبكة",
+  tut_boardBody:
+    "تبدأ شبه فارغة. في دورك تضع رقمًا واحدًا في أي خانة فارغة. القاعدة الوحيدة: ألا يكون الرقم موجودًا في الصف نفسه أو العمود نفسه أو المربع 3x3 نفسه. لا حل خفي — إن كان قانونيًا فهو مسموح.",
+  tut_placeTitle: "ضع رقمًا",
+  tut_placeBody:
+    "الخانات المتوهّجة هي كل حركاتك القانونية الآن. المس واحدة لتضع فيها رقم مخلوقها وتستولي على تلك الخانة.",
+  tut_holdTitle: "احكم الأرض",
+  tut_holdBody:
+    "عندما تتجمّد اللوحة، يذهب كل صف وعمود ومربع لمن يملك أكثر خانات فيه. تعرض هذه اللوحة العدّ الحيّ. أكمل منطقة بنفسك فتُقفل لك مبكرًا مع مكافأة. أكثر مناطق يفوز بالمباراة.",
+  tut_abilityTitle: "أنفق الطاقة على القدرات",
+  tut_abilityBody:
+    "مخلوقاتك ليست مجرد أرقام. يمكنها القفز إلى خانة مجاورة، الوضع مرتين في دور، زرع لغم على الحاسوب إزالته، إزالة رقم متنازع عليه، أو الوضع متجاهلًا القواعد — كل ذلك بتكلفة طاقة. المس أحد أرقامك لرؤية خياراته.",
+  tut_teamTitle: "اعرف مخلوقاتك",
+  tut_teamBody:
+    "مخلوقاتك التسعة مدرجة هنا مع نوعها. بعضها ينام دورًا ثم يستيقظ ويستولي على منطقة تتقدّم فيها. وبعضها يخزّن طاقة أو يحمي منطقة. مرّر فوق أي منها، أو افتح دليل المخلوقات، لمعرفة الأثر الدقيق.",
+  tut_doneTitle: "هذه هي اللعبة كلها",
+  tut_doneBody:
+    "ضع أرقامًا قانونية، احكم أكثر الأرض، ووقّت قدراتك. أنهِ هذه المباراة للتمرّن، أو ارجع إلى القائمة متى شئت. حظًا موفقًا.",
 
   howToPlay: "كيفية اللعب",
   tut1Title: "اختر من البركة",

@@ -1767,6 +1767,162 @@ h1 {
   white-space: nowrap;
 }
 
+/* ---- interactive tutorial: spotlight coach-marks ---- */
+.coach {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+.coach-shade {
+  position: fixed;
+  background: rgba(16, 9, 26, 0.68);
+  backdrop-filter: blur(1px);
+  transition:
+    left 0.38s cubic-bezier(0.22, 0.7, 0.25, 1),
+    top 0.38s cubic-bezier(0.22, 0.7, 0.25, 1),
+    width 0.38s cubic-bezier(0.22, 0.7, 0.25, 1),
+    height 0.38s cubic-bezier(0.22, 0.7, 0.25, 1);
+}
+.coach-hole-block {
+  position: fixed;
+  background: transparent;
+  transition:
+    left 0.38s cubic-bezier(0.22, 0.7, 0.25, 1),
+    top 0.38s cubic-bezier(0.22, 0.7, 0.25, 1),
+    width 0.38s cubic-bezier(0.22, 0.7, 0.25, 1),
+    height 0.38s cubic-bezier(0.22, 0.7, 0.25, 1);
+}
+.coach-ring {
+  position: fixed;
+  border: 2.5px solid #ffd23f;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 3px rgba(255, 210, 63, 0.25),
+    0 0 24px rgba(255, 210, 63, 0.35);
+  pointer-events: none;
+  animation: coach-pulse 1.6s ease-in-out infinite;
+  transition:
+    left 0.4s cubic-bezier(0.22, 0.7, 0.25, 1),
+    top 0.4s cubic-bezier(0.22, 0.7, 0.25, 1),
+    width 0.4s cubic-bezier(0.22, 0.7, 0.25, 1),
+    height 0.4s cubic-bezier(0.22, 0.7, 0.25, 1);
+}
+@keyframes coach-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px rgba(255, 210, 63, 0.22),
+      0 0 22px rgba(255, 210, 63, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 0 7px rgba(255, 210, 63, 0.12),
+      0 0 34px rgba(255, 210, 63, 0.45);
+  }
+}
+.coach-pop {
+  position: fixed;
+  width: min(340px, calc(100vw - 32px));
+  background: var(--panel);
+  border: 2px solid var(--line-strong);
+  border-radius: 16px;
+  padding: 16px 16px 12px;
+  box-shadow: 0 18px 44px rgba(20, 10, 34, 0.4);
+  animation: coach-in 0.28s cubic-bezier(0.2, 0.8, 0.3, 1.1) both;
+}
+@keyframes coach-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+}
+.coach-pop-top::after,
+.coach-pop-bottom::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  margin-left: -8px;
+  border: 8px solid transparent;
+}
+.coach-pop-top::after {
+  top: -16px;
+  border-bottom-color: var(--panel);
+}
+.coach-pop-bottom::after {
+  bottom: -16px;
+  border-top-color: var(--panel);
+}
+.coach-step-n {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.coach-pop h3 {
+  margin: 4px 0 6px;
+  font-size: 17px;
+}
+.coach-pop p {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.coach-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.coach-next {
+  margin-left: auto;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(180deg, #a855f7, #7c3aed);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #5b21b6;
+}
+.coach-next:active {
+  transform: translateY(3px);
+  box-shadow: none;
+}
+.coach-skip {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.coach-wait {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent);
+  animation: coach-pulse-text 1.2s ease-in-out infinite;
+}
+@keyframes coach-pulse-text {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-ring,
+  .coach-shade,
+  .coach-wait {
+    animation: none;
+    transition: none;
+  }
+}
+
 /* account / sign-in block on the profile page */
 .auth-note {
   margin: 8px 0 0;
@@ -2306,15 +2462,25 @@ button {
   width: 34px;
   height: 34px;
   flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border: 2px solid var(--line-strong);
   background: #fff;
   color: var(--ink-soft);
   border-radius: 50%;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
-  transition: transform 0.1s ease, background 0.1s ease, color 0.1s ease;
+  transition: transform 0.13s ease, background 0.13s ease, color 0.13s ease;
+}
+.dex-close::before {
+  content: "\00d7";
+  display: block;
+  /* the multiplication sign sits a hair low in most fonts */
+  margin-top: -2px;
 }
 .dex-close:hover {
   background: var(--p1);
