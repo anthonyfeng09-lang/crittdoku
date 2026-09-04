@@ -1868,7 +1868,10 @@ h1 {
 /* ---- ON: the ~15s power-up. absolute timeline, one <div> per beat ---- */
 .tungfx-on {
   background: #07030f;
-  animation: tfx-shake 0.09s linear 0s 38, tfx-out 0.8s ease 14.2s forwards;
+  animation:
+    tfx-shake 0.09s linear 0s 38,
+    tfx-shake 0.07s linear 11.75s 7,
+    tfx-out 0.8s ease 14.2s forwards;
 }
 @keyframes tfx-shake {
   0%,
@@ -2167,23 +2170,28 @@ h1 {
   position: absolute;
   inset: 0;
   opacity: 0;
+  perspective: 900px;
   animation: tfx-vortex 7s cubic-bezier(0.3, 0, 0.4, 1) 3.5s both;
 }
 @keyframes tfx-vortex {
   0% {
     opacity: 0;
-    transform: scale(1.5) rotate(0deg);
+    transform: scale(1.6) rotateX(8deg) rotateZ(0deg);
   }
   8% {
     opacity: 1;
+    transform: scale(1.15) rotateX(20deg) rotateZ(120deg);
+  }
+  55% {
+    transform: scale(1) rotateX(52deg) rotateZ(560deg);
   }
   84% {
     opacity: 1;
-    transform: scale(0.95) rotate(880deg);
+    transform: scale(0.85) rotateX(64deg) rotateZ(980deg);
   }
   100% {
     opacity: 0;
-    transform: scale(0.04) rotate(1240deg);
+    transform: scale(0.04) rotateX(72deg) rotateZ(1320deg);
   }
 }
 .tfx-ring {
@@ -2279,14 +2287,21 @@ h1 {
     opacity: 0;
     transform: translate(-50%, -50%) scale(8) perspective(600px) rotateX(58deg);
   }
-  22% {
+  20% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(0.9) perspective(600px) rotateX(-9deg);
+    transform: translate(-50%, -50%) scale(0.86) perspective(600px) rotateX(-11deg);
+  }
+  26% {
+    /* landing kick */
+    transform: translate(-50%, -47%) scale(1.08) perspective(600px) rotateX(5deg);
+  }
+  30% {
+    transform: translate(-50%, -52%) scale(0.98) perspective(600px) rotateX(-2deg);
   }
   36% {
-    transform: translate(-50%, -50%) scale(1.05) perspective(600px) rotateX(4deg);
+    transform: translate(-50%, -50%) scale(1.02) perspective(600px) rotateX(1deg);
   }
-  50%,
+  46%,
   90% {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1) perspective(600px) rotateX(0);
