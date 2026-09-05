@@ -2511,8 +2511,23 @@ h1 {
   }
 }
 
-/* the champion: tumbles from far/tiny to near/huge, spinning on all three
-   axes, arms animated on their own joints the whole way down */
+/* the critter planet the ship is closing in on - sits in the depth layer
+   so it swings with the camera like everything else out there */
+.tfx3-planet {
+  position: absolute;
+  left: 66%;
+  top: 58%;
+  width: 150px;
+  height: 150px;
+  margin: -75px;
+  transform: translateZ(-220px);
+  filter: drop-shadow(0 0 40px rgba(80, 220, 140, 0.55));
+}
+
+/* the tungs' ship: flies in from far/tiny, banks through space, and settles
+   near the planet to take aim. the pilot's raygun arm is animated
+   separately (see the rig-idle and rig-aim keyframes below) so it reads
+   as one machine */
 .tfx3-hero {
   position: absolute;
   left: 50%;
@@ -2520,30 +2535,44 @@ h1 {
   z-index: 3;
   transform-style: preserve-3d;
   filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.55));
-  animation: tfx3-hero-fall 5s cubic-bezier(0.5, 0, 0.4, 1) both;
+  animation: tfx3-ship-fly 5s cubic-bezier(0.5, 0, 0.4, 1) both;
 }
-@keyframes tfx3-hero-fall {
+@keyframes tfx3-ship-fly {
   0% {
-    transform: translate3d(-16vw, -46vh, -560px) scale(0.4) rotateZ(-30deg) rotateX(24deg);
+    transform: translate3d(-30vw, -40vh, -640px) scale(0.35) rotateZ(-18deg) rotateY(30deg) rotateX(10deg);
     opacity: 0;
   }
   8% {
     opacity: 1;
   }
-  30% {
-    transform: translate3d(10vw, -24vh, -360px) scale(0.6) rotateZ(55deg) rotateX(-16deg);
+  32% {
+    transform: translate3d(-6vw, -18vh, -380px) scale(0.62) rotateZ(10deg) rotateY(-14deg) rotateX(-4deg);
   }
-  55% {
-    transform: translate3d(-12vw, 2vh, -170px) scale(0.85) rotateZ(-45deg) rotateX(12deg);
+  58% {
+    transform: translate3d(-16vw, -2vh, -190px) scale(0.85) rotateZ(-8deg) rotateY(8deg) rotateX(2deg);
   }
-  78% {
-    transform: translate3d(5vw, 20vh, -30px) scale(1.08) rotateZ(18deg) rotateX(-6deg);
+  80% {
+    transform: translate3d(-8vw, 6vh, -60px) scale(1.05) rotateZ(4deg) rotateY(-3deg) rotateX(0deg);
   }
   92%,
   100% {
-    transform: translate3d(0vw, 30vh, 40px) scale(1.35) rotateZ(0deg) rotateX(0deg);
+    transform: translate3d(-6vw, 8vh, 10px) scale(1.15) rotateZ(0deg) rotateY(0deg) rotateX(0deg);
     opacity: 1;
   }
+}
+.tfx3-ship-body {
+  position: relative;
+  z-index: 1;
+  width: 210px;
+  height: auto;
+  display: block;
+}
+.tfx3-pilot {
+  position: absolute;
+  left: 50%;
+  top: -58px;
+  z-index: 2;
+  transform: translateX(-50%);
 }
 .tfx3-trail {
   position: absolute;
@@ -2575,108 +2604,120 @@ h1 {
   }
 }
 
-/* the rig's joints - shoulders and elbows rotate on their own timeline,
-   flailing through the tumble and snapping into a brace right on impact */
+/* the shot: fires from the raygun toward the planet right as the arm
+   finishes its aim */
+.tfx3-beam {
+  position: absolute;
+  left: 66%;
+  top: 26px;
+  width: 12px;
+  height: 0;
+  margin-left: -6px;
+  transform-origin: top center;
+  transform: rotate(38deg);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff, #9dffef 45%, #20e0ff);
+  box-shadow: 0 0 22px 6px rgba(80, 230, 255, 0.75);
+  opacity: 0;
+  z-index: 4;
+  animation: tfx3-beam-fire 5s steps(1, end) both;
+}
+@keyframes tfx3-beam-fire {
+  0%,
+  85% {
+    opacity: 0;
+    height: 0;
+  }
+  87% {
+    opacity: 1;
+    height: 280px;
+  }
+  93% {
+    opacity: 1;
+    height: 300px;
+  }
+  100% {
+    opacity: 0;
+    height: 300px;
+  }
+}
+
+/* the rig's joints - the left arm just steadies on the rail, the right
+   arm (and its raygun) raises to aim through the flight and kicks with
+   the recoil right as it fires */
 .rig-arm-l {
-  animation: rig-flail-arm-l 5s ease-in-out both;
+  animation: rig-idle-arm-l 5s ease-in-out both;
 }
 .rig-arm-r {
-  animation: rig-flail-arm-r 5s ease-in-out both;
+  animation: rig-aim-arm-r 5s ease-in-out both;
 }
 .rig-forearm-l {
-  animation: rig-flail-forearm-l 5s ease-in-out both;
+  animation: rig-idle-forearm-l 5s ease-in-out both;
 }
 .rig-forearm-r {
-  animation: rig-flail-forearm-r 5s ease-in-out both;
+  animation: rig-aim-forearm-r 5s ease-in-out both;
 }
-@keyframes rig-flail-arm-l {
+@keyframes rig-idle-arm-l {
   0% {
-    transform: rotate(-10deg);
-  }
-  15% {
-    transform: rotate(-60deg);
-  }
-  32% {
-    transform: rotate(20deg);
-  }
-  50% {
-    transform: rotate(-50deg);
-  }
-  68% {
-    transform: rotate(25deg);
-  }
-  84% {
-    transform: rotate(-75deg);
-  }
-  100% {
-    transform: rotate(-100deg);
-  }
-}
-@keyframes rig-flail-arm-r {
-  0% {
-    transform: rotate(10deg);
-  }
-  15% {
-    transform: rotate(55deg);
-  }
-  32% {
-    transform: rotate(-25deg);
-  }
-  50% {
-    transform: rotate(45deg);
-  }
-  68% {
-    transform: rotate(-30deg);
-  }
-  84% {
-    transform: rotate(65deg);
-  }
-  100% {
-    transform: rotate(100deg);
-  }
-}
-@keyframes rig-flail-forearm-l {
-  0%,
-  100% {
     transform: rotate(-8deg);
   }
-  20% {
-    transform: rotate(-40deg);
-  }
   40% {
-    transform: rotate(28deg);
+    transform: rotate(-17deg);
   }
-  60% {
-    transform: rotate(-32deg);
+  70% {
+    transform: rotate(-10deg);
   }
-  80% {
-    transform: rotate(18deg);
-  }
-  92%,
   100% {
     transform: rotate(-14deg);
   }
 }
-@keyframes rig-flail-forearm-r {
+@keyframes rig-idle-forearm-l {
   0%,
   100% {
-    transform: rotate(8deg);
+    transform: rotate(-6deg);
   }
-  20% {
-    transform: rotate(38deg);
+  50% {
+    transform: rotate(5deg);
   }
-  40% {
-    transform: rotate(-28deg);
+}
+@keyframes rig-aim-arm-r {
+  0% {
+    transform: rotate(28deg);
   }
-  60% {
-    transform: rotate(34deg);
+  55% {
+    transform: rotate(16deg);
   }
-  80% {
-    transform: rotate(-18deg);
+  75% {
+    transform: rotate(-55deg);
   }
-  92%,
+  87% {
+    transform: rotate(-78deg);
+  }
+  93% {
+    transform: rotate(-60deg);
+  }
   100% {
+    transform: rotate(-65deg);
+  }
+}
+@keyframes rig-aim-forearm-r {
+  0% {
+    transform: rotate(22deg);
+  }
+  55% {
+    transform: rotate(12deg);
+  }
+  75% {
+    transform: rotate(-4deg);
+  }
+  87% {
     transform: rotate(14deg);
+  }
+  93% {
+    transform: rotate(-3deg);
+  }
+  100% {
+    transform: rotate(2deg);
   }
 }
 
@@ -2690,8 +2731,8 @@ h1 {
 }
 .tfx2-punch-shock {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 66%;
+  top: 58%;
   width: 34px;
   height: 34px;
   margin: -17px;
@@ -2708,8 +2749,8 @@ h1 {
 /* the impact card: a manga-panel starburst + onomatopoeia for one hard beat */
 .tfx2-impact-card {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 66%;
+  top: 58%;
   width: 240px;
   height: 240px;
   margin-left: -120px;
@@ -2773,8 +2814,8 @@ h1 {
    split on the flash - the closest plain CSS gets to a hit-frame glitch */
 .tfx2-impact-lines {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 66%;
+  top: 58%;
   width: 0;
   height: 0;
   opacity: 0;

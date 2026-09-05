@@ -5,22 +5,22 @@ import { Tung } from "./TungCritter";
 import { HeroRig } from "./HeroRig";
 import { TungContext } from "./tungContext";
 
-/* The toggle spectacle.
+/* The toggle spectacle - now with an actual reason things turn into tungs.
  *
- *  "on"  - a tight ~16s cinematic, all the weight on one shot: a champion
- *          tumbles out of the sky in true CSS 3D (perspective + preserve-3d,
- *          the "camera" itself swooping in rotateY/rotateX around the fall)
- *          with its arms swinging on real shoulder/elbow joints the whole
- *          way down (see HeroRig + the .rig-* keyframes), trailed by a
- *          comet streak. The landing is sold with a genuine hit-stop (every
- *          animation on the page pauses for a beat, fighting-game style),
- *          an afterimage-style flash, a manga-panel impact card and a
- *          chromatic-split flash. Then the old world's name cracks apart,
- *          a ring of critters spin and morph into tungs one by one, and
- *          TUNG3DOKU slams in. A Skip button is up the whole time. Pure CSS
- *          timelines (animation-delay per element) plus one Web Animations
- *          pause/resume for the hit-stop; one timeout fires onDone, or Skip
- *          fires it early.
+ *  "on"  - a tight ~16s cinematic: a tung ship closes in on the critter
+ *          planet through true CSS 3D (perspective + preserve-3d, the
+ *          "camera" itself swooping in rotateY/rotateX around the flight),
+ *          its pilot's raygun arm raising and firing on real shoulder/elbow
+ *          joints (see HeroRig and the rig-idle and rig-aim keyframes),
+ *          trailed by a comet streak. The shot lands sold with a genuine
+ *          hit-stop (every animation on the page pauses for a beat,
+ *          fighting-game style), a screen flash, a manga-panel "ZAP!" card
+ *          and a chromatic-split flash. That's the spark: the old world's
+ *          name cracks apart, a ring of critters spin and morph into tungs
+ *          one by one, and TUNG3DOKU slams in. A Skip button is up the
+ *          whole time. Pure CSS timelines (animation-delay per element)
+ *          plus one Web Animations pause/resume for the hit-stop; one
+ *          timeout fires onDone, or Skip fires it early.
  *  "off" - a ~3s brush stroke paints CRITTDOKU back over TUNGDOKU, then a
  *          wipe clears to the normal skin.
  *
@@ -166,11 +166,55 @@ export function TungFX({
                 }
               />
             ))}
+
+            {/* the critter planet, waiting out there in the dark */}
+            <div className="tfx3-planet">
+              <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
+                <defs>
+                  <radialGradient id="tfx3-planet-grad" cx="35%" cy="30%" r="75%">
+                    <stop offset="0%" stopColor="#eafff0" />
+                    <stop offset="35%" stopColor="#7be0a8" />
+                    <stop offset="70%" stopColor="#2f9e6b" />
+                    <stop offset="100%" stopColor="#146b46" />
+                  </radialGradient>
+                </defs>
+                <circle cx="50" cy="50" r="47" fill="url(#tfx3-planet-grad)" stroke="#0d3d28" strokeWidth="2" />
+                <path
+                  d="M18 34q16 -11 32 -1t26 14"
+                  stroke="#146b46"
+                  strokeWidth="6"
+                  fill="none"
+                  opacity="0.55"
+                  strokeLinecap="round"
+                />
+                <ellipse cx="62" cy="70" rx="18" ry="8" fill="#146b46" opacity="0.4" />
+                <ellipse cx="28" cy="66" rx="10" ry="6" fill="#146b46" opacity="0.35" />
+              </svg>
+            </div>
           </div>
 
+          {/* the tungs' ship, closing in on it */}
           <div className="tfx3-hero">
             <div className="tfx3-trail" />
-            <HeroRig size={130} />
+            <svg className="tfx3-ship-body" viewBox="0 0 200 100" aria-hidden="true">
+              <defs>
+                <linearGradient id="tfx3-hull-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#d8b483" />
+                  <stop offset="1" stopColor="#7c4f28" />
+                </linearGradient>
+              </defs>
+              <ellipse cx="100" cy="72" rx="95" ry="24" fill="url(#tfx3-hull-grad)" stroke="#241b2e" strokeWidth="3" />
+              <circle cx="30" cy="72" r="5" fill="#ffd23f" />
+              <circle cx="60" cy="80" r="5" fill="#7fffea" />
+              <circle cx="140" cy="80" r="5" fill="#ffd23f" />
+              <circle cx="170" cy="72" r="5" fill="#7fffea" />
+              <ellipse cx="100" cy="58" rx="52" ry="15" fill="#3a2a1c" stroke="#241b2e" strokeWidth="2.4" />
+              <ellipse cx="100" cy="44" rx="40" ry="28" fill="#bfe9ff" opacity="0.5" stroke="#241b2e" strokeWidth="2.4" />
+            </svg>
+            <div className="tfx3-pilot">
+              <HeroRig size={104} />
+            </div>
+            <div className="tfx3-beam" />
           </div>
         </div>
       </div>
@@ -186,7 +230,7 @@ export function TungFX({
       <div className="tfx2-punch-shock" />
       <div className="tfx2-punch-shock tfx2-punch-shock-b" />
       <div className="tfx2-impact-card">
-        <span>SMASH</span>
+        <span>ZAP!</span>
       </div>
 
       {/* ============ transition: the old name cracks apart ============ */}
