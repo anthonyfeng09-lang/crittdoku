@@ -2,45 +2,38 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { ALL_CREATURES } from "../engine";
 import { Critter } from "./Critter";
 import { Tung } from "./TungCritter";
+import { HeroRig } from "./HeroRig";
 import { TungContext } from "./tungContext";
 
 /* The toggle spectacle.
  *
- *  "on"  - a ~48s cinematic in five acts: a rift opens and tungs drop out of
- *          it (Invasion); a champion tung hops platform to platform across
- *          the sky and lands a flying punch on a fleeing critter (the
- *          Ultimate, styled after a fighting-game finisher); the old world's
- *          name cracks apart (transition); a ring of critters spin and
- *          morph into tungs one by one (Conversion); TUNG3DOKU slams in
- *          (Victory). A Skip button is up the whole time. Pure CSS
- *          timelines (animation-delay per element) so it stays smooth; one
- *          timeout fires onDone, or Skip fires it early.
+ *  "on"  - a tight ~16s cinematic, all the weight on one shot: a champion
+ *          tumbles out of the sky in true CSS 3D (perspective + preserve-3d,
+ *          the "camera" itself swooping in rotateY/rotateX around the fall)
+ *          with its arms swinging on real shoulder/elbow joints the whole
+ *          way down (see HeroRig + the .rig-* keyframes), trailed by a
+ *          comet streak. The landing is sold with a genuine hit-stop (every
+ *          animation on the page pauses for a beat, fighting-game style),
+ *          an afterimage-style flash, a manga-panel impact card and a
+ *          chromatic-split flash. Then the old world's name cracks apart,
+ *          a ring of critters spin and morph into tungs one by one, and
+ *          TUNG3DOKU slams in. A Skip button is up the whole time. Pure CSS
+ *          timelines (animation-delay per element) plus one Web Animations
+ *          pause/resume for the hit-stop; one timeout fires onDone, or Skip
+ *          fires it early.
  *  "off" - a ~3s brush stroke paints CRITTDOKU back over TUNGDOKU, then a
  *          wipe clears to the normal skin.
  *
- * The ring/drops/victim pull from ALL_CREATURES, so more critters just means
- * more variety - nothing here needs touching. */
+ * The ring pulls from ALL_CREATURES, so more critters just means a fuller
+ * conversion ring - nothing here needs touching. */
 
 const RING_N = 12;
-const DROP_N = 6;
-const ON_TOTAL = 48500;
-// act boundaries, ms: invasion / the ultimate / transition+banners / conversion / victory
-const MARKS = [0, 10000, 30000, 37000, 44000];
-const CAPTIONS = [
-  "Somewhere, the tungs stirred — and fell from the sky.",
-  "One rose above the rest, and struck like nothing they'd seen.",
-  "The critters' world lay open.",
-  "One by one, everything changed.",
-  "",
-];
-
-const PLATFORMS = [
-  { x: 10, y: 16, w: 116 },
-  { x: 28, y: 34, w: 102 },
-  { x: 50, y: 50, w: 102 },
-  { x: 72, y: 36, w: 102 },
-  { x: 90, y: 20, w: 116 },
-];
+const ON_TOTAL = 15650;
+const HIT_STOP_AT = 4500; // ms - the instant the fist connects
+const HIT_STOP_MS = 180; // how long the whole timeline freezes for
+// phase boundaries, ms: the dive / the crack / the conversion / the reveal
+const MARKS = [0, 5000, 7200, 11200];
+const CAPTIONS = ["", "", "One by one, everything changed.", ""];
 
 export function TungFX({
   mode,
@@ -76,6 +69,40 @@ export function TungFX({
     };
   }, [mode]);
 
+  // the hit-stop: freeze every running animation on the punch frame, hold
+  // it a beat, then let go - the whole screen flinches with the impact
+  // instead of just one sprite reacting to it
+  useEffect(() => {
+    if (mode !== "on") return;
+    let held: Animation[] = [];
+    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+    const pauseTimer = setTimeout(() => {
+      held = document.getAnimations().filter((a) => a.playState === "running");
+      held.forEach((a) => a.pause());
+      resumeTimer = setTimeout(() => {
+        held.forEach((a) => {
+          try {
+            a.play();
+          } catch {
+            /* animation may have been cleaned up already */
+          }
+        });
+        held = [];
+      }, HIT_STOP_MS);
+    }, HIT_STOP_AT);
+    return () => {
+      clearTimeout(pauseTimer);
+      if (resumeTimer) clearTimeout(resumeTimer);
+      held.forEach((a) => {
+        try {
+          a.play();
+        } catch {
+          /* ignore */
+        }
+      });
+    };
+  }, [mode]);
+
   const skip = () => doneCb.current();
 
   if (mode === "off") {
@@ -105,74 +132,78 @@ export function TungFX({
       {/* a dark backdrop for the whole cinematic */}
       <div className="tfx-void" />
 
-      {/* ============ ACT I: INVASION - a rift opens, tungs drop ============
-          ACT II: THE ULTIMATE - platforms rise, the champion hops and hits
-          ACT III: the world settles, banners rise, ready for what's next */}
-      <div className="tfx2-arena">
-        <div className="tfx2-portal" />
+      {/* ============ THE DIVE: true 3D, camera swooping, joints moving ============ */}
+      <div className="tfx3-perspective">
+        <div className="tfx3-scene">
+          <div className="tfx3-depth" aria-hidden="true">
+            {Array.from({ length: 26 }, (_, i) => {
+              const depths = [-500, -380, -260, -140];
+              return (
+                <span
+                  key={i}
+                  className="tfx3-star"
+                  style={
+                    {
+                      left: `${(i * 37) % 100}%`,
+                      top: `${(i * 53) % 100}%`,
+                      transform: `translateZ(${depths[i % depths.length]}px)`,
+                    } as CSSProperties
+                  }
+                />
+              );
+            })}
+            {Array.from({ length: 10 }, (_, i) => (
+              <span
+                key={i}
+                className="tfx3-streak"
+                style={
+                  {
+                    left: `${6 + i * 9.5}%`,
+                    height: `${18 + (i % 3) * 6}vh`,
+                    transform: `translateZ(${-460 + (i % 4) * 80}px)`,
+                    animationDelay: `${(i * 0.31) % 1.6}s`,
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </div>
 
-        {Array.from({ length: DROP_N }, (_, i) => {
-          const fallDelay = 1.4 + i * 0.55;
-          return (
-            <div
-              key={i}
-              className="tfx2-drop"
-              style={{ left: `${9 + i * 16}%`, animationDelay: `${fallDelay}s` }}
-            >
-              <Tung id={ring[i % ring.length] as never} size={50} />
-              <span className="tfx2-land" style={{ animationDelay: `${fallDelay + 1.3}s` }} />
-            </div>
-          );
-        })}
+          <div className="tfx3-hero">
+            <div className="tfx3-trail" />
+            <HeroRig size={130} />
+          </div>
+        </div>
+      </div>
 
-        {PLATFORMS.map((p, i) => (
-          <div
-            key={i}
-            className="tfx2-plat"
-            style={
-              {
-                left: `${p.x}%`,
-                bottom: `${p.y}%`,
-                width: p.w,
-                animationDelay: `${10 + i * 0.14}s`,
-              } as CSSProperties
-            }
-          />
+      <div className="tfx2-impact-lines" aria-hidden="true">
+        {Array.from({ length: 16 }, (_, i) => (
+          <span key={i} style={{ "--a": `${(360 / 16) * i}deg` } as CSSProperties} />
         ))}
-
-        <div className="tfx2-victim">
-          <TungContext.Provider value={false}>
-            <Critter id={ring[3] as never} size={70} noTung />
-          </TungContext.Provider>
-        </div>
-
-        <div className="tfx2-hero">
-          <Tung id={ring[0] as never} size={92} />
-        </div>
-
-        <div className="tfx2-punch-flash" />
-        <div className="tfx2-punch-shock" />
-        <div className="tfx2-punch-shock tfx2-punch-shock-b" />
-
-        <div className="tfx2-banner tfx2-banner-l" />
-        <div className="tfx2-banner tfx2-banner-r" />
+      </div>
+      <div className="tfx2-punch-flash" />
+      <div className="tfx2-chroma tfx2-chroma-r" />
+      <div className="tfx2-chroma tfx2-chroma-c" />
+      <div className="tfx2-punch-shock" />
+      <div className="tfx2-punch-shock tfx2-punch-shock-b" />
+      <div className="tfx2-impact-card">
+        <span>SMASH</span>
       </div>
 
       {/* ============ transition: the old name cracks apart ============ */}
-      <div className="tfx-flash" style={{ animationDelay: "36.75s" }} />
+      <div className="tfx-flash" style={{ animationDelay: "7.05s" }} />
       {Array.from({ length: 3 }, (_, i) => (
-        <div key={i} className="tfx-shock" style={{ animationDelay: `${36.8 + i * 0.14}s` }} />
+        <div key={i} className="tfx-shock" style={{ animationDelay: `${7.1 + i * 0.14}s` }} />
       ))}
-      <div className="tfx-speed" style={{ animationDelay: "36.8s" }} aria-hidden="true">
+      <div className="tfx-speed" style={{ animationDelay: "7.1s" }} aria-hidden="true">
         {Array.from({ length: 18 }, (_, i) => (
           <span key={i} style={{ "--a": `${(360 / 18) * i}deg` } as CSSProperties} />
         ))}
       </div>
-      <div className="tfx-shatter" style={{ animationDelay: "35.5s" }}>
+      <div className="tfx-shatter" style={{ animationDelay: "5.9s" }}>
         CRITTDOKU
       </div>
 
-      {/* ============ ACT IV: CONVERSION - a ring of critters morph ============ */}
+      {/* ============ CONVERSION - a ring of critters morph ============ */}
       <div className="tfx-vortex">
         <div className="tfx-ring">
           {ring.map((id, i) => (
@@ -183,7 +214,7 @@ export function TungFX({
                 {
                   "--i": i,
                   "--n": RING_N,
-                  animationDelay: `${37.6 + i * 0.42}s`,
+                  animationDelay: `${7.5 + i * 0.27}s`,
                 } as CSSProperties
               }
             >
@@ -202,7 +233,7 @@ export function TungFX({
         </div>
       </div>
 
-      {/* ============ ACT V: VICTORY - the reveal ============ */}
+      {/* ============ VICTORY - the reveal ============ */}
       <div className="tfx-pop" />
       <div className="tfx-wordmark">
         TUNG<sup>3</sup>DOKU
@@ -215,7 +246,7 @@ export function TungFX({
               {
                 left: `${5 + Math.random() * 90}%`,
                 "--r": `${(Math.random() - 0.5) * 720}deg`,
-                animationDelay: `${44.4 + Math.random() * 0.8}s`,
+                animationDelay: `${11.4 + Math.random() * 0.8}s`,
               } as CSSProperties
             }
           >
@@ -224,7 +255,7 @@ export function TungFX({
         ))}
       </div>
 
-      {phase < 4 && CAPTIONS[phase] && (
+      {phase < 3 && CAPTIONS[phase] && (
         <div key={phase} className="tfx2-caption">
           {CAPTIONS[phase]}
         </div>
