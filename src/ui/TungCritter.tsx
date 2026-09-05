@@ -1,53 +1,66 @@
 import { CATEGORIES, ROSTER, type CreatureId, creaturesByCategory } from "../engine";
 import { tungStyle, type TungStyle } from "./tung";
 
-/* A "tung tung tung sahur": a stubby wooden-bat body, twig limbs, a big goofy
- * face, always a bit wrong in the proportions. One family, but every critter
- * gets its own silhouette - body shape, arm pose, leg pose, mouth, head tilt,
- * skew, scale, flip - plus its own prop / hat / held object, so no two read
- * alike. The critter's type still tints the scarf so you can tell them apart. */
+/* A "tung tung tung sahur": the real meme is a narrow wooden log/bat with a
+ * face carved near the top, not a round mascot blob - so every body variant
+ * here is some version of that same straight-sided capsule (a kentongan
+ * slit-drum beater), varying only in how wide, tall or gently bent it is,
+ * plus twig limbs and a big goofy face. One family, and every critter still
+ * gets its own pose - arm pose, leg pose, mouth, head tilt, skew, scale,
+ * flip - plus its own prop / hat / held object, so no two read alike, but
+ * the silhouette itself always reads as the same wooden bat. The critter's
+ * type still tints the scarf so you can tell them apart. */
 
 const WOOD_D = "#7c4f28";
 const WOOD_L = "#d8b483";
 const INK = "#241b2e";
 
-/* ---- bodies: silhouette + where the face sits + top-of-head y ---- */
+/* ---- bodies: silhouette + where the face sits + top-of-head y ----
+ * all six are the same straight-sided capsule at heart (two round caps,
+ * flat sides), just at different widths/heights, so the family always
+ * reads as "wooden bat" first and "different shape" second. */
 const BODY: Record<string, { d: string; fx: number; fy: number; topY: number }> = {
   fat: {
-    d: "M40 30C38 14 50 6 60 6s22 8 20 24c-2 12 6 34 6 58 0 22-12 34-26 34S38 108 38 86c0-24 4-42 2-56Z",
+    // a slightly thick, medium-tall bat
+    d: "M38 28a22 22 0 0 1 44 0L82 96a22 22 0 0 1 -44 0Z",
     fx: 60,
-    fy: 50,
-    topY: 8,
-  },
-  tall: {
-    d: "M48 20C47 8 54 2 60 2s13 6 12 18c-1 16 5 44 5 74 0 18-8 28-17 28s-17-10-17-28c0-30 1-56 0-74Z",
-    fx: 60,
-    fy: 46,
-    topY: 4,
-  },
-  lumpy: {
-    d: "M40 34C36 18 50 6 62 8c10 2 16 12 15 24 7 4 6 20-1 25 7 7 6 22-1 28 5 10-1 25-15 25-12 0-19-12-19-25 4-7 1-17-3-21 6-7 6-21-1-27-3-6 6-4 6-8 1-8 15-9 18-4Z",
-    fx: 60,
-    fy: 44,
-    topY: 8,
-  },
-  crook: {
-    d: "M44 30C40 14 52 4 62 6s20 12 15 26c-4 12-15 22-13 39 2 16 14 24 12 40-2 14-16 21-27 15-9-6-9-19-3-29 8-14 20-21 18-39-1-14-14-19-14-27Z",
-    fx: 62,
-    fy: 42,
+    fy: 34,
     topY: 6,
   },
-  peanut: {
-    d: "M42 26C40 12 50 4 60 4s20 8 18 22c-1 8-6 14-6 22 0 6 6 12 7 22 2 16-6 32-19 32S39 90 41 74c1-10 7-16 7-22 0-8-5-14-6-22Z",
+  tall: {
+    // the narrowest, tallest bat - closest to the real thing
+    d: "M44 18a16 16 0 0 1 32 0L76 112a16 16 0 0 1 -32 0Z",
     fx: 60,
-    fy: 42,
+    fy: 32,
+    topY: 2,
+  },
+  lumpy: {
+    // a mild barrel: swells a little through the middle, tapers at both ends
+    d: "M42 26C40 14 50 6 60 6s20 8 18 20c5 12 5 26 0 38 5 12 5 26 0 38-2 12-12 20-18 20s-16-8-18-20c-5-12-5-26 0-38-5-12-5-26 0-38Z",
+    fx: 60,
+    fy: 32,
+    topY: 4,
+  },
+  crook: {
+    // a gentle S-bend, like a length of wood with some grain to it
+    d: "M46 26C44 12 52 4 60 4s16 8 14 22c-2 10-8 16-6 30 2 16 10 22 8 38-2 14-12 22-22 22s-18-10-16-24c2-14 8-20 6-34-2-14-8-20-8-30Z",
+    fx: 61,
+    fy: 32,
+    topY: 4,
+  },
+  peanut: {
+    // a light waist pinch, like a grip carved into the handle
+    d: "M42 26a18 18 0 0 1 36 0c1 10-5 14-5 22s6 12 5 22a18 18 0 0 1 -36 0c-1-10 5-14 5-22s-6-12-5-22Z",
+    fx: 60,
+    fy: 32,
     topY: 6,
   },
   chonk: {
-    d: "M32 46C32 22 43 8 60 8s28 14 28 38c0 24-11 40-28 40S32 70 32 46Z",
+    // the shortest, thickest bat - still a capsule, never a circle
+    d: "M35 39a25 25 0 0 1 50 0L85 83a25 25 0 0 1 -50 0Z",
     fx: 60,
-    fy: 44,
-    topY: 10,
+    fy: 38,
+    topY: 12,
   },
 };
 

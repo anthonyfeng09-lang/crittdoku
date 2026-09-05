@@ -2604,17 +2604,23 @@ h1 {
   }
 }
 
-/* the shot: fires from the raygun toward the planet right as the arm
-   finishes its aim */
+/* the shot: fires from the ship toward the planet right as the arm
+   finishes its aim. Positioned by the ship's and planet's actual measured
+   resting screen positions (not nested inside the ship's own 3D transform,
+   which would have made the true firing angle unpredictable) - the ship
+   settles around (58%, 66%) of the scene and the planet sits at (66%,
+   58%), i.e. up and to the right, so the beam points that way: a bar
+   growing "down" by default needs roughly a 215deg turn to end up
+   pointing up-right instead of down-right. */
 .tfx3-beam {
   position: absolute;
-  left: 66%;
-  top: 26px;
+  left: 58%;
+  top: 66%;
   width: 12px;
   height: 0;
   margin-left: -6px;
   transform-origin: top center;
-  transform: rotate(38deg);
+  transform: rotate(215deg);
   border-radius: 8px;
   background: linear-gradient(180deg, #fff, #9dffef 45%, #20e0ff);
   box-shadow: 0 0 22px 6px rgba(80, 230, 255, 0.75);
@@ -2630,15 +2636,15 @@ h1 {
   }
   87% {
     opacity: 1;
-    height: 280px;
+    height: 140px;
   }
   93% {
     opacity: 1;
-    height: 300px;
+    height: 150px;
   }
   100% {
     opacity: 0;
-    height: 300px;
+    height: 150px;
   }
 }
 

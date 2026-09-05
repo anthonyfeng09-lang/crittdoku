@@ -214,8 +214,8 @@ export function TungFX({
             <div className="tfx3-pilot">
               <HeroRig size={104} />
             </div>
-            <div className="tfx3-beam" />
           </div>
+          <div className="tfx3-beam" />
         </div>
       </div>
 
